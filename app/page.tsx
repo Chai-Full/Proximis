@@ -40,12 +40,12 @@ export default function Home() {
   
   return (
     <Box sx={{ maxWidth: 400, mx: 'auto', mt: 4, p: 2 }}>
-      <Typography variant="h6" gutterBottom>Se connecter avec votre e-mail</Typography>
+      <Typography variant="h6" gutterBottom>Se connecter</Typography>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <TextField fullWidth label="E-mail" type="email" {...register("email", {required: true})} error={!!errors.email} helperText={errors.email ? "Ce champ est obligatoire" : ""} sx={{ mb: 2 }} />
-        <Button fullWidth variant="contained" type="submit">Envoyer le lien magique</Button>
+        <TextField fullWidth variant="filled" label="E-mail" type="email" {...register("email", {required: true})} error={!!errors.email} helperText={errors.email ? "Ce champ est obligatoire" : ""} sx={{ mb: 2 }} />
+        <Button fullWidth variant="contained" type="submit">Recevoir le lien de connexion</Button>
         <Link href="/register" style={{ display: 'block', marginTop: '16px', textAlign: 'center', color: '#1976d2', textDecoration: 'none', }}>
-          Pas encore de compte ? Inscrivez-vous
+          Pas encore de compte ?
         </Link>
       </form>
     </Box>

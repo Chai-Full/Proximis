@@ -1,0 +1,118 @@
+.container {
+  height: 100dvh;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: Poppins, sans-serif;
+}
+
+.head {
+  background: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+  flex-shrink: 0; /* Fixe la taille de l'en-tête */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  font-family: var(--font-league-spartan);
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.title {
+  font-size: 1,5rem;
+  color: var(--white);
+}
+
+.mainContent {
+    flex: 1 1 auto;
+    margin-top: 60px; /* hauteur de l'entête */
+    margin-bottom: 60px; /* hauteur bottom bar */
+    overflow-y: auto;
+    padding: 16px;
+    background: var(--background);
+}
+
+.bottomBar {
+  height: 60px;
+  background: var(--background);
+  border-top: 1px solid #ddd;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  box-shadow: 0 -1px 4px 0 rgba(0, 0, 0, 0.25);
+}
+
+.navItem {
+  text-decoration: none;
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.navItem.active {
+  color: var(--primary);
+}
+
+.navLink {
+  font-size: 11px;
+}
+
+.homeContainer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 25px;
+}
+
+.homeRedirectItem {
+    border-radius: 15px;
+    border: 1px solid var(--primary);
+    aspect-ratio: 164 / 122;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1 1 45%;
+    color: var(--secondary);
+}
+
+.homeRedirectItem:hover{
+  cursor: pointer;
+  background-color: var(--primary)/10;
+}
+
+
+.slider {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  gap: 10px;
+  padding: 10px;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Internet Explorer et Edge */
+}
+
+.slider::-webkit-scrollbar {
+  display: none; /* Chrome, Safari et Opera */
+}
+
+.slide {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  cursor: pointer;
+}
+
+.slide img {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+}
