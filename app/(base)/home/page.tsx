@@ -6,7 +6,7 @@ import TextSnippetIcon from '@mui/icons-material/TextSnippet';
 import PermIdentityIcon from '@mui/icons-material/PermIdentity';
 import Image from 'next/image';
 
-export default function Home() {
+export default function HomeContent() {
     const navItems = [
         { id: "home", label: "Accueil", icon: HomeIcon, href: "/" },
         { id: "messages", label: "Messages", icon: MailOutlineIcon, href: "/messages" },
