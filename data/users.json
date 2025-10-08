@@ -1,0 +1,31 @@
+{
+  "users": [
+    {
+      "nom": "Tatchum",
+      "prenom": "Georges",
+      "type": "client",
+      "adresse": "Chem. de Gramont",
+      "codePostal": "31200",
+      "pays": "France",
+      "email": "georges363@icloud.com"
+    },
+    {
+      "nom": "Tatchum",
+      "prenom": "Georges",
+      "type": "client",
+      "adresse": "",
+      "codePostal": "07300",
+      "pays": "France",
+      "email": "georgestatchum363@gmail.com"
+    },
+    {
+      "nom": "Tatchum",
+      "prenom": "Georges",
+      "type": "prestataire",
+      "adresse": "Rue de Rivoli",
+      "codePostal": "75001",
+      "pays": "France",
+      "email": "georges363+1@icloud.com"
+    }
+  ]
+}
