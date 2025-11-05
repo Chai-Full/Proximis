@@ -1,0 +1,41 @@
+type User @table {
+  displayName: String!
+  email: String!
+  createdAt: Timestamp!
+  photoUrl: String
+  bio: String
+  location: String
+}
+
+type Event @table {
+  name: String!
+  date: Date!
+  time: String!
+  location: Location!
+  creator: User!
+  createdAt: Timestamp!
+  description: String
+  imageUrl: String
+  isPublic: Boolean
+}
+
+type Invitation @table(key: ["event", "invitee"]) {
+  event: Event!
+  invitee: User!
+  status: String!
+  createdAt: Timestamp!
+}
+
+type Comment @table {
+  content: String!
+  user: User!
+  event: Event!
+  createdAt: Timestamp!
+}
+
+type Location @table {
+  address: String!
+  latitude: Float!
+  longitude: Float!
+  name: String
+}
