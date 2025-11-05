@@ -1,22 +1,28 @@
 
 
-import HomeIcon from '@mui/icons-material/Home';
-import MailOutlineIcon from '@mui/icons-material/MailOutline';
-import TextSnippetIcon from '@mui/icons-material/TextSnippet';
-import PermIdentityIcon from '@mui/icons-material/PermIdentity';
+import AddIcon from '@mui/icons-material/Add';
 import Image from 'next/image';
+import { Button } from '@mui/material';
+import { useContent } from '../ContentContext';
+import { LightbulbCircleOutlined, Schedule, StarBorderOutlined, StarOutlineOutlined, StarOutlineSharp, Today } from '@mui/icons-material';
+import AnnouncementCard from '../announcement/announcementCard';
+import StarsOutlined from '@mui/icons-material/StarsOutlined';
 
 export default function HomeContent() {
-    const navItems = [
-        { id: "home", label: "Accueil", icon: HomeIcon, href: "/" },
-        { id: "messages", label: "Messages", icon: MailOutlineIcon, href: "/messages" },
-        { id: "annonces", label: "Annonces", icon: TextSnippetIcon, href: "/annonces" },
-        { id: "profil", label: "Profil", icon: PermIdentityIcon, href: "/profil" }
-        ];
+    const { currentPage, setCurrentPage } = useContent();
+    const announcementAvailability = [
+        { day: "Lun", available: true },
+        { day: "Mar", available: false },
+    ];
+    const stats = [
+        { label: "Services rendus", value: "12" },
+        { label: "Services reçus", value: "8" },
+        { label: "Note moyenne", value: "4.8" },
+    ]
     return (
         <>
            <div className="homeContainer">
-            {
+            {/* {
                 (Array.isArray(navItems) ? navItems : []).map(({ id, label, icon: Icon }) => (
                     <div
                     key={id}
@@ -26,9 +32,74 @@ export default function HomeContent() {
                         <span>{label}</span>
                     </div>
                 ))
-            }
+            } */}
+                <Button 
+                    fullWidth 
+                    variant="contained"
+                    color='secondary'
+                    startIcon={<AddIcon sx={{ color: "white" }} />}
+                    sx={{ borderRadius: "15px", color: 'white'}}
+                    onClick={() =>{
+                        setCurrentPage("annonces");
+                    }}
+                    >
+                    Publier une annonce
+                </Button>
+                <div className='nextRDV'>
+                    <div className='nextRDVC1'>
+                        <div className='nextRDVC1Title'>
+                            <Today sx={{ color: "white" }}/>
+                            <span className='T1'>Prochain RDV</span>
+                        </div>
+                        <div className='nextRDVBadge'><span className='T6'>demain</span></div>
+                    </div>
+                    <div className='nextRDVC2'>
+                        <span className='T4'>Aide informatique avec Marie D.</span>
+                    </div>
+                    <div className='nextRDVC3'>
+                        <div style={{ display: 'flex', columnGap: "3px"}}>
+                            <Schedule sx={{ color: "white"}}/>
+                            <span className='T7'>15 oct. 2025 - 15:00</span>
+                        </div>
+                    </div>
+                </div>
+                <div className='announcementsPromoted'>
+                    <div className='announcementsPromotedHeader'>
+                        <LightbulbCircleOutlined sx={{ color: "#ff9202"}}/>
+                        <span className='T2'>Annonces recommandée</span>
+                    </div>
+                    <AnnouncementCard announcementAvailability={announcementAvailability}/>
+                </div>
+                <div className='anouncementActionRequire'>
+                    <div style={{display: 'flex', alignItems: 'center', columnGap: "5px"}}>
+                        <StarOutlineOutlined sx={{ color: "#ff9202"}}/>
+                        <span className='T2'>Annonces à évaluer</span>
+                    </div>
+                    <span className='T4'>Service de cuisine à domicile par Jean P.</span>
+                    <span className='T6' style={{ color: "#8c8c8c"}}>
+                        Complété le 10 oct. 2025
+                    </span>
+                    <div className='anouncementActionRequireBtn' onClick={() => {}}>
+                        <span className='T6'>Action requise</span>
+                    </div>
+                </div>
+                <div className='statsRecap'>
+                    <div style={{display: 'flex', alignItems: 'center', columnGap: "5px"}}>
+                        <StarsOutlined  sx={{ color: "#1ea792"}}/>
+                        <span className='T2'>Vos statistiques</span>
+                    </div>
+
+                    <div className='statsRecapContent'>
+                        {stats.map(({ label, value }) => (
+                            <div key={label} className='statsRecapItem'>
+                                <span style={{color: "#03A689"}}>{value}</span>
+                                <span className='T7' style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'wrap', flex: 1 }}>{label}</span>
+                            </div>
+                        ))}
+                    </div>
             </div>
-            <div className="slider">
+        </div>
+            {/* <div className="slider">
                 <div className="slide">
                     <Image src="photo1.svg" width={500} height={300} alt="Annonce 1" />
                 </div>
@@ -38,7 +109,7 @@ export default function HomeContent() {
                 <div className="slide">
                     <Image src="photo1.svg" width={500} height={300} alt="Annonce 3" />
                 </div>
-            </div>
+            </div> */}
         </>
     );
 }

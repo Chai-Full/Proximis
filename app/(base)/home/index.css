@@ -61,7 +61,7 @@
   cursor: pointer;
 }
 .navItem.active {
-  color: var(--primary);
+  color: var(--secondary);
 }
 
 .navLink {
@@ -116,4 +116,107 @@
   width: 100%;
   height: auto;
   border-radius: 12px;
+}
+
+
+.nextRDV {
+  background-color: var(--primary);
+  border-radius: 15px;
+  padding: 18px 19px;
+  color: white;
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  width: 100%;
+  height: auto;
+  row-gap: 10px;
+}
+
+.nextRDVC1, .nextRDVC2, .nextRDVC3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.nextRDVC1Title {
+  display: flex;
+  column-gap: 3px;
+}
+
+.nextRDVBadge {
+  border-radius: 25px;
+  padding: 1px 12px;
+  background-color: #ffffff70;
+  width: fit-content;
+  height: fit-content;
+}
+
+.announcementsPromoted {
+  border: 2px solid var(--secondary);
+  border-radius: 15px;
+  padding: 18px 19px;
+  color: black;
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  width: 100%;
+  height: auto;
+  row-gap: 10px;
+}
+
+.announcementsPromotedHeader {
+  display: flex;
+  column-gap: 8px;
+}
+
+.anouncementActionRequire {
+  background-color: #D9D9D941;
+  border-radius: 15px;
+  padding: 18px 19px;
+  color: black;
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  width: 100%;
+  height: auto;
+  row-gap: 10px;
+}
+
+.anouncementActionRequireBtn {
+  background-color: var(--secondary);
+  border-radius: 25px;
+  padding: 6px 12px;
+  width: fit-content;
+  color: white;
+  cursor: pointer;
+}
+
+.statsRecap {
+  border: 2px solid var(--primary);
+  border-radius: 15px;
+  padding: 18px 19px;
+  color: black;
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  width: 100%;
+  height: auto;
+  row-gap: 10px;
+}
+
+.statsRecapContent {
+  display: flex;
+  column-gap: 10px;
+}
+.statsRecapItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 32px;
+  background-color: #F88C0510;
+  border-radius: 15px;
+  padding: 5px 10px;
+  text-align: center;
+  flex: 1;
 }

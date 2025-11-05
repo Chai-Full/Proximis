@@ -27,3 +27,45 @@ body {
   color: var(--foreground);
   font-family: var(--font-poppins-mono), sans-serif;
 }
+
+.T1 {
+  font-size: 22px;
+  line-height: 24px;
+  letter-spacing: 0.5px;
+}
+
+.T2 {
+  font-size: 20px;
+  line-height: 24px;
+  letter-spacing: 0.5px;
+}
+
+.T3 {
+  font-size: 18px;
+  line-height: 24px;
+  letter-spacing: 0.5px;
+}
+
+.T4 {
+  font-size: 16px;
+  line-height: 24px;
+  letter-spacing: 0.5px;
+}
+
+.T5 {
+  font-size: 14px;
+  line-height: 24px;
+  letter-spacing: 0.5px;
+}
+
+.T6 {
+  font-size: 12px;
+  line-height: 24px;
+  letter-spacing: 0.5px;
+}
+
+.T7 {
+  font-size: 10px;
+  line-height: 24px;
+  letter-spacing: 0.5px;
+}

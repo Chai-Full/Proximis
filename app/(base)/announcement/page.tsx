@@ -1,6 +1,6 @@
 import React from 'react'
 
-export const AnnouncementContent = () => {
+export default function AnnouncementContent (){
   return (
     <div>AnnouncementContent</div>
   )

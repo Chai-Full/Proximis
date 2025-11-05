@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import "./home/index.css";
 import Link from "next/link";
 import HomeIcon from '@mui/icons-material/Home';
@@ -8,35 +8,34 @@ import TextSnippetIcon from '@mui/icons-material/TextSnippet';
 import PermIdentityIcon from '@mui/icons-material/PermIdentity';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import HomeContent from "./home/page";
-import { AnnouncementContent } from "./announcement/page";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { InputsAnnounceSearch } from "../types/InputsAnnounceSearch";
-import { OutlinedInput } from "@mui/material";
-import SearchIcon from '@mui/icons-material/Search';
+import AnnouncementContent from "./announcement/page";
+import { ContentProvider, useContent, PageKey } from "./ContentContext";
+import { SearchOutlined } from "@mui/icons-material";
 
 const navItems = [
         { id: "home", label: "Accueil", icon: HomeIcon, href: "/" },
         { id: "messages", label: "Messages", icon: MailOutlineIcon, href: "/messages" },
-        { id: "publish", label: "Publier", icon: AddCircleIcon, href: "/publish" },
-        { id: "annonces", label: "Annonces", icon: TextSnippetIcon, href: "/annonces" },
+        { id: "search", label: "Rechercher", icon: SearchOutlined, href: "/search" },
+        { id: "annonces", label: "Réservations", icon: TextSnippetIcon, href: "/annonces" },
         { id: "profil", label: "Profil", icon: PermIdentityIcon, href: "/profil" }
         ];
 
 // Table de correspondance id -> composant de contenu
 const contentComponents = {
-  home: HomeContent,
-  messages: HomeContent,
-  publish: HomeContent,
-  annonces: AnnouncementContent,
-  profil: HomeContent
+    home: HomeContent,
+    messages: HomeContent,
+    publish: HomeContent,
+    annonces: AnnouncementContent,
+    profil: HomeContent
 };
 
-type PageKey = keyof typeof contentComponents;
-
-export default function BaseLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-    const [currentPage, setcurrentPage] = useState<PageKey>("home");
-    const currentNav = navItems.find(item => item.id === currentPage);
-    const CurrentContent = contentComponents[currentPage] || HomeContent;
+// Inner component consumes the ContentContext (must be inside ContentProvider)
+function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) {
+        const { currentPage, setCurrentPage } = useContent();
+        const currentNav = navItems.find(item => item.id === currentPage);
+        const CurrentContent = (contentComponents as Record<string, React.ComponentType>)[currentPage] || HomeContent;
     const {
         register,
         handleSubmit,
@@ -52,7 +51,7 @@ export default function BaseLayout({ children }: Readonly<{ children: React.Reac
         <div className="container">
             <div className="head">
                 <span className="title">{currentNav?.label ?? "Accueil"}</span>
-                {
+                {/* {
                     currentPage === "annonces" && 
                     <>
                         <form action="">
@@ -70,20 +69,20 @@ export default function BaseLayout({ children }: Readonly<{ children: React.Reac
                                 />
                         </form>
                     </>
-                }
+                } */}
             </div>
-            <main className="mainContent">
-                <CurrentContent />
-            </main>
-            <nav className="bottomBar">
+                <main className="mainContent">
+                    <CurrentContent />
+                </main>
+                <nav className="bottomBar">
                 {navItems.map(({ id, label, icon: Icon, href }) => (
                     <div
                         key={id}
                         className={`navItem ${currentPage === id ? "active" : ""}`}
-                        onClick={() => setcurrentPage(id as PageKey)}
+                        onClick={() => setCurrentPage(id as PageKey)}
                         >
                         <Icon 
-                            color="primary" 
+                            color={currentPage !== id ? "primary" : "secondary"}
                             fontSize={currentPage === id ? "large" : "medium"} 
                         />
                         <Link href="#" className="navLink">{label}</Link>
@@ -91,5 +90,13 @@ export default function BaseLayout({ children }: Readonly<{ children: React.Reac
                 ))}
                 </nav>
         </div>
+    );
+}
+
+export default function BaseLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+    return (
+        <ContentProvider>
+            <BaseLayoutInner>{children}</BaseLayoutInner>
+        </ContentProvider>
     );
 }
