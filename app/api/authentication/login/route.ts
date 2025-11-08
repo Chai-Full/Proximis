@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth, sendSignInLinkToEmail } from 'firebase/auth';
-import { auth } from '@/app/firebaseConfig';
+import { sendSignInLinkToEmail } from 'firebase/auth';
+import { auth } from '@/app/lib/firebaseServer';
 import { prisma } from '@/app/lib/prisma';
 
 /**
@@ -38,12 +38,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Email manquant ou invalide' }, { status: 400 });
     }
 
+    // Vérifier que Firebase est initialisé
+    if (!auth) {
+      return NextResponse.json(
+        { error: 'Configuration Firebase manquante. Vérifiez vos variables d\'environnement.' },
+        { status: 500 }
+      );
+    }
+
     // Configuration du lien magique
     const actionCodeSettings = {
-      url: `${process.env.NEXT_PUBLIC_BASE_URL}/auth/verify?email=${encodeURIComponent(email)}`,
+      url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/auth/verify?email=${encodeURIComponent(email)}`,
       handleCodeInApp: true,
     };
 
+    // Envoyer le lien magique
     await sendSignInLinkToEmail(auth, email, actionCodeSettings);
 
     // Si l’utilisateur n’existe pas encore, on l’ajoute à la BDD
