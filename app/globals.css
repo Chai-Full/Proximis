@@ -6,6 +6,7 @@
   --primary: #1ea792;
   --secondary: #ff9202;
   --white: #ffffff;
+  --gray: #8C8C8C
 }
 
 @theme inline {
@@ -68,4 +69,9 @@ body {
   font-size: 10px;
   line-height: 24px;
   letter-spacing: 0.5px;
+}
+
+.error {
+  color: red;
+  font-size: 12px;
 }

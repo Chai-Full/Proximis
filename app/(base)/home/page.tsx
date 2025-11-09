@@ -1,4 +1,4 @@
-
+"use client";
 
 import AddIcon from '@mui/icons-material/Add';
 import Image from 'next/image';
@@ -40,7 +40,7 @@ export default function HomeContent() {
                     startIcon={<AddIcon sx={{ color: "white" }} />}
                     sx={{ borderRadius: "15px", color: 'white'}}
                     onClick={() =>{
-                        setCurrentPage("annonces");
+                        setCurrentPage("publish");
                     }}
                     >
                     Publier une annonce

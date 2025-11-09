@@ -7,12 +7,15 @@ import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import TextSnippetIcon from '@mui/icons-material/TextSnippet';
 import PermIdentityIcon from '@mui/icons-material/PermIdentity';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
+import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import HomeContent from "./home/page";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { InputsAnnounceSearch } from "../types/InputsAnnounceSearch";
 import AnnouncementContent from "./announcement/page";
 import { ContentProvider, useContent, PageKey } from "./ContentContext";
-import { SearchOutlined } from "@mui/icons-material";
+import { ArrowBackIosOutlined, SearchOutlined } from "@mui/icons-material";
+import PublishAnnouncementContent from "./publish_announcement/page";
+import ArrowBackOutlined from "@mui/icons-material/ArrowBackOutlined";
 
 const navItems = [
         { id: "home", label: "Accueil", icon: HomeIcon, href: "/" },
@@ -26,16 +29,17 @@ const navItems = [
 const contentComponents = {
     home: HomeContent,
     messages: HomeContent,
-    publish: HomeContent,
+    search: HomeContent,
     annonces: AnnouncementContent,
-    profil: HomeContent
+    profil: HomeContent,
+    publish: PublishAnnouncementContent,
 };
 
 // Inner component consumes the ContentContext (must be inside ContentProvider)
 function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) {
-        const { currentPage, setCurrentPage } = useContent();
-        const currentNav = navItems.find(item => item.id === currentPage);
-        const CurrentContent = (contentComponents as Record<string, React.ComponentType>)[currentPage] || HomeContent;
+    const { currentPage, setCurrentPage, history, goBack, headerTitle } = useContent();
+    const currentNav = navItems.find(item => item.id === currentPage);
+    const CurrentContent = (contentComponents as Record<string, React.ComponentType>)[currentPage] || HomeContent;
     const {
         register,
         handleSubmit,
@@ -47,29 +51,31 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
     useEffect(() => {
         window.history.replaceState(null, "/home", "");
     }, []);
+    const title = headerTitle ?? currentNav?.label ?? "Accueil";
+
     return (
         <div className="container">
-            <div className="head">
-                <span className="title">{currentNav?.label ?? "Accueil"}</span>
-                {/* {
-                    currentPage === "annonces" && 
-                    <>
-                        <form action="">
-                            <OutlinedInput 
-                                fullWidth
-                                type="text" 
-                                {...register("keyword", {required: true})} 
-                                error={!!errors.keyword}
-                                sx={{ mb: 2 }} 
-                                placeholder="Rechercher une annonce"
-                                endAdornment={
-                                <button type="submit" style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, margin: 0 }}>
-                                    <SearchIcon color="action" />
-                                </button>}
-                                />
-                        </form>
-                    </>
-                } */}
+            <div
+                className="head"
+            >
+                {history.length > 0 ? (
+                    <button
+                        aria-label="back"
+                        className="backButton"
+                        onClick={() => goBack()}
+                        style={{
+                            position: "absolute",
+                            left: 16,
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                        }}
+                    >
+                        <ArrowBackOutlined sx={{ color: "white" }} />
+                    </button>
+                ) : null}
+                <span className="title" style={{ textAlign: "center" }}>
+                    {title}
+                </span>
             </div>
                 <main className="mainContent">
                     <CurrentContent />
