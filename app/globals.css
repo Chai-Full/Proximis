@@ -75,3 +75,15 @@ body {
   color: red;
   font-size: 12px;
 }
+
+.TMedium {
+  font-weight: 500;
+}
+
+.TSemibold {
+  font-weight: 600;
+}
+
+.TBold {
+  font-weight: 700;
+}

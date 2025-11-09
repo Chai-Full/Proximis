@@ -6,16 +6,15 @@ import HomeIcon from '@mui/icons-material/Home';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import TextSnippetIcon from '@mui/icons-material/TextSnippet';
 import PermIdentityIcon from '@mui/icons-material/PermIdentity';
-import AddCircleIcon from '@mui/icons-material/AddCircle';
-import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import HomeContent from "./home/page";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { InputsAnnounceSearch } from "../types/InputsAnnounceSearch";
 import AnnouncementContent from "./announcement/page";
 import { ContentProvider, useContent, PageKey } from "./ContentContext";
-import { ArrowBackIosOutlined, SearchOutlined } from "@mui/icons-material";
+import { SearchOutlined } from "@mui/icons-material";
 import PublishAnnouncementContent from "./publish_announcement/page";
 import ArrowBackOutlined from "@mui/icons-material/ArrowBackOutlined";
+import AnnounceDetails from "./announcement/announceDetails";
 
 const navItems = [
         { id: "home", label: "Accueil", icon: HomeIcon, href: "/" },
@@ -31,6 +30,7 @@ const contentComponents = {
     messages: HomeContent,
     search: HomeContent,
     annonces: AnnouncementContent,
+    announce_details: AnnounceDetails,
     profil: HomeContent,
     publish: PublishAnnouncementContent,
 };
@@ -70,10 +70,10 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
                             transform: "translateY(-50%)",
                         }}
                     >
-                        <ArrowBackOutlined sx={{ color: "white" }} />
+                        <ArrowBackOutlined sx={{ color: "white", cursor: "pointer" }} />
                     </button>
                 ) : null}
-                <span className="title" style={{ textAlign: "center" }}>
+                <span className="title T4" style={{ textAlign: "center" }}>
                     {title}
                 </span>
             </div>

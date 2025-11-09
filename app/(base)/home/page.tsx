@@ -6,6 +6,7 @@ import { Button } from '@mui/material';
 import { useContent } from '../ContentContext';
 import { LightbulbCircleOutlined, Schedule, StarBorderOutlined, StarOutlineOutlined, StarOutlineSharp, Today } from '@mui/icons-material';
 import AnnouncementCard from '../announcement/announcementCard';
+import announcements from '../../../data/announcements.json';
 import StarsOutlined from '@mui/icons-material/StarsOutlined';
 
 export default function HomeContent() {
@@ -68,7 +69,7 @@ export default function HomeContent() {
                         <LightbulbCircleOutlined sx={{ color: "#ff9202"}}/>
                         <span className='T2'>Annonces recommandée</span>
                     </div>
-                    <AnnouncementCard announcementAvailability={announcementAvailability}/>
+                    <AnnouncementCard announcement={announcements[0]}/>
                 </div>
                 <div className='anouncementActionRequire'>
                     <div style={{display: 'flex', alignItems: 'center', columnGap: "5px"}}>

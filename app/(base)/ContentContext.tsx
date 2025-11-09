@@ -1,7 +1,7 @@
 "use client";
 import React, { createContext, useContext, useState } from "react";
 
-export type PageKey = "home" | "messages" | "search" | "publish" | "annonces" | "profil";
+export type PageKey = "home" | "messages" | "search" | "publish" | "annonces" | "profil" | "announce_details";
 
 type ContentContextType = {
   currentPage: PageKey;
@@ -12,6 +12,9 @@ type ContentContextType = {
   // optional header override (used by pages like publish to show step)
   headerTitle?: string | null;
   setHeaderTitle: (t: string | null) => void;
+  // selected announcement id (when viewing details)
+  selectedAnnouncementId?: number | string | null;
+  setSelectedAnnouncementId: (id: number | string | null) => void;
 };
 
 const ContentContext = createContext<ContentContextType | undefined>(undefined);
@@ -20,6 +23,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [currentPage, setCurrentPageState] = useState<PageKey>("home");
   const [history, setHistory] = useState<PageKey[]>([]);
   const [headerTitle, setHeaderTitle] = useState<string | null>(null);
+  const [selectedAnnouncementId, setSelectedAnnouncementId] = useState<number | string | null>(null);
 
   const setCurrentPage = (p: PageKey) => {
     setHistory(prev => {
@@ -41,7 +45,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   return (
-    <ContentContext.Provider value={{ currentPage, history, setCurrentPage, goBack, headerTitle, setHeaderTitle }}>
+    <ContentContext.Provider value={{ currentPage, history, setCurrentPage, goBack, headerTitle, setHeaderTitle, selectedAnnouncementId, setSelectedAnnouncementId }}>
       {children}
     </ContentContext.Provider>
   );
