@@ -7,6 +7,8 @@ import React, { useState } from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { Inputs } from "./types/Input";
 import Link from "next/link";
+import { sendSignInLinkToEmail } from "firebase/auth";
+import { auth } from "./firebaseConfig";
 
 export default function Home() {
   const {
@@ -34,11 +36,24 @@ export default function Home() {
       const result = await response.json();
 
       if (response.ok) {
-        setMessage("Lien magique envoyé par e-mail ! Vérifiez votre boîte mail.");
-        // Stocker l'email pour la vérification
+        // Envoi du lien magique côté client
+        const baseUrl =
+          typeof window !== 'undefined'
+            ? window.location.origin
+            : (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000');
+
+        const actionCodeSettings = {
+          url: `${baseUrl}/finishSignIn`,
+          handleCodeInApp: true,
+        };
+
+        await sendSignInLinkToEmail(auth, data.email, actionCodeSettings);
+
         if (typeof window !== 'undefined') {
           window.localStorage.setItem('emailForSignIn', data.email);
         }
+
+        setMessage("Lien magique envoyé par e-mail ! Vérifiez votre boîte mail.");
       } else {
         setMessage(result.error || "Erreur lors de l'envoi du lien.");
       }

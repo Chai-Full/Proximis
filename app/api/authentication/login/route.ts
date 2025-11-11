@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendSignInLinkToEmail } from 'firebase/auth';
-import { auth } from '@/app/lib/firebaseServer';
 import { prisma } from '@/app/lib/prisma';
 
 /**
@@ -38,36 +36,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Email manquant ou invalide' }, { status: 400 });
     }
 
-    // Vérifier que Firebase est initialisé
-    if (!auth) {
-      return NextResponse.json(
-        { error: 'Configuration Firebase manquante. Vérifiez vos variables d\'environnement.' },
-        { status: 500 }
-      );
+    // Optionnel: tenter de créer l'utilisateur si non présent (ne doit pas bloquer le flow)
+    try {
+      const existingUser = await prisma.user.findUnique({ where: { mailUser: email } });
+      if (!existingUser) {
+        await prisma.user.create({
+          data: {
+            mailUser: email,
+            nomUser: '',
+            prenomUser: '',
+          },
+        });
+      }
+    } catch (e) {
+      // Ne pas renvoyer 500: on ne bloque pas l'envoi du lien si la BDD n'est pas prête
+      console.error('Login: erreur Prisma (ignorée pour le flow):', e);
     }
 
-    // Configuration du lien magique
-    const actionCodeSettings = {
-      url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/auth/verify?email=${encodeURIComponent(email)}`,
-      handleCodeInApp: true,
-    };
-
-    // Envoyer le lien magique
-    await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-
-    // Si l’utilisateur n’existe pas encore, on l’ajoute à la BDD
-    const existingUser = await prisma.user.findUnique({ where: { mailUser: email } });
-    if (!existingUser) {
-      await prisma.user.create({
-        data: {
-          mailUser: email,
-          nomUser: '',
-          prenomUser: '',
-        },
-      });
-    }
-
-    return NextResponse.json({ message: 'Lien magique envoyé à l’adresse e-mail.' }, { status: 200 });
+    // OK; l'envoi du lien se fait côté client
+    return NextResponse.json({ message: 'OK' }, { status: 200 });
   } catch (error: any) {
     console.error('Erreur de login:', error);
     return NextResponse.json({ error: 'Erreur interne du serveur.' }, { status: 500 });
