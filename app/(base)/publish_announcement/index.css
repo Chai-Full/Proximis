@@ -1,0 +1,113 @@
+.progressStepBar {
+    display: flex;
+    align-items: center;
+    column-gap: 10px;
+    padding: 16px;
+}
+
+.progressStep {
+    flex: 1;
+    height: 10px;
+    border-radius: 25px;
+    background-color: var(--gray);     
+}
+
+.progressStep.active {
+    background-color: var(--primary);
+}
+
+.buttonGroup {
+    display: flex;
+    align-items: center;
+    column-gap: 10px;
+    padding: 16px;
+}
+
+.formSection {
+    color: black;
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: fit-content;
+}
+
+.spaceLiner {
+    width: 100%;
+    height: 1px;
+    background-color: #CAC4D0;
+}
+
+.availibilityItem {
+    background-color: #03A68912;
+    text-align: start;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 5px 15px;
+    border-radius: 50px;
+    cursor: pointer;
+    flex: 0 0 calc(50% - 4px); /* deux colonnes quel que soit la taille d'écran */
+    box-sizing: border-box;
+    text-transform: capitalize;
+
+}
+
+.availibilityItem.selected {
+    background-color: var(--primary);
+}
+
+.hourPickerItemGroup {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    align-items: stretch;
+    /* keep items on a single line but allow them to shrink to fit */
+    flex-wrap: nowrap;
+}
+
+.hourPickerItem {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    justify-content: center;
+    align-items: flex-start;
+    /* allow the item to shrink below its content width and evenly share space */
+    flex: 1 1 0;
+    min-width: 0; /* critical to prevent overflow when children are long */
+    box-sizing: border-box;
+}
+
+.hourPickerItem .MuiInputBase-root,
+.hourPickerItem input,
+.hourPickerItem .MuiFormControl-root {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.scopeComponent {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    border-radius: 10px;
+    background-color: #F0F0F0;
+    padding: 12px;
+}
+
+.selectedScopes {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.selectedScopeItem {
+    display: flex;
+    justify-content: space-around;
+    padding: 8px 0px;
+    border-radius: 50px;
+    background-color: #03A68912;
+    color: var(--primary);
+    width: 100%;
+}

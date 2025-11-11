@@ -1,0 +1,107 @@
+[
+  {
+    "id": 1762703145340,
+    "userId": 3,
+    "title": "Tissu Homme",
+    "category": "Préparation de repas à domicile",
+    "description": "xcqsxqs",
+    "price": 10,
+    "scope": 5,
+    "notes": null,
+    "slots": [
+      {
+        "day": 1,
+        "start": "2025-11-09T13:05:00.000Z",
+        "end": "2025-11-09T15:10:00.000Z"
+      },
+      {
+        "day": 7,
+        "start": "2025-11-09T13:05:00.000Z",
+        "end": "2025-11-09T15:10:00.000Z"
+      },
+      {
+        "day": 6,
+        "start": "2025-11-09T13:05:00.000Z",
+        "end": "2025-11-09T15:10:00.000Z"
+      }
+    ],
+    "photo": "/uploads/1762703145337_Men African Fashion.jpeg",
+    "isAvailable": true,
+    "createdAt": "2025-11-09T15:45:45.340Z"
+  },
+  {
+    "id": 1762703460800,
+    "userId": 3,
+    "title": "xcqscsq",
+    "category": "Aide à la toilette et à l’habillage",
+    "description": "xqsxxqs",
+    "price": 15,
+    "scope": 10,
+    "notes": null,
+    "slots": [
+      {
+        "day": 1,
+        "start": "2025-11-09T07:00:00.000Z",
+        "end": "2025-11-09T13:00:00.000Z"
+      },
+      {
+        "day": 6,
+        "start": "2025-11-09T07:00:00.000Z",
+        "end": "2025-11-09T13:00:00.000Z"
+      },
+      {
+        "day": 7,
+        "start": "2025-11-09T07:00:00.000Z",
+        "end": "2025-11-09T13:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/1762703460798_Men African Fashion.jpeg",
+    "isAvailable": true,
+    "createdAt": "2025-11-09T15:51:00.800Z"
+  },
+  {
+    "id": 1762703740264,
+    "userId": 3,
+    "title": "scasca",
+    "category": "Courses et livraison à domicile",
+    "description": "xqxq",
+    "price": 5,
+    "scope": 8,
+    "notes": null,
+    "slots": [
+      {
+        "day": 3,
+        "start": "2025-11-08T23:00:00.000Z",
+        "end": "2025-11-09T15:00:00.000Z"
+      },
+      {
+        "day": 4,
+        "start": "2025-11-08T23:00:00.000Z",
+        "end": "2025-11-09T15:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/1762703740262_Diagrammes projet python.png",
+    "isAvailable": false,
+    "createdAt": "2025-11-09T15:55:40.264Z"
+  },
+  {
+    "id": 1762704533690,
+    "userId": 3,
+    "title": "SXSXQSX",
+    "category": "Courses et livraison à domicile",
+    "description": "DFZDFSDF",
+    "price": 14,
+    "scope": 6,
+    "notes": null,
+    "slots": [
+      {
+        "day": 7,
+        "start": "2025-11-09T01:10:00.000Z",
+        "end": "2025-11-09T21:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/1762704533689_1-test.webp",
+    "isAvailable": false,
+    "createdAt": "2025-11-09T16:08:53.691Z"
+  }
+]

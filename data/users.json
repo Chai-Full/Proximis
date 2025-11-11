@@ -1,6 +1,7 @@
 {
   "users": [
     {
+      "id": 1,
       "nom": "Tatchum",
       "prenom": "Georges",
       "type": "client",
@@ -10,6 +11,7 @@
       "email": "georges363@icloud.com"
     },
     {
+      "id": 2,
       "nom": "Tatchum",
       "prenom": "Georges",
       "type": "client",
@@ -19,6 +21,7 @@
       "email": "georgestatchum363@gmail.com"
     },
     {
+      "id": 3,
       "nom": "Tatchum",
       "prenom": "Georges",
       "type": "prestataire",

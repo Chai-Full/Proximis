@@ -1,0 +1,240 @@
+.announcementCard {
+  border: 2px solid var(--primary);
+  border-radius: 16px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  row-gap: 12px;
+  justify-content: flex-start;
+  box-shadow: 0px 2px 3px 1px rgba(0, 0, 0, 0.25);
+  width: 100%;
+}
+
+.announcementCard.active {
+  background-color: #1EA79250;
+}
+
+.announcementCard.deactive {
+  border-color: var(--gray);
+  background-color: #8C8C8C50;
+}
+
+.announcementCard>.announcementCardTop{
+  width: 100%;
+  display: flex;
+  column-gap: 12px;
+}
+
+.announcementCard>.separator {
+  height: 1px;
+  background-color: var(--primary);
+  width: 100%;
+}
+
+.announcementCard>.separator.deactive {
+  background-color: var(--gray);
+}
+
+.announcementCardContent{
+  display: flex;
+  flex-direction: column;
+  row-gap: 8px;
+  flex: 1;
+}
+
+.announcementCardImage{
+  border-radius: 12px;
+  overflow: hidden;
+  background-image: url('/photo1.svg');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  width: 100px;
+  height: 100px;
+  flex-shrink: 0;
+}
+
+.announcementAvailability{
+  display: flex;
+  column-gap: 5px;
+
+}
+
+.announcementAvailability div{
+  display: flex;
+  align-items: center;
+  background-color: var(--primary);
+  color: white;
+  border-radius: 4px;
+  width: 19px;
+  height: 19px;
+  text-align: center;
+  justify-content: center;
+}
+
+.announcementAvailability div.deactive{
+  background-color: #545454;
+}
+
+.announceDEtailsHeader {
+  display: flex;
+  height: 25dvh;
+  width: 100%;
+  padding-top: 14px;
+  justify-content: space-between;
+  background-color: blanchedalmond;
+  flex-direction: column;
+}
+
+.announceDEtailsHeader > .actionButtons {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+}
+
+.announceDEtails {
+  display: flex;
+  flex-direction: column;
+  row-gap: 8px;
+}
+.announceDEtailsHeader > .publicationTime {
+  color: white;
+  background-color: #2B2C2872;
+  text-align: center;
+  padding: 10px 16px;
+  width: fit-content;
+}
+
+.announceDEtailsContent {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  row-gap: 12px;
+}
+
+.announcementStatus {
+  color: var(--secondary);
+}
+
+.announceDEtailsNameLogo {
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  background-color: var(--primary);
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.announcementPrice{
+  color: var(--primary);
+}
+
+.annoucementCategory{
+  border-radius: 25px;
+  padding: 10px 18px;
+  background-color: #1EA79218;
+  width: fit-content;
+  color: var(--primary);
+  text-align: center;
+}
+
+.announcementDescription {
+  display: flex;
+  flex-direction: column;
+  row-gap: 10px;
+}
+
+.announcementDescription p{
+  color: #545454;
+}
+
+.announcementAvailabilityOption {
+  display: flex;
+  align-items: center;
+  background-color: var(--primary);
+  color: white;
+  border-radius: 4px;
+  padding: 2px 4px;
+  width: 29px;
+  height: 29px;
+  text-align: center;
+  justify-content: center;
+}
+
+.announcementAvailabilityOptions {
+  display: flex;
+  flex-direction: column;
+  row-gap: 8px;
+  padding: 16px 24px;
+  border-radius: 10px;
+  box-shadow: 5px 5px 10px 0px rgba(0, 0, 0, 0.25);
+  column-gap: 16px;
+  margin-bottom: 12px;;
+}
+
+.announcementAvailabilityOptionsItem{
+  display: flex;
+  column-gap: 8px;
+  justify-content: start;
+  align-items: center;
+}
+
+.radioChoice{
+  border: 2px solid #49454F;
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.actionSection{
+  display: flex;
+  flex-direction: column;
+  row-gap: 16px;
+  justify-content: start;
+}
+
+.announcementAvailabilities{
+  display: flex;
+  row-gap: 8px;
+  flex-direction: column;
+  justify-content: start;
+  margin-top: 12px;
+}
+
+.announcementCard>.announcementCardFooter{
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.announcementCard>.announcementCardFooter>.category{
+  border-radius: 25px;
+  padding: 6px 12px;
+  background-color: #1EA79218;
+  width: fit-content;
+  color: #2E2E2E;
+  text-align: center;
+}
+
+.announcementCard>.announcementCardFooter>.category.deactive{
+  background-color: var(--gray);
+}
+
+.announcementCard>.announcementCardFooter>.availability{
+  color: var(--primary);
+}
+
+.announcementCard>.announcementCardFooter>.availability.deactive{
+  color: #545454;
+}
+
+.deactiveGray{
+  color: var(--gray);
+}
