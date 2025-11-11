@@ -2,24 +2,30 @@
 import React, { useEffect } from 'react';
 import { useContent } from '../ContentContext';
 import announcements from '../../../data/announcements.json';
+import usersData from '../../../data/users.json';
 import { ChatBubbleOutlineOutlined, CheckBoxOutlined, FmdGoodOutlined, LocationOn, ModeOutlined, StarOutlined } from '@mui/icons-material';
 import RadioGroup from '@mui/material/RadioGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Radio from '@mui/material/Radio';
-import { getDayLabels } from '@/lib/daylabel';
+import { getDayLabelById, getDayLabels } from '@/lib/daylabel';
 import dayjs from 'dayjs';
 import { useState } from 'react';
 import { Button } from '@mui/material';
 import Star from '@mui/icons-material/Star';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
 
 export default function AnnounceDetails() {
-  const { selectedAnnouncementId, setHeaderTitle } = useContent();
+  const { selectedAnnouncementId, setHeaderTitle, setSelectedProfileId, setCurrentPage } = useContent();
 
   useEffect(() => {
     console.log('AnnounceDetails selectedAnnouncementId:', selectedAnnouncementId);
   }, [selectedAnnouncementId]);
 
   const announcement = (announcements as any[]).find(a => String(a.id) === String(selectedAnnouncementId));
+  const users = (usersData as any).users ?? [];
+  const author = announcement ? users.find((u: any) => String(u.id) === String(announcement.userId)) : null;
 
   // set header title to announcement title while on this page
   useEffect(() => {
@@ -35,9 +41,9 @@ export default function AnnounceDetails() {
   if (!announcement) {
     return (
       <div style={{ padding: 16 }}>
-        <h2>Annonce introuvable</h2>
-        <p>ID: {String(selectedAnnouncementId)}</p>
-      </div>
+          <h2>Annonce introuvable</h2>
+          <p>ID: {String(selectedAnnouncementId)}</p>
+        </div>
     );
   }
 
@@ -89,12 +95,20 @@ export default function AnnounceDetails() {
           Disponible
         </span>
         <div style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}>
-          <div className='TSemibold' style={{display: "flex", columnGap: 8, alignItems: "center", color: '#545454', cursor: 'pointer'}}>
+          <div
+            className='TSemibold'
+            style={{display: "flex", columnGap: 8, alignItems: "center", color: '#545454', cursor: 'pointer'}}
+            onClick={() => {
+              const authorId = author ? Number(author.id) : null;
+              setSelectedProfileId && setSelectedProfileId(authorId);
+              setCurrentPage && setCurrentPage('profil');
+            }}
+          >
             <div className='announceDEtailsNameLogo'>
-              M
+              {String(((author?.prenom ?? author?.nom) || 'U').charAt(0) || 'U')}
             </div>
             <span className='T6'>
-              Par Marie D.
+              Par {author ? `${author.prenom} ${author.nom}` : 'Utilisateur'}
             </span>
           </div>
           <span className='T4 TMedium announcementPrice'>
@@ -121,11 +135,27 @@ export default function AnnounceDetails() {
           <span className='T4'>
             Disponibilité
           </span>
+          {/* <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <DateCalendar  readOnly/>
+          </LocalizationProvider> */}
           <div className='announcementAvailabilityOptions'>
-            {getDayLabels(announcement.slots).length === 0 && <div><span className='T6'>Aucun créneau disponible</span></div>}
-            {getDayLabels(announcement.slots).map((day) => (
-                <div key={day} className='announcementAvailabilityOption'>
-                    <span className='T6'>{day}</span>
+            {announcement.slots.length === 0 && <div><span className='T6'>Aucun créneau disponible</span></div>}
+            {announcement.slots.map((day:any, index:number) => (
+                <div className='announcementAvailabilityOptionsItem' key={index}>
+                  <div className='announcementAvailabilityOption'>
+                    <span className='T6'>{getDayLabelById(day.day)}</span>
+                  </div>
+                    <Radio
+                      checked={String(selectedSlot) === String(index)}
+                      onChange={() => setSelectedSlot(String(index))}
+                      inputProps={{
+                        'aria-label': `slot-${index}`,
+                      }}
+                    />
+                  <div>
+                    <span className='T6' style={{color: "#545454"}}>{formatTime(day.start)} - {formatTime(day.end)}</span>
+                  </div>
+
                 </div>
             ))}
           </div>
@@ -155,6 +185,17 @@ export default function AnnounceDetails() {
             startIcon={
               <CheckBoxOutlined />
             }
+            onClick={() => {
+              if (selectedSlot === null) {
+                // user must choose a slot first
+                alert('Veuillez sélectionner un créneau avant de réserver.');
+                return;
+              }
+              const idx = Number(selectedSlot);
+              const slot = announcement.slots && announcement.slots[idx] ? announcement.slots[idx] : null;
+              console.log('Réserver le créneau sélectionné :', slot);
+              // TODO: call reservation API or navigate to booking flow
+            }}
             >
             Réserver
           </Button>

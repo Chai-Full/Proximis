@@ -10,11 +10,12 @@ import HomeContent from "./home/page";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { InputsAnnounceSearch } from "../types/InputsAnnounceSearch";
 import AnnouncementContent from "./announcement/page";
+import AnnounceDetails from "./announcement/announceDetails";
+import ProfileDetails from "./profile/profileDetails";
 import { ContentProvider, useContent, PageKey } from "./ContentContext";
 import { SearchOutlined } from "@mui/icons-material";
 import PublishAnnouncementContent from "./publish_announcement/page";
 import ArrowBackOutlined from "@mui/icons-material/ArrowBackOutlined";
-import AnnounceDetails from "./announcement/announceDetails";
 
 const navItems = [
         { id: "home", label: "Accueil", icon: HomeIcon, href: "/" },
@@ -31,13 +32,13 @@ const contentComponents = {
     search: HomeContent,
     annonces: AnnouncementContent,
     announce_details: AnnounceDetails,
-    profil: HomeContent,
+    profil: ProfileDetails,
     publish: PublishAnnouncementContent,
 };
 
 // Inner component consumes the ContentContext (must be inside ContentProvider)
 function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) {
-    const { currentPage, setCurrentPage, history, goBack, headerTitle } = useContent();
+    const { currentPage, setCurrentPage, history, goBack, headerTitle, setHeaderTitle, setSelectedProfileId, currentUserId } = useContent();
     const currentNav = navItems.find(item => item.id === currentPage);
     const CurrentContent = (contentComponents as Record<string, React.ComponentType>)[currentPage] || HomeContent;
     const {
@@ -85,7 +86,15 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
                     <div
                         key={id}
                         className={`navItem ${currentPage === id ? "active" : ""}`}
-                        onClick={() => setCurrentPage(id as PageKey)}
+                           onClick={() => {
+                               if (id === 'profil') {
+                                   // when user clicks the navbar profile, show the connected user's profile (by id)
+                                   if (setSelectedProfileId) setSelectedProfileId(currentUserId ?? null);
+                                   setCurrentPage('profil');
+                               } else {
+                                   setCurrentPage(id as PageKey);
+                               }
+                           }}
                         >
                         <Icon 
                             color={currentPage !== id ? "primary" : "secondary"}

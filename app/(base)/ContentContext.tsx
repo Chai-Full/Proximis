@@ -1,5 +1,6 @@
 "use client";
 import React, { createContext, useContext, useState } from "react";
+import usersData from '../../data/users.json';
 
 export type PageKey = "home" | "messages" | "search" | "publish" | "annonces" | "profil" | "announce_details";
 
@@ -15,6 +16,11 @@ type ContentContextType = {
   // selected announcement id (when viewing details)
   selectedAnnouncementId?: number | string | null;
   setSelectedAnnouncementId: (id: number | string | null) => void;
+  // selected profile id when viewing a user's profile
+  selectedProfileId?: number | null;
+  setSelectedProfileId: (id: number | null) => void;
+  // current logged-in user id (simulated)
+  currentUserId?: number | null;
 };
 
 const ContentContext = createContext<ContentContextType | undefined>(undefined);
@@ -24,6 +30,10 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [history, setHistory] = useState<PageKey[]>([]);
   const [headerTitle, setHeaderTitle] = useState<string | null>(null);
   const [selectedAnnouncementId, setSelectedAnnouncementId] = useState<number | string | null>(null);
+  const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
+  const users = (usersData as any).users ?? [];
+  const defaultUserId = users.length > 0 ? Number(users[0].id) : null;
+  const [currentUserId] = useState<number | null>(defaultUserId);
 
   const setCurrentPage = (p: PageKey) => {
     setHistory(prev => {
@@ -45,7 +55,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   return (
-    <ContentContext.Provider value={{ currentPage, history, setCurrentPage, goBack, headerTitle, setHeaderTitle, selectedAnnouncementId, setSelectedAnnouncementId }}>
+    <ContentContext.Provider value={{ currentPage, history, setCurrentPage, goBack, headerTitle, setHeaderTitle, selectedAnnouncementId, setSelectedAnnouncementId, selectedProfileId, setSelectedProfileId, currentUserId }}>
       {children}
     </ContentContext.Provider>
   );

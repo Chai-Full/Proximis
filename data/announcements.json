@@ -1,8 +1,7 @@
 [
   {
     "id": 1762703145340,
-    "userId": "guest",
-    "userName": "Guest",
+    "userId": 3,
     "title": "Tissu Homme",
     "category": "Préparation de repas à domicile",
     "description": "xcqsxqs",
@@ -27,12 +26,12 @@
       }
     ],
     "photo": "/uploads/1762703145337_Men African Fashion.jpeg",
+    "isAvailable": true,
     "createdAt": "2025-11-09T15:45:45.340Z"
   },
   {
     "id": 1762703460800,
-    "userId": "guest",
-    "userName": "Guest",
+    "userId": 3,
     "title": "xcqscsq",
     "category": "Aide à la toilette et à l’habillage",
     "description": "xqsxxqs",
@@ -57,12 +56,12 @@
       }
     ],
     "photo": "/uploads/1762703460798_Men African Fashion.jpeg",
+    "isAvailable": true,
     "createdAt": "2025-11-09T15:51:00.800Z"
   },
   {
     "id": 1762703740264,
-    "userId": "guest",
-    "userName": "Guest",
+    "userId": 3,
     "title": "scasca",
     "category": "Courses et livraison à domicile",
     "description": "xqxq",
@@ -82,12 +81,12 @@
       }
     ],
     "photo": "/uploads/1762703740262_Diagrammes projet python.png",
+    "isAvailable": false,
     "createdAt": "2025-11-09T15:55:40.264Z"
   },
   {
     "id": 1762704533690,
-    "userId": "guest",
-    "userName": "Guest",
+    "userId": 3,
     "title": "SXSXQSX",
     "category": "Courses et livraison à domicile",
     "description": "DFZDFSDF",
@@ -102,6 +101,7 @@
       }
     ],
     "photo": "/uploads/1762704533689_1-test.webp",
+    "isAvailable": false,
     "createdAt": "2025-11-09T16:08:53.691Z"
   }
 ]
