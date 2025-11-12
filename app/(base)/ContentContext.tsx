@@ -1,8 +1,9 @@
 "use client";
 import React, { createContext, useContext, useState } from "react";
 import usersData from '../../data/users.json';
+import { InputsAnnounceSearch } from '../types/InputsAnnounceSearch';
 
-export type PageKey = "home" | "messages" | "search" | "publish" | "annonces" | "profil" | "announce_details";
+export type PageKey = "home" | "messages" | "search" | "publish" | "annonces" | "profil" | "announce_details" | "filters" | "reservation";
 
 type ContentContextType = {
   currentPage: PageKey;
@@ -21,6 +22,13 @@ type ContentContextType = {
   setSelectedProfileId: (id: number | null) => void;
   // current logged-in user id (simulated)
   currentUserId?: number | null;
+  setCurrentUserId?: (id: number | null) => void;
+  // reservation draft stored when user initiates a booking
+  reservationDraft?: { announcementId: number | string; slotIndex: number } | null;
+  setReservationDraft?: (d: { announcementId: number | string; slotIndex: number } | null) => void;
+  // applied filters from the filter page
+  appliedFilters?: InputsAnnounceSearch | null;
+  setAppliedFilters: (f: InputsAnnounceSearch | null) => void;
 };
 
 const ContentContext = createContext<ContentContextType | undefined>(undefined);
@@ -32,8 +40,18 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [selectedAnnouncementId, setSelectedAnnouncementId] = useState<number | string | null>(null);
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
   const users = (usersData as any).users ?? [];
-  const defaultUserId = users.length > 0 ? Number(users[0].id) : null;
-  const [currentUserId] = useState<number | null>(defaultUserId);
+  // Do not auto-login any user by default; default is null unless localStorage has a session
+  const defaultUserId = null;
+  const [currentUserId, setCurrentUserId] = useState<number | null>(() => {
+    try {
+      const v = localStorage.getItem('proximis_userId');
+      return v ? Number(v) : defaultUserId;
+    } catch (e) {
+      return defaultUserId;
+    }
+  });
+  const [appliedFilters, setAppliedFilters] = useState<InputsAnnounceSearch | null>(null);
+  const [reservationDraft, setReservationDraft] = useState<{ announcementId: number | string; slotIndex: number } | null>(null);
 
   const setCurrentPage = (p: PageKey) => {
     setHistory(prev => {
@@ -55,7 +73,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   return (
-    <ContentContext.Provider value={{ currentPage, history, setCurrentPage, goBack, headerTitle, setHeaderTitle, selectedAnnouncementId, setSelectedAnnouncementId, selectedProfileId, setSelectedProfileId, currentUserId }}>
+    <ContentContext.Provider value={{ currentPage, history, setCurrentPage, goBack, headerTitle, setHeaderTitle, selectedAnnouncementId, setSelectedAnnouncementId, selectedProfileId, setSelectedProfileId, currentUserId, setCurrentUserId, appliedFilters, setAppliedFilters, reservationDraft, setReservationDraft }}>
       {children}
     </ContentContext.Provider>
   );

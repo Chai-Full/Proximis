@@ -33,13 +33,15 @@ const PlaceAutocomplete = ({ onPlaceSelect, label }: PlaceAutocompleteProps) => 
   }, [onPlaceSelect, placeAutocomplete]);
 
   return (
-    <TextField
-      inputRef={inputRef}
-      label={label}
-      fullWidth
-      variant="outlined"
-      sx={{ mb: 2 }}
-    />
+    <div style={{ display: 'flex', flexDirection: 'column', rowGap: '8px' }}>
+        <label htmlFor="adresse" className="T3" style={{ color: "#545454", textTransform: "capitalize" }}>Adresse</label>
+      <TextField
+        inputRef={inputRef}
+        fullWidth
+        variant="filled"
+        size="medium"
+      />
+    </div>
   );
 };
 

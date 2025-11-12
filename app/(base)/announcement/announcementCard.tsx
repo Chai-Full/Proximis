@@ -3,11 +3,11 @@ import LocationOn from '@mui/icons-material/LocationOn';
 import Star from '@mui/icons-material/Star';
 import React from 'react'
 import './index.css';
-import Image from 'next/image';
 import { useContent } from '../ContentContext';
 import { getDayLabels } from '@/lib/daylabel';
 
 export type Announcement = {
+    scope?: number;
     id: number | string;
     title: string;
     price?: number;
@@ -47,6 +47,13 @@ const AnnouncementCard = ({ announcement, profilPage=false }: AnnouncementCardPr
             <div
                 className='announcementCardImage'
                 aria-label={photo ? title : 'no image'}
+                style={{
+                    backgroundImage: photo ? `url("${String(photo)}")` : `url('/photo1.svg')`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat',
+                    position: 'relative',
+                }}
             />
             <div className='announcementCardContent'>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
@@ -69,20 +76,22 @@ const AnnouncementCard = ({ announcement, profilPage=false }: AnnouncementCardPr
                         </div>
                     ))}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: "#1ea792" }}>
                     <div>
                         <LocationOn sx={{ color: "#8c8c8c"}}/>
-                        <span className='T6' style={{color: "#8c8c8c"}}>à 3km</span>
+                        <span className='T6' style={{color: "#8c8c8c"}}>à {announcement.scope}km</span>
                     </div>
                     <span className={'T4' + (profilPage && !announcement.isAvailable ? ' deactiveGray' : '')}>{price ? `${price} €/h` : '—'}</span>
                 </div>
             </div>
         </div>
-        <div className={'separator' + (profilPage && !announcement.isAvailable ? ' deactive' : '')}></div>
-        <div className='announcementCardFooter'>
-            <div className={'category' + (profilPage && !announcement.isAvailable ? ' deactive' : '')}> {category}</div>
-            <span className={'T7 availability' + (profilPage && !announcement.isAvailable ? ' deactive' : '')}>{announcement.isAvailable ? 'Disponible' : 'Clôturé'}</span>
-        </div>
+        {profilPage && <>
+            <div className={'separator' + (profilPage && !announcement.isAvailable ? ' deactive' : '')}></div>
+            <div className='announcementCardFooter'>
+                <div className={'category' + (profilPage && !announcement.isAvailable ? ' deactive' : '')}> {category}</div>
+                <span className={'T7 availability' + (profilPage && !announcement.isAvailable ? ' deactive' : '')}>{announcement.isAvailable ? 'Disponible' : 'Clôturé'}</span>
+            </div>
+        </>}
         
     </div>
   )

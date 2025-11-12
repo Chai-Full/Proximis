@@ -12,7 +12,7 @@ import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { Dayjs } from 'dayjs';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { AddCircle, AddCircleOutline, CameraAltOutlined, CancelOutlined } from '@mui/icons-material';
+import { AddCircleOutline, CameraAltOutlined, CancelOutlined } from '@mui/icons-material';
 import InputAdornment from '@mui/material/InputAdornment';
 import Slider from '@mui/material/Slider';
 import Notification from '../components/Notification';

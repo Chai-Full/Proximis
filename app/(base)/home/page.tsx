@@ -1,16 +1,24 @@
 "use client";
 
-import AddIcon from '@mui/icons-material/Add';
-import Image from 'next/image';
+import React from 'react';
 import { Button } from '@mui/material';
 import { useContent } from '../ContentContext';
-import { LightbulbCircleOutlined, Schedule, StarBorderOutlined, StarOutlineOutlined, StarOutlineSharp, Today } from '@mui/icons-material';
-import AnnouncementCard from '../announcement/announcementCard';
+import { useRouter } from 'next/navigation';
+import { AddCircleOutlineOutlined, LightbulbCircleOutlined, Schedule, StarOutlineOutlined, Today } from '@mui/icons-material';
 import announcements from '../../../data/announcements.json';
 import StarsOutlined from '@mui/icons-material/StarsOutlined';
+import AnnouncementCard from '../announcement/AnnouncementCard';
 
 export default function HomeContent() {
-    const { currentPage, setCurrentPage } = useContent();
+    const { currentPage, setCurrentPage, currentUserId } = useContent();
+    const router = useRouter();
+
+    React.useEffect(() => {
+        // if no user is logged in, redirect to login page
+        if (currentUserId == null) {
+            router.push('/');
+        }
+    }, [currentUserId, router]);
     const announcementAvailability = [
         { day: "Lun", available: true },
         { day: "Mar", available: false },
@@ -38,8 +46,8 @@ export default function HomeContent() {
                     fullWidth 
                     variant="contained"
                     color='secondary'
-                    startIcon={<AddIcon sx={{ color: "white" }} />}
-                    sx={{ borderRadius: "15px", color: 'white'}}
+                    startIcon={<AddCircleOutlineOutlined sx={{ color: "white" }} />}
+                    sx={{ borderRadius: "15px", color: 'white', textTransform: "capitalize"}}
                     onClick={() =>{
                         setCurrentPage("publish");
                     }}
@@ -100,17 +108,6 @@ export default function HomeContent() {
                     </div>
             </div>
         </div>
-            {/* <div className="slider">
-                <div className="slide">
-                    <Image src="photo1.svg" width={500} height={300} alt="Annonce 1" />
-                </div>
-                <div className="slide">
-                    <Image src="photo1.svg" width={500} height={300} alt="Annonce 2" />
-                </div>
-                <div className="slide">
-                    <Image src="photo1.svg" width={500} height={300} alt="Annonce 3" />
-                </div>
-            </div> */}
         </>
     );
 }
