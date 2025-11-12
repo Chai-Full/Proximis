@@ -29,6 +29,36 @@
       "codePostal": "75001",
       "pays": "France",
       "email": "georges363+1@icloud.com"
+    },
+    {
+      "id": 4,
+      "nom": "Garcia",
+      "prenom": "Yannick",
+      "type": "client",
+      "adresse": "Av. Pierre Mendès France",
+      "codePostal": "69500",
+      "pays": "France",
+      "email": "yannick.teddy.garcia@gmail.com"
+    },
+    {
+      "id": 5,
+      "nom": "PETRALIE",
+      "prenom": "Joana",
+      "type": "client",
+      "adresse": "Rue Antoine de Saint-Exupéry",
+      "codePostal": "69330",
+      "pays": "France",
+      "email": "petraliejoana69@gmail.com"
+    },
+    {
+      "id": 6,
+      "nom": "Sossou",
+      "prenom": "Kekeli ",
+      "type": "client",
+      "adresse": "All. de la Barbotière",
+      "codePostal": "01500",
+      "pays": "France",
+      "email": "kekeli0205@gmail.com"
     }
   ]
 }

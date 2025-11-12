@@ -69,11 +69,11 @@ function AnnouncementSearchPageContent() {
             }
 
             if (hasPrice) {
-            matchPrice = typeof a.price === 'number' && a.price >= (appliedFilters.price as number);
+            matchPrice = typeof a.price === 'number' && a.price <= (appliedFilters.price as number);
             }
 
             if (hasDistance) {
-            matchDistance = typeof a.scope === 'number' && a.scope >= (appliedFilters.distance as number);
+            matchDistance = typeof a.scope === 'number' && a.scope <= (appliedFilters.distance as number);
             }
 
             if (hasSlots) {
@@ -182,8 +182,8 @@ function AnnouncementSearchPageContent() {
                             if (!appliedFilters) return <div className="searchFilterSelectedItem">Tous</div>;
                             const badges: React.ReactNode[] = [];
                             if (appliedFilters.category) badges.push(<div key="cat" className="searchFilterSelectedItem">{appliedFilters.category}</div>);
-                            if (typeof appliedFilters.distance === 'number') badges.push(<div key="dist" className="searchFilterSelectedItem">{appliedFilters.distance} Km</div>);
-                            if (typeof appliedFilters.price === 'number') badges.push(<div key="price" className="searchFilterSelectedItem">≥ {appliedFilters.price} €</div>);
+                            if (typeof appliedFilters.distance === 'number') badges.push(<div key="dist" className="searchFilterSelectedItem">≤ {appliedFilters.distance} Km</div>);
+                            if (typeof appliedFilters.price === 'number') badges.push(<div key="price" className="searchFilterSelectedItem">≤ {appliedFilters.price} €</div>);
                             if (appliedFilters.keyword) badges.push(<div key="kw" className="searchFilterSelectedItem">"{appliedFilters.keyword}"</div>);
                             if (Array.isArray(appliedFilters.slots)) {
                                 const dayLabel = (id: number) => ({1:'Lun',2:'Mar',3:'Mer',4:'Jeu',5:'Ven',6:'Sam',7:'Dim'} as any)[id] ?? String(id);

@@ -11,6 +11,7 @@ function Reservation() {
   const { reservationDraft, setReservationDraft, setCurrentPage, setHeaderTitle, currentUserId, goBack } = useContent();
   React.useEffect(() => {
     setHeaderTitle && setHeaderTitle('Paiement');
+    console.log("connected user id : ", currentUserId);
     return () => setHeaderTitle && setHeaderTitle(null);
   }, [setHeaderTitle]);
   const announcementsList = Array.isArray(announcements) ? announcements : [];
@@ -30,6 +31,7 @@ function Reservation() {
   }
 
   const formattedDate = slot ? (reservationDraft?.date ? dayjs(reservationDraft.date).format('YYYY.MM.DD') : '--/--/----') : '--/--/----';
+  
 
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', rowGap: 16 }}>
@@ -131,6 +133,8 @@ function PaymentButton({ announcement, reservationDraft, setReservationDraft, go
   const [severity, setSeverity] = React.useState<'success'|'warning'|'error'|'info'>('info');
 
   async function handlePay() {
+    console.log('test de reser idUser ',  currentUserId);
+    
     if (!reservationDraft || !announcement) {
       setSeverity('warning');
       setMessage('Aucune réservation à enregistrer.');

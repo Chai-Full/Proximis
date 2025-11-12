@@ -21,6 +21,38 @@
       "userId": 3,
       "date": "2025-11-16",
       "createdAt": "2025-11-12T06:12:35.246Z"
+    },
+    {
+      "id": 1762936886224,
+      "announcementId": 1762935879704,
+      "slotIndex": 0,
+      "userId": 3,
+      "date": "2025-11-15",
+      "createdAt": "2025-11-12T08:41:26.224Z"
+    },
+    {
+      "id": 1762938578733,
+      "announcementId": 1762703145340,
+      "slotIndex": 1,
+      "userId": 5,
+      "date": "2025-11-16",
+      "createdAt": "2025-11-12T09:09:38.733Z"
+    },
+    {
+      "id": 1762938598877,
+      "announcementId": 1762800000001,
+      "slotIndex": 0,
+      "userId": 4,
+      "date": "2025-11-22",
+      "createdAt": "2025-11-12T09:09:58.877Z"
+    },
+    {
+      "id": 1762939947099,
+      "announcementId": 1762800000004,
+      "slotIndex": 0,
+      "userId": 4,
+      "date": "2025-11-23",
+      "createdAt": "2025-11-12T09:32:27.099Z"
     }
   ]
 }

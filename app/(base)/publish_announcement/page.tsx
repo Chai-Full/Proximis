@@ -17,6 +17,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import Slider from '@mui/material/Slider';
 import Notification from '../components/Notification';
 import { useContent } from '../ContentContext';
+import { getLocalUserId } from '../lib/auth';
 import Image from 'next/image';
 type FormValues = {
     title: string;
@@ -459,7 +460,10 @@ export default function PublishAnnouncementContent() {
         try {
             setSubmitting(true);
             // build FormData: include payload fields and file
-            const payload = { ...data };
+            const payload: any = { ...data };
+            // attach current logged user id from localStorage so the API can persist it
+            const localUserId = getLocalUserId();
+            if (localUserId !== null) payload.userId = localUserId;
             // remove photo from payload because we'll send it as file separately
             const photoFile = (payload as any).photo ?? null;
             delete (payload as any).photo;
