@@ -13,6 +13,14 @@
       "slotIndex": 2,
       "userId": 3,
       "createdAt": "2025-11-12T05:51:17.208Z"
+    },
+    {
+      "id": 1762927955246,
+      "announcementId": 1762703145340,
+      "slotIndex": 1,
+      "userId": 3,
+      "date": "2025-11-16",
+      "createdAt": "2025-11-12T06:12:35.246Z"
     }
   ]
 }

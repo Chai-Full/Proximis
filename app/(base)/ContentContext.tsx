@@ -23,9 +23,9 @@ type ContentContextType = {
   // current logged-in user id (simulated)
   currentUserId?: number | null;
   setCurrentUserId?: (id: number | null) => void;
-  // reservation draft stored when user initiates a booking
-  reservationDraft?: { announcementId: number | string; slotIndex: number } | null;
-  setReservationDraft?: (d: { announcementId: number | string; slotIndex: number } | null) => void;
+  // reservation draft stored when user initiates a booking (now includes selected date ISO)
+  reservationDraft?: { announcementId: number | string; slotIndex: number; date?: string } | null;
+  setReservationDraft?: (d: { announcementId: number | string; slotIndex: number; date?: string } | null) => void;
   // applied filters from the filter page
   appliedFilters?: InputsAnnounceSearch | null;
   setAppliedFilters: (f: InputsAnnounceSearch | null) => void;

@@ -8,12 +8,15 @@ import Radio from '@mui/material/Radio';
 import { getDayLabelById } from '@/lib/daylabel';
 import dayjs from 'dayjs';
 import { useState } from 'react';
-import { Button } from '@mui/material';
+import { Button, CircularProgress } from '@mui/material';
 import Notification from '../components/Notification';
 import Star from '@mui/icons-material/Star';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 
 export default function AnnounceDetails() {
-  const { selectedAnnouncementId, setHeaderTitle, setSelectedProfileId, setCurrentPage, setReservationDraft } = useContent();
+  const { selectedAnnouncementId, setHeaderTitle, setSelectedProfileId, setCurrentPage, setReservationDraft, currentUserId } = useContent();
 
   useEffect(() => {
     console.log('AnnounceDetails selectedAnnouncementId:', selectedAnnouncementId);
@@ -46,6 +49,8 @@ export default function AnnounceDetails() {
   console.log("announce : ", announcement);
   
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<any>(dayjs());
+  const [isChecking, setIsChecking] = useState(false);
   const [notification, setNotification] = useState<{ open: boolean; message: string; severity: 'success'|'warning'|'error'|'info' }>({ open: false, message: '', severity: 'info' });
 
   function formatTime(iso?: string | null) {
@@ -128,9 +133,9 @@ export default function AnnounceDetails() {
           <span className='T4'>
             Disponibilité
           </span>
-          {/* <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <DateCalendar  readOnly/>
-          </LocalizationProvider> */}
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <DateCalendar value={selectedDate} onChange={(d) => setSelectedDate(d)} minDate={dayjs()} />
+          </LocalizationProvider>
           <div className='announcementAvailabilityOptions'>
             {announcement.slots.length === 0 && <div><span className='T6'>Aucun créneau disponible</span></div>}
             {announcement.slots.map((day:any, index:number) => (
@@ -168,31 +173,78 @@ export default function AnnounceDetails() {
             >
             Contacter
           </Button>
-          <Button 
+          <Button
             variant="contained"
             fullWidth
-            sx={{
-              textTransform: "capitalize",
-              fontWeight: 600,
-            }}
-            startIcon={
-              <CheckBoxOutlined />
-            }
-            onClick={() => {
+            sx={{ textTransform: 'capitalize', fontWeight: 600 }}
+            disabled={isChecking}
+            startIcon={isChecking ? <CircularProgress size={18} color="inherit" /> : <CheckBoxOutlined />}
+            onClick={async () => {
               if (selectedSlot === null) {
-                // user must choose a slot first -> show warning notification
                 setNotification({ open: true, message: 'Veuillez sélectionner un créneau avant de réserver.', severity: 'warning' });
                 return;
               }
+              if (!selectedDate) {
+                setNotification({ open: true, message: 'Veuillez sélectionner une date.', severity: 'warning' });
+                return;
+              }
+              // ensure selected date is not before today
+              if (!dayjs(selectedDate).isValid() || dayjs(selectedDate).startOf('day').isBefore(dayjs().startOf('day'))) {
+                setNotification({ open: true, message: 'La date sélectionnée ne peut pas être antérieure à aujourd\'hui.', severity: 'error' });
+                return;
+              }
+
               const idx = Number(selectedSlot);
               const slot = announcement.slots && announcement.slots[idx] ? announcement.slots[idx] : null;
-              console.log('Réserver le créneau sélectionné :', slot);
-              // store reservation draft in context and navigate to reservation page
-              setReservationDraft && setReservationDraft({ announcementId: announcement.id, slotIndex: idx });
+              if (!slot) {
+                setNotification({ open: true, message: 'Créneau invalide.', severity: 'error' });
+                return;
+              }
+              // prevent author from reserving their own announcement
+              if (typeof currentUserId !== 'undefined' && currentUserId !== null && String(currentUserId) === String(announcement.userId)) {
+                setNotification({ open: true, message: 'Vous ne pouvez pas réserver votre propre annonce.', severity: 'warning' });
+                return;
+              }
+
+              // map announcement slot day (1..7 with 7=Sunday) to dayjs day (0..6, 0=Sunday)
+              const slotDayJs = Number(slot.day) % 7;
+              const pickedDayJs = dayjs(selectedDate).day();
+              if (pickedDayJs !== slotDayJs) {
+                setNotification({ open: true, message: 'Le jour sélectionné ne correspond pas au jour de disponibilité du créneau.', severity: 'error' });
+                return;
+              }
+
+              const normalizedDate = dayjs(selectedDate).format('YYYY-MM-DD');
+
+              // call API to check duplicate reservation for this user/announcement/slot/date
+              setIsChecking(true);
+              try {
+                const params = new URLSearchParams({ announcementId: String(announcement.id), slotIndex: String(idx), date: normalizedDate });
+                // current user id is stored in localStorage (ContentProvider uses it), the server-side duplicate logic considers userId - we include it if present
+                const userId = (() => { try { return localStorage.getItem('proximis_userId'); } catch { return null; } })();
+                if (userId) params.set('userId', String(userId));
+                const resp = await fetch('/api/reservations?' + params.toString());
+                const json = await resp.json();
+                if (resp.ok && json.exists) {
+                  setNotification({ open: true, message: 'Vous avez déjà réservé ce créneau à la date choisie.', severity: 'warning' });
+                  setIsChecking(false);
+                  return;
+                }
+              } catch (e) {
+                // ignore check failure but warn the user
+                console.error('Could not check existing reservations', e);
+                setNotification({ open: true, message: 'Impossible de vérifier les réservations existantes. Réessayez.', severity: 'warning' });
+                setIsChecking(false);
+                return;
+              }
+
+              // store reservation draft (include ISO date) and navigate to reservation page
+              setReservationDraft && setReservationDraft({ announcementId: announcement.id, slotIndex: idx, date: dayjs(selectedDate).toISOString() });
+              setIsChecking(false);
               setCurrentPage && setCurrentPage('reservation');
             }}
-            >
-            Réserver
+          >
+            {isChecking ? 'Vérification...' : 'Réserver'}
           </Button>
           <div style={{ display: 'flex', alignItems: 'center', flex: '0 0 auto' }}>
               <Star sx={{ color: "#FFE135" }} />
