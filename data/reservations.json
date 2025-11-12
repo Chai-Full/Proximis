@@ -1,0 +1,18 @@
+{
+  "reservations": [
+    {
+      "id": 1762926361260,
+      "announcementId": 1762703145340,
+      "slotIndex": 1,
+      "userId": 3,
+      "createdAt": "2025-11-12T05:46:01.260Z"
+    },
+    {
+      "id": 1762926677207,
+      "announcementId": 1762703145340,
+      "slotIndex": 2,
+      "userId": 3,
+      "createdAt": "2025-11-12T05:51:17.208Z"
+    }
+  ]
+}

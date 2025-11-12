@@ -1,0 +1,26 @@
+.registerContainer {
+    display: flex;
+    flex-direction: column;
+    /* align-items: center; */
+    justify-content: start;
+    height: 100vh;
+    width: 100%;
+    padding: 0 16px;
+    margin-top: 25%;
+}
+
+.registerForm{
+    display: flex;
+    flex-direction: column;
+    justify-content: start;
+    row-gap: 16px;
+    width: 100%;
+    row-gap: 32px;
+    padding: 42px;
+}
+
+.registerForm form {
+    display: flex;
+    flex-direction: column;
+    row-gap: 24px;
+}

@@ -207,7 +207,9 @@
 
 .statsRecapContent {
   display: flex;
-  column-gap: 10px;
+  justify-content: space-between;
+  width: 100%;
+  column-gap: 12px;
 }
 .statsRecapItem {
   display: flex;

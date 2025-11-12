@@ -3,21 +3,17 @@ import React, { useEffect } from 'react';
 import { useContent } from '../ContentContext';
 import announcements from '../../../data/announcements.json';
 import usersData from '../../../data/users.json';
-import { ChatBubbleOutlineOutlined, CheckBoxOutlined, FmdGoodOutlined, LocationOn, ModeOutlined, StarOutlined } from '@mui/icons-material';
-import RadioGroup from '@mui/material/RadioGroup';
-import FormControlLabel from '@mui/material/FormControlLabel';
+import { ChatBubbleOutlineOutlined, CheckBoxOutlined, FmdGoodOutlined, ModeOutlined, StarOutlined } from '@mui/icons-material';
 import Radio from '@mui/material/Radio';
-import { getDayLabelById, getDayLabels } from '@/lib/daylabel';
+import { getDayLabelById } from '@/lib/daylabel';
 import dayjs from 'dayjs';
 import { useState } from 'react';
 import { Button } from '@mui/material';
+import Notification from '../components/Notification';
 import Star from '@mui/icons-material/Star';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
 
 export default function AnnounceDetails() {
-  const { selectedAnnouncementId, setHeaderTitle, setSelectedProfileId, setCurrentPage } = useContent();
+  const { selectedAnnouncementId, setHeaderTitle, setSelectedProfileId, setCurrentPage, setReservationDraft } = useContent();
 
   useEffect(() => {
     console.log('AnnounceDetails selectedAnnouncementId:', selectedAnnouncementId);
@@ -50,6 +46,7 @@ export default function AnnounceDetails() {
   console.log("announce : ", announcement);
   
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [notification, setNotification] = useState<{ open: boolean; message: string; severity: 'success'|'warning'|'error'|'info' }>({ open: false, message: '', severity: 'info' });
 
   function formatTime(iso?: string | null) {
     if (!iso) return '--:--';
@@ -60,12 +57,8 @@ export default function AnnounceDetails() {
     }
   }
 
-  function dayNumberToLabel(n?: number) {
-    const map: Record<number, string> = { 1: 'Lundi', 2: 'Mardi', 3: 'Mercredi', 4: 'Jeudi', 5: 'Vendredi', 6: 'Samedi', 7: 'Dimanche' };
-    if (!n) return '';
-    return map[n] ?? String(n);
-  }
   return (
+    <>
     <div className='announceDEtails'>
       <div className='announceDEtailsHeader'
         style={{
@@ -187,14 +180,16 @@ export default function AnnounceDetails() {
             }
             onClick={() => {
               if (selectedSlot === null) {
-                // user must choose a slot first
-                alert('Veuillez sélectionner un créneau avant de réserver.');
+                // user must choose a slot first -> show warning notification
+                setNotification({ open: true, message: 'Veuillez sélectionner un créneau avant de réserver.', severity: 'warning' });
                 return;
               }
               const idx = Number(selectedSlot);
               const slot = announcement.slots && announcement.slots[idx] ? announcement.slots[idx] : null;
               console.log('Réserver le créneau sélectionné :', slot);
-              // TODO: call reservation API or navigate to booking flow
+              // store reservation draft in context and navigate to reservation page
+              setReservationDraft && setReservationDraft({ announcementId: announcement.id, slotIndex: idx });
+              setCurrentPage && setCurrentPage('reservation');
             }}
             >
             Réserver
@@ -219,5 +214,7 @@ export default function AnnounceDetails() {
         </div>
       </div>
     </div>
+    <Notification open={notification.open} onClose={() => setNotification(prev => ({ ...prev, open: false }))} severity={notification.severity} message={notification.message} />
+    </>
   );
 }

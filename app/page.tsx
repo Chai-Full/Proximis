@@ -1,14 +1,18 @@
 "use client";
-import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
 import React, { useState } from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { Inputs } from "./types/Input";
 import Link from "next/link";
 import { sendSignInLinkToEmail } from "firebase/auth";
 import { auth } from "./firebaseConfig";
+import usersData from '../data/users.json';
+import "./index.css";
+import Image from "next/image";
+import Backdrop from "@mui/material/Backdrop";
+import CircularProgress from "@mui/material/CircularProgress";
+
 
 export default function Home() {
   const {
@@ -17,7 +21,26 @@ export default function Home() {
     watch,
     formState: { errors },
   } = useForm<Inputs>();
-  const onSubmit: SubmitHandler<Inputs> = (data) => console.log(data);
+  const [loading, setLoading] = useState(false);
+  const onSubmit: SubmitHandler<Inputs> = async (data) => {
+    setLoading(true);
+    // Rendre `onSubmit` async si ce n'est pas déjà le cas
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    const users = (usersData as any).users ?? [];
+    const found = users.find((u: any) => typeof u.email === 'string' && u.email.toLowerCase() === (data.email || '').toLowerCase());
+    if (found) {
+      try {
+        localStorage.setItem('proximis_userId', String(found.id));
+      } catch (e) {
+        // ignore
+      }
+      // navigate to home (or any landing page)
+      window.location.href = '/home';
+    } else {
+      setMessage('Compte introuvable');
+    }
+    setLoading(false);
+  };
   console.log(watch("email"))
 
   const [message, setMessage] = useState("");
@@ -29,6 +52,11 @@ export default function Home() {
 
   const handleSendLink = async () => {
     try {
+      const email = watch('email');
+      if (!email) {
+        setMessage('Veuillez saisir un email');
+        return;
+      }
       await sendSignInLinkToEmail(auth, email, actionCodeSettings);
       window.localStorage.setItem('emailForSignIn', email);
       setMessage("Lien magique envoyé par e-mail !");
@@ -39,15 +67,39 @@ export default function Home() {
   };
   
   return (
-    <Box sx={{ maxWidth: 400, mx: 'auto', mt: 4, p: 2 }}>
-      <Typography variant="h6" gutterBottom>Se connecter</Typography>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <TextField fullWidth variant="filled" label="E-mail" type="email" {...register("email", {required: true})} error={!!errors.email} helperText={errors.email ? "Ce champ est obligatoire" : ""} sx={{ mb: 2 }} />
-        <Button fullWidth variant="contained" type="submit">Recevoir le lien de connexion</Button>
-        <Link href="/register" style={{ display: 'block', marginTop: '16px', textAlign: 'center', color: '#1976d2', textDecoration: 'none', }}>
-          Pas encore de compte ?
-        </Link>
-      </form>
-    </Box>
+    <div className="connexionContainer">
+      <Image src="logo.svg" alt="Connexion Image" width={500} height={500} />
+      <div className="connexionForm">
+        <span className="T2">Se connecter</span>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <div style={{ display: 'flex', flexDirection: 'column', rowGap: '8px' }}>
+            <label htmlFor="email" className="T3" style={{color: "#545454", textTransform: "capitalize"}}>email</label>
+            <TextField size="medium" fullWidth variant="filled"  type="email" {...register("email", {required: true})} error={!!errors.email} helperText={errors.email ? "Ce champ est obligatoire" : ""} sx={{ mb: 2 }} />
+          </div>
+          
+          <Button fullWidth variant="contained" type="submit" sx={{
+            height: "56px",
+            textTransform: "none",
+            fontSize: 16,
+            fontWeight: 600,
+            borderRadius: "12px",
+          }}
+          loading={loading}
+          >Connexion</Button>
+
+          {/* <Backdrop
+            sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
+            open={loading}
+          >
+            <CircularProgress color="inherit" />
+          </Backdrop> */}
+          
+          <Link href="/register" style={{ display: 'block', marginTop: '16px', textAlign: 'center', color: '#1976d2', textDecoration: 'none', }}>
+            Pas encore de compte ?
+          </Link>
+        </form>
+      </div>
+      
+    </div>
   );
 }

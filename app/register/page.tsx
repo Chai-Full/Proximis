@@ -12,7 +12,9 @@ import { APIProvider } from "@vis.gl/react-google-maps";
 import PlaceAutocomplete from "./components/AutoCompletePlace";
 import Backdrop from "@mui/material/Backdrop";
 import { CircularProgress } from "@mui/material";
-import { register } from "next/dist/next-devtools/userspace/pages/pages-dev-overlay-setup";
+import Image from "next/image";
+import "./index.css";
+import Link from "next/link";
 
 
 export default function SignupPage() {
@@ -53,7 +55,7 @@ export default function SignupPage() {
 
   const handleNext = async () => {
     let fieldsToCheck: (keyof SignupInputs)[] = [];
-    if (step === 0) fieldsToCheck = ["nom", "prenom", "type"];
+    if (step === 0) fieldsToCheck = ["nom", "prenom", "email"];
     else if (step === 1) fieldsToCheck = ["adresse", "codePostal", "pays"];
     
     const valid = await methods.trigger(fieldsToCheck);
@@ -74,38 +76,61 @@ export default function SignupPage() {
 
   return (
     <FormProvider {...methods}>
-      <Box sx={{ maxWidth: 400, mx: "auto", mt: 4, p: 2 }}>
-        <Typography variant="h6" gutterBottom>
-          Inscription
-        </Typography>
-        <form onSubmit={methods.handleSubmit(onSubmit)}>
+      <div className="registerContainer">
+        <Image style={{alignSelf: "center"}} src="logo.svg" alt="Connexion Image" width={500} height={500} />
+        <div className="registerForm">
+          <span className="T2">
+            Compléer mes informations
+          </span>
+          <form onSubmit={methods.handleSubmit(onSubmit)}>
           {step === 0 && (
             <>
-              <TextField 
-                fullWidth label="E-mail" 
-                type="email" 
-                {...methods.register("email", {required: true})} 
-                error={!!methods.formState.errors.email} 
-                helperText={methods.formState.errors.email ? "Ce champ est obligatoire" : ""} 
-                sx={{ mb: 2 }} 
+              <div style={{ display: 'flex', flexDirection: 'column', rowGap: '8px' }}>
+                <label htmlFor="email" className="T3" style={{ color: "#545454", textTransform: "capitalize" }}>E-mail</label>
+                <TextField
+                  id="email"
+                  size="medium"
+                  fullWidth
+                  variant="filled"
+                  type="email"
+                  {...methods.register("email", { required: true })}
+                  error={!!methods.formState.errors.email}
+                  helperText={methods.formState.errors.email ? "Ce champ est obligatoire" : ""}
+                  sx={{ mb: 2 }}
+                  required
                 />
-              <TextField
-                label="Nom"
-                {...methods.register("nom", { required: "Nom obligatoire" })}
-                error={!!methods.formState.errors.nom}
-                helperText={methods.formState.errors.nom?.message}
-                fullWidth
-                sx={{ mb: 2 }}
-              />
-              <TextField
-                label="Prénom"
-                {...methods.register("prenom", { required: "Prénom obligatoire" })}
-                error={!!methods.formState.errors.prenom}
-                helperText={methods.formState.errors.prenom?.message}
-                fullWidth
-                sx={{ mb: 2 }}
-              />
-              <TextField
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', rowGap: '8px' }}>
+                <label htmlFor="nom" className="T3" style={{ color: "#545454", textTransform: "capitalize" }}>Nom</label>
+                <TextField
+                  id="nom"
+                  {...methods.register("nom", { required: "Nom obligatoire" })}
+                  error={!!methods.formState.errors.nom}
+                  helperText={methods.formState.errors.nom?.message}
+                  size="medium"
+                  fullWidth
+                  variant="filled"
+                  sx={{ mb: 2 }}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', rowGap: '8px' }}>
+                <label htmlFor="prenom" className="T3" style={{ color: "#545454", textTransform: "capitalize" }}>Prénom</label>
+                <TextField
+                  id="prenom"
+                  {...methods.register("prenom", { required: "Prénom obligatoire" })}
+                  error={!!methods.formState.errors.prenom}
+                  helperText={methods.formState.errors.prenom?.message}
+                  size="medium"
+                  fullWidth
+                  variant="filled"
+                  sx={{ mb: 2 }}
+                  required
+                />
+              </div>
+              {/* <TextField
                 select
                 label="Type d'utilisateur"
                 defaultValue="client"
@@ -117,8 +142,14 @@ export default function SignupPage() {
               >
                 <MenuItem value="client">Client</MenuItem>
                 <MenuItem value="prestataire">Prestataire</MenuItem>
-              </TextField>
-              <Button fullWidth variant="contained" onClick={handleNext}>
+              </TextField> */}
+              <Button sx={{
+                height: "56px",
+                textTransform: "none",
+                fontSize: 16,
+                fontWeight: 600,
+                borderRadius: "12px",
+              }} fullWidth variant="contained" onClick={handleNext}>
                 Suivant
               </Button>
             </>
@@ -135,36 +166,57 @@ export default function SignupPage() {
                 control={methods.control}
                 rules={{ required: "Code postal obligatoire" }}
                 render={({ field, fieldState }) => (
-                  <TextField
-                    value={methods.getValues("codePostal") || ""}
-                    label="Code postal"
-                    error={!!methods.formState.errors.codePostal}
-                    helperText={methods.formState.errors.codePostal?.message}
-                    fullWidth
-                    sx={{ my: 2 }}
-                    slotProps={{ input: {value: methods.getValues("codePostal") || "", readOnly: true } }}
-                  />
+                  <div style={{ display: 'flex', flexDirection: 'column', rowGap: '8px' }}>
+                    <label htmlFor="codePostal" className="T3" style={{ color: "#545454", textTransform: "capitalize" }}>Code postal</label>
+                    <TextField
+                      id="codePostal"
+                      value={methods.getValues("codePostal") || ""}
+                      error={!!methods.formState.errors.codePostal}
+                      helperText={methods.formState.errors.codePostal?.message}
+                      fullWidth
+                      variant="filled"
+                      slotProps={{ input: { value: methods.getValues("codePostal") || "", readOnly: true } }}
+                    />
+                  </div>
                 )}
               />
-              
-              <TextField
-                select
-                label="Pays"
-                defaultValue="France"
-                {...methods.register("pays", { required: "Pays obligatoire" })}
-                error={!!methods.formState.errors.pays}
-                helperText={methods.formState.errors.pays?.message}
-                fullWidth
-                sx={{ mb: 2 }}
-              >
-                <MenuItem value="France">France</MenuItem>
-              </TextField>
-              <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-                <Button variant="outlined" onClick={handleBack}>
+
+              <div style={{ display: 'flex', flexDirection: 'column', rowGap: '8px' }}>
+                <label htmlFor="pays" className="T3" style={{ color: "#545454", textTransform: "capitalize" }}>Pays</label>
+                <TextField
+                  id="pays"
+                  select
+                  defaultValue="France"
+                  {...methods.register("pays", { required: "Pays obligatoire" })}
+                  error={!!methods.formState.errors.pays}
+                  helperText={methods.formState.errors.pays?.message}
+                  fullWidth
+                  required
+                  variant="filled"
+                >
+                  <MenuItem value="France">France</MenuItem>
+                </TextField>
+              </div>
+              <Box sx={{ display: "flex", justifyContent: "space-between", columnGap: 2 }}>
+                <Button fullWidth variant="outlined" onClick={handleBack} sx={{
+                  height: "56px",
+                  textTransform: "none",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  borderRadius: "12px",
+                  flex: 1,
+                }}>
                   Retour
                 </Button>
-                <Button variant="contained" type="submit" disabled={loading}>
-                  S’inscrire
+                <Button fullWidth variant="contained" type="submit" disabled={loading} sx={{
+                  height: "56px",
+                  textTransform: "none",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  borderRadius: "12px",
+                  flex: 1,
+                }}>
+                  Confirmer
                 </Button>
                 <Backdrop
                   sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
@@ -176,7 +228,13 @@ export default function SignupPage() {
             </>
           )}
         </form>
-      </Box>
-    </FormProvider>
+        <Link href="/" style={{ display: 'block', marginTop: '16px', textAlign: 'center', color: '#1976d2', textDecoration: 'none', }}>
+          Se connecter
+        </Link>
+      </div>
+        
+        
+    </div>
+  </FormProvider>
   );
 }

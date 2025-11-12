@@ -10,12 +10,17 @@ import HomeContent from "./home/page";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { InputsAnnounceSearch } from "../types/InputsAnnounceSearch";
 import AnnouncementContent from "./announcement/page";
-import AnnounceDetails from "./announcement/announceDetails";
+import AnnounceDetails from "./announcement/AnnouncementDetails";
 import ProfileDetails from "./profile/profileDetails";
 import { ContentProvider, useContent, PageKey } from "./ContentContext";
+import LogoutOutlined from '@mui/icons-material/LogoutOutlined';
+import { useRouter } from 'next/navigation';
 import { SearchOutlined } from "@mui/icons-material";
 import PublishAnnouncementContent from "./publish_announcement/page";
 import ArrowBackOutlined from "@mui/icons-material/ArrowBackOutlined";
+import AnnouncementSearchPageContent from "./search/AnnouncementSearchPageContent";
+import FilterPageContent from "./search/FilterPageContent";
+import ReservationContent from "./reservation/page";
 
 const navItems = [
         { id: "home", label: "Accueil", icon: HomeIcon, href: "/" },
@@ -29,7 +34,9 @@ const navItems = [
 const contentComponents = {
     home: HomeContent,
     messages: HomeContent,
-    search: HomeContent,
+    search: AnnouncementSearchPageContent,
+    filters: FilterPageContent,
+    reservation: ReservationContent,
     annonces: AnnouncementContent,
     announce_details: AnnounceDetails,
     profil: ProfileDetails,
@@ -38,7 +45,8 @@ const contentComponents = {
 
 // Inner component consumes the ContentContext (must be inside ContentProvider)
 function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) {
-    const { currentPage, setCurrentPage, history, goBack, headerTitle, setHeaderTitle, setSelectedProfileId, currentUserId } = useContent();
+    const { currentPage, setCurrentPage, history, goBack, headerTitle, setHeaderTitle, setSelectedProfileId, currentUserId, setCurrentUserId } = useContent();
+    const router = useRouter();
     const currentNav = navItems.find(item => item.id === currentPage);
     const CurrentContent = (contentComponents as Record<string, React.ComponentType>)[currentPage] || HomeContent;
     const {
@@ -77,6 +85,26 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
                 <span className="title T4" style={{ textAlign: "center" }}>
                     {title}
                 </span>
+                {/* logout button on the right when user is logged in */}
+                {currentUserId != null && (
+                    <button
+                        aria-label="logout"
+                        className="backButton"
+                        onClick={() => {
+                            try { localStorage.removeItem('proximis_userId'); } catch (e) {}
+                            setCurrentUserId && setCurrentUserId(null);
+                            router.push('/');
+                        }}
+                        style={{
+                            position: "absolute",
+                            right: 16,
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                        }}
+                    >
+                        <LogoutOutlined sx={{ color: "white", cursor: "pointer" }} />
+                    </button>
+                )}
             </div>
                 <main className="mainContent">
                     <CurrentContent />

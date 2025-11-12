@@ -5,7 +5,7 @@ import usersData from '../../../data/users.json';
 import './index.css';
 import Star from '@mui/icons-material/Star';
 import announcementsData from '../../../data/announcements.json';
-import AnnouncementCard from '../announcement/announcementCard';
+import AnnouncementCard from '../announcement/AnnouncementCard';
 
 
 export default function ProfileDetails() {
