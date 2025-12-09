@@ -149,7 +149,7 @@ function AnnouncementSearchPageContent() {
                     px: 2,
                     py: 0.5,
                     width: "70%",
-                    boxShadow: "none",
+                    boxShadow: "0 1px 4px 0 rgba(0, 0, 0, 0.25);",
                     }}
                 >
                     <InputBase

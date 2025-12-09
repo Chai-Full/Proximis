@@ -3,7 +3,17 @@ import React, { createContext, useContext, useState } from "react";
 import usersData from '../../data/users.json';
 import { InputsAnnounceSearch } from '../types/InputsAnnounceSearch';
 
-export type PageKey = "home" | "messages" | "search" | "publish" | "annonces" | "profil" | "announce_details" | "filters" | "reservation";
+export type PageKey =
+  | "home"
+  | "messages"
+  | "message_chat"
+  | "search"
+  | "publish"
+  | "annonces"
+  | "profil"
+  | "announce_details"
+  | "filters"
+  | "reservation";
 
 type ContentContextType = {
   currentPage: PageKey;
@@ -20,6 +30,9 @@ type ContentContextType = {
   // selected profile id when viewing a user's profile
   selectedProfileId?: number | null;
   setSelectedProfileId: (id: number | null) => void;
+  // selected conversation id when viewing chat details
+  selectedConversationId?: string | null;
+  setSelectedConversationId: (id: string | null) => void;
   // current logged-in user id (simulated)
   currentUserId?: number | null;
   setCurrentUserId?: (id: number | null) => void;
@@ -39,6 +52,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [headerTitle, setHeaderTitle] = useState<string | null>(null);
   const [selectedAnnouncementId, setSelectedAnnouncementId] = useState<number | string | null>(null);
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const users = (usersData as any).users ?? [];
   // Do not auto-login any user by default; default is null unless localStorage has a session
   const defaultUserId = null;
@@ -73,7 +87,28 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   return (
-    <ContentContext.Provider value={{ currentPage, history, setCurrentPage, goBack, headerTitle, setHeaderTitle, selectedAnnouncementId, setSelectedAnnouncementId, selectedProfileId, setSelectedProfileId, currentUserId, setCurrentUserId, appliedFilters, setAppliedFilters, reservationDraft, setReservationDraft }}>
+    <ContentContext.Provider
+      value={{
+        currentPage,
+        history,
+        setCurrentPage,
+        goBack,
+        headerTitle,
+        setHeaderTitle,
+        selectedAnnouncementId,
+        setSelectedAnnouncementId,
+        selectedProfileId,
+        setSelectedProfileId,
+        selectedConversationId,
+        setSelectedConversationId,
+        currentUserId,
+        setCurrentUserId,
+        appliedFilters,
+        setAppliedFilters,
+        reservationDraft,
+        setReservationDraft,
+      }}
+    >
       {children}
     </ContentContext.Provider>
   );

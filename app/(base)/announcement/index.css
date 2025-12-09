@@ -1,5 +1,5 @@
 .announcementCard {
-  border: 2px solid var(--primary);
+  border: 1px solid var(--primary);
   border-radius: 16px;
   padding: 10px;
   display: flex;
