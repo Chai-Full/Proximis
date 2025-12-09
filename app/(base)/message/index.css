@@ -1,0 +1,254 @@
+.messagePage {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    row-gap: 16px;
+}
+
+.messageTabs {
+    display: flex;
+    column-gap: 10px;
+}
+
+.messageTab {
+    flex: 1;
+    border-radius: 999px;
+    padding: 10px 14px;
+    border: 1px solid var(--primary);
+    background: transparent;
+    color: var(--primary);
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.messageTab.active {
+    background: rgba(30, 167, 146, 0.15);
+    border-color: transparent;
+    box-shadow: 0 0 0 1px rgba(30, 167, 146, 0.12);
+}
+
+.messageList {
+    display: flex;
+    flex-direction: column;
+    row-gap: 12px;
+}
+
+.messageItem {
+    display: flex;
+    column-gap: 12px;
+    padding: 12px;
+    width: 100%;
+    background: var(--white);
+    border-radius: 14px;
+    border: 1px solid #e6e6e6;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    align-items: center;
+}
+
+.messageItemImage {
+    width: 64px;
+    height: 67px;
+    border-radius: 13px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    flex-shrink: 0;
+}
+
+.messageItemBody {
+    display: flex;
+    flex-direction: column;
+    row-gap: 4px;
+    flex: 1;
+    min-width: 0;
+}
+
+.messageItemRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    column-gap: 8px;
+}
+
+.messageItemName {
+    color: var(--foreground);
+}
+
+.messageItemTime {
+    color: var(--gray);
+}
+
+.messageItemSubtitle {
+    color: var(--gray);
+}
+
+.messageItemPreview {
+    color: #545454;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    max-width: 100%;
+}
+
+.notif {
+    background-color: var(--secondary);
+    color: var(--white);
+    min-width: 22px;
+    height: 22px;
+    text-align: center;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 6px;
+}
+
+/* Chat page */
+.chatPage {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 12px 12px 80px 12px; /* bottom space for input bar */
+    gap: 12px;
+    background: var(--background);
+}
+
+.chatHeaderCard {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    background: var(--white);
+    border-radius: 14px;
+    border: 1px solid #e6e6e6;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.chatHeaderAvatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 12px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    flex-shrink: 0;
+    border: 1px solid #e6e6e6;
+}
+
+.chatHeaderInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    justify-content: center;
+}
+
+.chatHeaderTitleRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.chatHeaderMeta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--gray);
+}
+
+.chatBadge {
+    background: #f0fffa;
+    border-radius: 20px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.chatMessages {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 12px;
+}
+
+.chatBubble {
+    max-width: 78%;
+    padding: 12px;
+    border-radius: 14px;
+    display: inline-flex;
+    flex-direction: column;
+    gap: 6px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.chatBubble.other {
+    background: #f5f5f5;
+    color: #1c1c1c;
+    align-self: flex-start;
+}
+
+.chatBubble.me {
+    background: #7bcab7;
+    color: white;
+    align-self: flex-end;
+}
+
+.chatTime {
+    color: #7f7f7f;
+}
+
+.chatBubble.me .chatTime {
+    color: #e6f5ef;
+}
+
+.chatInputBar {
+    position: fixed;
+    bottom: 0px;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--background);
+}
+
+.chatIconButton {
+    width: 44px;
+    height: 44px;
+    border-radius: 22px;
+    background: var(--primary);
+    border: 1px solid #e6e6e6;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.chatInput {
+    flex: 1;
+    height: 44px;
+    border-radius: 22px;
+    border: 1px solid #e6e6e6;
+    padding: 0 14px;
+    font-size: 14px;
+    outline: none;
+}
+
+.chatInput:focus {
+    border-color: var(--primary);
+}
+
+.chatSendButton {
+    width: 44px;
+    height: 44px;
+    border-radius: 22px;
+    background: var(--primary); /* WhatsApp like */
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}

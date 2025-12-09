@@ -103,5 +103,615 @@
     "photo": "/uploads/1762704533689_1-test.webp",
     "isAvailable": false,
     "createdAt": "2025-11-09T16:08:53.691Z"
+  },
+  {
+    "id": 1762800000001,
+    "userId": 1,
+    "title": "Aide au jardinage",
+    "category": "Jardinage",
+    "description": "Entretien de jardin, tonte, taille des haies.",
+    "price": 20,
+    "scope": 10,
+    "notes": null,
+    "slots": [
+      {
+        "day": 6,
+        "start": "2025-11-15T08:00:00.000Z",
+        "end": "2025-11-15T12:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/garden1.jpg",
+    "isAvailable": true,
+    "createdAt": "2025-11-10T08:00:00.000Z"
+  },
+  {
+    "id": 1762800000002,
+    "userId": 1,
+    "title": "Cours de piano",
+    "category": "Cours particuliers",
+    "description": "Cours pour débutants et intermédiaires.",
+    "price": 30,
+    "scope": 15,
+    "notes": null,
+    "slots": [
+      {
+        "day": 4,
+        "start": "2025-11-12T17:00:00.000Z",
+        "end": "2025-11-12T19:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/piano.jpg",
+    "isAvailable": true,
+    "createdAt": "2025-11-10T09:00:00.000Z"
+  },
+  {
+    "id": 1762800000003,
+    "userId": 3,
+    "title": "Réparation vélo",
+    "category": "Réparations",
+    "description": "Réglage et réparation de vélos toutes marques.",
+    "price": 25,
+    "scope": 8,
+    "notes": null,
+    "slots": [
+      {
+        "day": 2,
+        "start": "2025-11-11T09:00:00.000Z",
+        "end": "2025-11-11T12:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/bike.jpg",
+    "isAvailable": true,
+    "createdAt": "2025-11-10T10:00:00.000Z"
+  },
+  {
+    "id": 1762800000004,
+    "userId": 3,
+    "title": "Baby-sitting soirée",
+    "category": "Garde d'enfants",
+    "description": "Garde d'enfants ponctuelle le soir.",
+    "price": 12,
+    "scope": 7,
+    "notes": null,
+    "slots": [
+      {
+        "day": 7,
+        "start": "2025-11-16T18:00:00.000Z",
+        "end": "2025-11-16T23:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/babysit.jpg",
+    "isAvailable": true,
+    "createdAt": "2025-11-10T11:00:00.000Z"
+  },
+  {
+    "id": 1762800000005,
+    "userId": 1,
+    "title": "Aide informatique à domicile",
+    "category": "Assistance informatique",
+    "description": "Installation, dépannage et formation informatique.",
+    "price": 35,
+    "scope": 20,
+    "notes": null,
+    "slots": [
+      {
+        "day": 3,
+        "start": "2025-11-13T09:00:00.000Z",
+        "end": "2025-11-13T12:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/it.jpg",
+    "isAvailable": true,
+    "createdAt": "2025-11-10T12:00:00.000Z"
+  },
+  {
+    "id": 1762800000006,
+    "userId": 4,
+    "title": "Livraison courses",
+    "category": "Courses et livraison à domicile",
+    "description": "Livraison rapide de courses et colis.",
+    "price": 8,
+    "scope": 5,
+    "notes": null,
+    "slots": [
+      {
+        "day": 1,
+        "start": "2025-11-10T08:00:00.000Z",
+        "end": "2025-11-10T12:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/delivery.jpg",
+    "isAvailable": true,
+    "createdAt": "2025-11-10T13:00:00.000Z"
+  },
+  {
+    "id": 1762800000007,
+    "userId": 4,
+    "title": "Aide ménage hebdomadaire",
+    "category": "Ménage",
+    "description": "Nettoyage et entretien de domicile.",
+    "price": 18,
+    "scope": 12,
+    "notes": null,
+    "slots": [
+      {
+        "day": 2,
+        "start": "2025-11-11T09:00:00.000Z",
+        "end": "2025-11-11T12:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/cleaning.jpg",
+    "isAvailable": true,
+    "createdAt": "2025-11-10T14:00:00.000Z"
+  },
+  {
+    "id": 1762800000008,
+    "userId": 3,
+    "title": "Cours de cuisine",
+    "category": "Cours particuliers",
+    "description": "Ateliers cuisine pour petits groupes.",
+    "price": 22,
+    "scope": 10,
+    "notes": null,
+    "slots": [
+      {
+        "day": 5,
+        "start": "2025-11-14T18:00:00.000Z",
+        "end": "2025-11-14T20:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/cooking.jpg",
+    "isAvailable": true,
+    "createdAt": "2025-11-10T15:00:00.000Z"
+  },
+  {
+    "id": 1762800000009,
+    "userId": 1,
+    "title": "Aide au déménagement",
+    "category": "Déménagement",
+    "description": "Aide au chargement et déchargement de camion.",
+    "price": 25,
+    "scope": 25,
+    "notes": null,
+    "slots": [
+      {
+        "day": 6,
+        "start": "2025-11-15T08:00:00.000Z",
+        "end": "2025-11-15T18:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/move.jpg",
+    "isAvailable": true,
+    "createdAt": "2025-11-10T16:00:00.000Z"
+  },
+  {
+    "id": 1762800000010,
+    "userId": 4,
+    "title": "Cours de langue (espagnol)",
+    "category": "Cours particuliers",
+    "description": "Cours de conversation et grammaire.",
+    "price": 28,
+    "scope": 15,
+    "notes": null,
+    "slots": [
+      {
+        "day": 3,
+        "start": "2025-11-13T18:00:00.000Z",
+        "end": "2025-11-13T20:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/spanish.jpg",
+    "isAvailable": true,
+    "createdAt": "2025-11-10T17:00:00.000Z"
+  },
+  {
+    "id": 1762800000011,
+    "userId": 3,
+    "title": "Assistance administrative",
+    "category": "Services administratifs",
+    "description": "Aide à la rédaction de courriers et démarches.",
+    "price": 20,
+    "scope": 30,
+    "notes": null,
+    "slots": [
+      {
+        "day": 1,
+        "start": "2025-11-10T09:00:00.000Z",
+        "end": "2025-11-10T12:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/admin.jpg",
+    "isAvailable": true,
+    "createdAt": "2025-11-10T18:00:00.000Z"
+  },
+  {
+    "id": 1762800000012,
+    "userId": 1,
+    "title": "Soutien scolaire (maths)",
+    "category": "Cours particuliers",
+    "description": "Cours pour collégiens et lycéens.",
+    "price": 25,
+    "scope": 15,
+    "notes": null,
+    "slots": [
+      {
+        "day": 2,
+        "start": "2025-11-11T17:00:00.000Z",
+        "end": "2025-11-11T19:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/math.jpg",
+    "isAvailable": true,
+    "createdAt": "2025-11-10T19:00:00.000Z"
+  },
+  {
+    "id": 1762800000013,
+    "userId": 4,
+    "title": "Repassage à domicile",
+    "category": "Ménage",
+    "description": "Service de repassage rapide et soigné.",
+    "price": 12,
+    "scope": 6,
+    "notes": null,
+    "slots": [
+      {
+        "day": 4,
+        "start": "2025-11-12T09:00:00.000Z",
+        "end": "2025-11-12T12:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/ironing.jpg",
+    "isAvailable": true,
+    "createdAt": "2025-11-10T20:00:00.000Z"
+  },
+  {
+    "id": 1762800000014,
+    "userId": 3,
+    "title": "Coaching sportif",
+    "category": "Coaching",
+    "description": "Séances de coaching individuel en extérieur.",
+    "price": 30,
+    "scope": 15,
+    "notes": null,
+    "slots": [
+      {
+        "day": 6,
+        "start": "2025-11-15T07:00:00.000Z",
+        "end": "2025-11-15T09:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/sport.jpg",
+    "isAvailable": true,
+    "createdAt": "2025-11-10T21:00:00.000Z"
+  },
+  {
+    "id": 1762800000015,
+    "userId": 1,
+    "title": "Montage meubles IKEA",
+    "category": "Bricolage",
+    "description": "Montage de meubles et petites réparations.",
+    "price": 22,
+    "scope": 20,
+    "notes": null,
+    "slots": [
+      {
+        "day": 5,
+        "start": "2025-11-14T10:00:00.000Z",
+        "end": "2025-11-14T16:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/ikea.jpg",
+    "isAvailable": true,
+    "createdAt": "2025-11-10T22:00:00.000Z"
+  },
+  {
+    "id": 1762800000016,
+    "userId": 3,
+    "title": "Photographie événementielle",
+    "category": "Photographie",
+    "description": "Shooting pour événements privés et professionnels.",
+    "price": 60,
+    "scope": 50,
+    "notes": null,
+    "slots": [
+      {
+        "day": 7,
+        "start": "2025-11-16T10:00:00.000Z",
+        "end": "2025-11-16T18:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/photo.jpg",
+    "isAvailable": true,
+    "createdAt": "2025-11-11T08:00:00.000Z"
+  },
+  {
+    "id": 1762800000017,
+    "userId": 4,
+    "title": "Cours yoga",
+    "category": "Coaching",
+    "description": "Cours collectifs de yoga pour tous niveaux.",
+    "price": 18,
+    "scope": 10,
+    "notes": null,
+    "slots": [
+      {
+        "day": 3,
+        "start": "2025-11-13T08:00:00.000Z",
+        "end": "2025-11-13T09:30:00.000Z"
+      }
+    ],
+    "photo": "/uploads/yoga.jpg",
+    "isAvailable": true,
+    "createdAt": "2025-11-11T09:00:00.000Z"
+  },
+  {
+    "id": 1762800000018,
+    "userId": 1,
+    "title": "Cours de dessin",
+    "category": "Cours particuliers",
+    "description": "Ateliers dessin et aquarelle pour débutants.",
+    "price": 20,
+    "scope": 12,
+    "notes": null,
+    "slots": [
+      {
+        "day": 2,
+        "start": "2025-11-11T14:00:00.000Z",
+        "end": "2025-11-11T16:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/drawing.jpg",
+    "isAvailable": true,
+    "createdAt": "2025-11-11T10:00:00.000Z"
+  },
+  {
+    "id": 1762800000019,
+    "userId": 3,
+    "title": "Soutien informatique (réseaux)",
+    "category": "Assistance informatique",
+    "description": "Installation réseaux domestiques et dépannage.",
+    "price": 40,
+    "scope": 30,
+    "notes": null,
+    "slots": [
+      {
+        "day": 4,
+        "start": "2025-11-12T10:00:00.000Z",
+        "end": "2025-11-12T18:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/network.jpg",
+    "isAvailable": true,
+    "createdAt": "2025-11-11T11:00:00.000Z"
+  },
+  {
+    "id": 1762935879704,
+    "userId": "guest",
+    "userName": "Guest",
+    "title": "Jardinage le Week-End",
+    "category": "Entretien du jardin",
+    "description": "Test Annonce Jardinage.",
+    "price": 30,
+    "scope": 30,
+    "notes": null,
+    "slots": [
+      {
+        "day": 6,
+        "start": "2025-11-12T09:00:00.000Z",
+        "end": "2025-11-12T11:00:00.000Z"
+      },
+      {
+        "day": 7,
+        "start": "2025-11-12T09:00:00.000Z",
+        "end": "2025-11-12T11:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/1762935879697_IMG-20241018-WA0000.jpg",
+    "createdAt": "2025-11-12T08:24:39.704Z"
+  },
+  {
+    "id": 1762938710136,
+    "userId": "guest",
+    "userName": "Guest",
+    "title": "Repassage",
+    "category": "Repassage et entretien du linge",
+    "description": "repassage",
+    "price": 30,
+    "scope": 17,
+    "notes": null,
+    "slots": [
+      {
+        "day": 1,
+        "start": "2025-11-12T08:00:00.000Z",
+        "end": "2025-11-12T09:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/1762938710109_WUWT8377.JPG",
+    "createdAt": "2025-11-12T09:11:50.136Z"
+  },
+  {
+    "id": 1762938817925,
+    "userId": "guest",
+    "userName": "Guest",
+    "title": "Nettoyage Garage",
+    "category": "Ménage et entretien du logement",
+    "description": "Test.",
+    "price": 25,
+    "scope": 50,
+    "notes": null,
+    "slots": [
+      {
+        "day": 3,
+        "start": "2025-11-12T14:00:00.000Z",
+        "end": "2025-11-12T16:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/1762938817920_IMG-20241018-WA0000.jpg",
+    "createdAt": "2025-11-12T09:13:37.925Z"
+  },
+  {
+    "id": 1762938918710,
+    "userId": 5,
+    "userName": "Guest",
+    "title": "repassage",
+    "category": "Repassage et entretien du linge",
+    "description": "repassage service",
+    "price": 40,
+    "scope": 22,
+    "notes": null,
+    "slots": [
+      {
+        "day": 3,
+        "start": "2025-11-12T00:00:00.000Z",
+        "end": "2025-11-12T01:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/1762938918706_IMG_1794.JPG",
+    "createdAt": "2025-11-12T09:15:18.710Z"
+  },
+  {
+    "id": 1762939035945,
+    "userId": 5,
+    "userName": "Guest",
+    "title": "repassage",
+    "category": "Repassage et entretien du linge",
+    "description": "service repassage",
+    "price": 40,
+    "scope": 44,
+    "notes": null,
+    "slots": [
+      {
+        "day": 1,
+        "start": "2025-11-12T00:00:00.000Z",
+        "end": "2025-11-12T01:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/1762939035937_IMG_1798.JPG",
+    "createdAt": "2025-11-12T09:17:15.945Z"
+  },
+  {
+    "id": 1762939290693,
+    "userId": "guest",
+    "userName": "Guest",
+    "title": "Assistance de Vie",
+    "category": "Aide à la prise des repas",
+    "description": "Aide au Repas",
+    "price": 50,
+    "scope": 70,
+    "notes": null,
+    "slots": [
+      {
+        "day": 1,
+        "start": "2025-11-12T11:00:00.000Z",
+        "end": "2025-11-12T13:00:00.000Z"
+      },
+      {
+        "day": 2,
+        "start": "2025-11-12T11:00:00.000Z",
+        "end": "2025-11-12T13:00:00.000Z"
+      },
+      {
+        "day": 3,
+        "start": "2025-11-12T11:00:00.000Z",
+        "end": "2025-11-12T13:00:00.000Z"
+      },
+      {
+        "day": 4,
+        "start": "2025-11-12T11:00:00.000Z",
+        "end": "2025-11-12T13:00:00.000Z"
+      },
+      {
+        "day": 5,
+        "start": "2025-11-12T11:00:00.000Z",
+        "end": "2025-11-12T13:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/1762939290683_L'Aumône pour un Pauvre.png",
+    "createdAt": "2025-11-12T09:21:30.693Z"
+  },
+  {
+    "id": 1762939883767,
+    "userId": 5,
+    "userName": null,
+    "title": "cuisine italienne",
+    "category": "Préparation de repas à domicile",
+    "description": "cuisine",
+    "price": 39,
+    "scope": 28,
+    "notes": null,
+    "slots": [
+      {
+        "day": 1,
+        "start": "2025-11-12T00:00:00.000Z",
+        "end": "2025-11-12T01:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/1762939883758_IMG_1836.JPG",
+    "createdAt": "2025-11-12T09:31:23.767Z"
+  },
+  {
+    "id": 1762939920585,
+    "userId": 4,
+    "userName": null,
+    "title": "Test",
+    "category": "Aide à la prise des repas",
+    "description": "Test",
+    "price": 50,
+    "scope": 38,
+    "notes": null,
+    "slots": [
+      {
+        "day": 2,
+        "start": "2025-11-12T09:00:00.000Z",
+        "end": "2025-11-12T11:00:00.000Z"
+      },
+      {
+        "day": 3,
+        "start": "2025-11-12T09:00:00.000Z",
+        "end": "2025-11-12T11:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/1762939920576_IMG-20241018-WA0000.jpg",
+    "createdAt": "2025-11-12T09:32:00.585Z"
+  },
+  {
+    "id": 1762940539823,
+    "userId": 5,
+    "userName": null,
+    "title": "D",
+    "category": "Surveillance temporaire du domicile",
+    "description": "D",
+    "price": 50,
+    "scope": 36,
+    "notes": null,
+    "slots": [
+      {
+        "day": 1,
+        "start": "2025-11-12T00:00:00.000Z",
+        "end": "2025-11-12T01:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/1762940539817_IMG_1802.JPG",
+    "createdAt": "2025-11-12T09:42:19.823Z"
+  },
+  {
+    "id": 1762942142331,
+    "userId": 5,
+    "userName": null,
+    "title": "Je sais couper des arbres",
+    "category": "Entretien du jardin",
+    "description": "Je coupe des arbres",
+    "price": 50,
+    "scope": 49,
+    "notes": null,
+    "slots": [
+      {
+        "day": 6,
+        "start": "2025-11-11T23:00:00.000Z",
+        "end": "2025-11-12T18:00:00.000Z"
+      }
+    ],
+    "photo": "/uploads/1762942142324_IMG_1794.JPG",
+    "createdAt": "2025-11-12T10:09:02.332Z"
   }
 ]

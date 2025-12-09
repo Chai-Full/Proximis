@@ -19,10 +19,6 @@ export default function HomeContent() {
             router.push('/');
         }
     }, [currentUserId, router]);
-    const announcementAvailability = [
-        { day: "Lun", available: true },
-        { day: "Mar", available: false },
-    ];
     const stats = [
         { label: "Services rendus", value: "12" },
         { label: "Services reçus", value: "8" },

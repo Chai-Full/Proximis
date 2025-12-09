@@ -21,6 +21,8 @@ import ArrowBackOutlined from "@mui/icons-material/ArrowBackOutlined";
 import AnnouncementSearchPageContent from "./search/AnnouncementSearchPageContent";
 import FilterPageContent from "./search/FilterPageContent";
 import ReservationContent from "./reservation/page";
+import MessageContent from "./message/page";
+import ChatContent from "./message/ChatContent";
 
 const navItems = [
         { id: "home", label: "Accueil", icon: HomeIcon, href: "/" },
@@ -33,7 +35,8 @@ const navItems = [
 // Table de correspondance id -> composant de contenu
 const contentComponents = {
     home: HomeContent,
-    messages: HomeContent,
+    messages: MessageContent,
+    message_chat: ChatContent,
     search: AnnouncementSearchPageContent,
     filters: FilterPageContent,
     reservation: ReservationContent,
@@ -49,6 +52,7 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
     const router = useRouter();
     const currentNav = navItems.find(item => item.id === currentPage);
     const CurrentContent = (contentComponents as Record<string, React.ComponentType>)[currentPage] || HomeContent;
+    const hideBottomNav = currentPage === "messages" || currentPage === "message_chat" || currentPage === "annonces" || currentPage === "profil";
     const {
         register,
         handleSubmit,
@@ -66,6 +70,10 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
         <div className="container">
             <div
                 className="head"
+                style={{
+                    // Remove shadow on search page to blend with search header
+                    boxShadow: currentPage === "search" ? "none" : undefined,
+                }}
             >
                 {history.length > 0 ? (
                     <button
@@ -79,14 +87,14 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
                             transform: "translateY(-50%)",
                         }}
                     >
-                        <ArrowBackOutlined sx={{ color: "white", cursor: "pointer" }} />
+                        <ArrowBackOutlined color="primary" sx={{ cursor: "pointer" }} />
                     </button>
                 ) : null}
                 <span className="title T4" style={{ textAlign: "center" }}>
                     {title}
                 </span>
-                {/* logout button on the right when user is logged in */}
-                {currentUserId != null && (
+                {/* logout button on the right when user is logged in and on home page */}
+                {currentUserId != null && currentPage === "home" && (
                     <button
                         aria-label="logout"
                         className="backButton"
@@ -102,36 +110,38 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
                             transform: "translateY(-50%)",
                         }}
                     >
-                        <LogoutOutlined sx={{ color: "white", cursor: "pointer" }} />
+                        <LogoutOutlined color="primary" sx={{ cursor: "pointer" }} />
                     </button>
                 )}
             </div>
-                <main className="mainContent">
+                <main className="mainContent" style={{ marginBottom: hideBottomNav ? 0 : undefined }}>
                     <CurrentContent />
                 </main>
-                <nav className="bottomBar">
-                {navItems.map(({ id, label, icon: Icon, href }) => (
-                    <div
-                        key={id}
-                        className={`navItem ${currentPage === id ? "active" : ""}`}
-                           onClick={() => {
-                               if (id === 'profil') {
-                                   // when user clicks the navbar profile, show the connected user's profile (by id)
-                                   if (setSelectedProfileId) setSelectedProfileId(currentUserId ?? null);
-                                   setCurrentPage('profil');
-                               } else {
-                                   setCurrentPage(id as PageKey);
-                               }
-                           }}
-                        >
-                        <Icon 
-                            color={currentPage !== id ? "primary" : "secondary"}
-                            fontSize={currentPage === id ? "large" : "medium"} 
-                        />
-                        <Link href="#" className="navLink">{label}</Link>
-                    </div>
-                ))}
-                </nav>
+                {!hideBottomNav && (
+                    <nav className="bottomBar">
+                    {navItems.map(({ id, label, icon: Icon, href }) => (
+                        <div
+                            key={id}
+                            className={`navItem ${currentPage === id ? "active" : ""}`}
+                               onClick={() => {
+                                   if (id === 'profil') {
+                                       // when user clicks the navbar profile, show the connected user's profile (by id)
+                                       if (setSelectedProfileId) setSelectedProfileId(currentUserId ?? null);
+                                       setCurrentPage('profil');
+                                   } else {
+                                       setCurrentPage(id as PageKey);
+                                   }
+                               }}
+                            >
+                            <Icon 
+                                color={currentPage !== id ? "primary" : "secondary"}
+                                fontSize={currentPage === id ? "large" : "medium"} 
+                            />
+                            <Link href="#" className="navLink">{label}</Link>
+                        </div>
+                    ))}
+                    </nav>
+                )}
         </div>
     );
 }

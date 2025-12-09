@@ -5,13 +5,11 @@ import React, { useState } from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { Inputs } from "./types/Input";
 import Link from "next/link";
-import { sendSignInLinkToEmail } from "firebase/auth";
-import { auth } from "./firebaseConfig";
+// Firebase sign-in removed — use local users.json lookup instead
 import usersData from '../data/users.json';
 import "./index.css";
 import Image from "next/image";
-import Backdrop from "@mui/material/Backdrop";
-import CircularProgress from "@mui/material/CircularProgress";
+// Backdrop/CircularProgress removed (not used)
 
 
 export default function Home() {
@@ -45,26 +43,7 @@ export default function Home() {
 
   const [message, setMessage] = useState("");
 
-  const actionCodeSettings = {
-    url: window.location.origin + "/finishSignIn",
-    handleCodeInApp: true,
-  };
-
-  const handleSendLink = async () => {
-    try {
-      const email = watch('email');
-      if (!email) {
-        setMessage('Veuillez saisir un email');
-        return;
-      }
-      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-      window.localStorage.setItem('emailForSignIn', email);
-      setMessage("Lien magique envoyé par e-mail !");
-    } catch (error) {
-      console.error(error);
-      setMessage("Erreur lors de l'envoi du lien.");
-    }
-  };
+  // Firebase magic-link removed — login is handled by checking data/users.json
   
   return (
     <div className="connexionContainer">
@@ -84,7 +63,7 @@ export default function Home() {
             fontWeight: 600,
             borderRadius: "12px",
           }}
-          loading={loading}
+          disabled={loading}
           >Connexion</Button>
 
           {/* <Backdrop
