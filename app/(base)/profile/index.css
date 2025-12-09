@@ -3,6 +3,7 @@
     display: flex;
     flex-direction: column;
     row-gap: 20px;
+    background: var(--background);
 }
 
 .announceProfileHeader{
@@ -11,13 +12,14 @@
     row-gap: 8px;
     justify-content: center;
     align-items: center;
+    position: relative;
 }
 
-.announceProfileHeader>.avatar {
+.avatar {
     width: 116px;
     height: 116px;
     border-radius: 50%;
-    background-color: var(--secondary);
+    background-color: #ff9202;
     color: #fff;
     display: flex;
     align-items: center;
@@ -26,6 +28,7 @@
     font-weight: 500;
     position: relative;
     overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }
 
 .announceProfileHeader>.nameNotes {
@@ -39,10 +42,175 @@
     display: flex;
     flex-direction: column;
     row-gap: 16px;
+    margin-top: 16px;
 }
 
 .announceProfileContentClosedList {
     display: flex;
     flex-direction: column;
     row-gap: 16px;
+    margin-top: 16px;
+}
+
+.avatarInitials {
+    position: absolute;
+    user-select: none;
+}
+
+.avatarEditButton {
+    position: absolute;
+    right: -6px;
+    top: -6px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid #e6e6e6;
+    background: #D9D9D9;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.headerWithEdit {
+    position: relative;
+}
+
+.floatingEdit {
+    position: absolute;
+    top: 0;
+    right: 0;
+}
+
+.profileStatsRow {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.profileStatCard {
+    background: #F88C0510;
+    border: 1px solid #f1e4d3;
+    border-radius: 14px;
+    padding: 14px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.profileStatValue {
+    color: var(--primary);
+}
+
+.profileStatLabel {
+    font-size: 12px;
+    color: #5c5c5c;
+}
+
+.profileMenuList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.profileMenuCard {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 12px;
+    background: var(--white);
+    border: 1px solid #F88C0530;
+    border-radius: 14px;
+    cursor: pointer;
+}
+
+.profileMenuLeft {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.profileMenuIcon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: #f0fffa;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.profileMenuTitleArea {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.profileMenuRight {
+    display: flex;
+    align-items: center;
+}
+
+.profileBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: #ff920230;
+    color: #ff9202;
+    font-size: 11px;
+    font-weight: 600;
+    width: fit-content;
+}
+
+/* Edit profile page */
+.editProfilePage {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background: var(--background);
+    flex: 1 1 auto;
+    overflow-y: auto; /* avatar and form scroll with content */
+}
+
+.editAvatarWrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.largeAvatar {
+    width: 140px;
+    height: 140px;
+    font-size: 52px;
+}
+
+.editAvatarButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid #1ea792;
+    color: #1ea792;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.editProfileForm {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.editField {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }

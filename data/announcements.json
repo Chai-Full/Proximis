@@ -507,7 +507,8 @@
       }
     ],
     "photo": "/uploads/1762935879697_IMG-20241018-WA0000.jpg",
-    "createdAt": "2025-11-12T08:24:39.704Z"
+    "createdAt": "2025-11-12T08:24:39.704Z",
+    "isAvailable": true
   },
   {
     "id": 1762938710136,
@@ -527,7 +528,8 @@
       }
     ],
     "photo": "/uploads/1762938710109_WUWT8377.JPG",
-    "createdAt": "2025-11-12T09:11:50.136Z"
+    "createdAt": "2025-11-12T09:11:50.136Z",
+    "isAvailable": true
   },
   {
     "id": 1762938817925,
@@ -547,7 +549,8 @@
       }
     ],
     "photo": "/uploads/1762938817920_IMG-20241018-WA0000.jpg",
-    "createdAt": "2025-11-12T09:13:37.925Z"
+    "createdAt": "2025-11-12T09:13:37.925Z",
+    "isAvailable": false
   },
   {
     "id": 1762938918710,
@@ -567,7 +570,8 @@
       }
     ],
     "photo": "/uploads/1762938918706_IMG_1794.JPG",
-    "createdAt": "2025-11-12T09:15:18.710Z"
+    "createdAt": "2025-11-12T09:15:18.710Z",
+    "isAvailable": true
   },
   {
     "id": 1762939035945,
@@ -587,7 +591,8 @@
       }
     ],
     "photo": "/uploads/1762939035937_IMG_1798.JPG",
-    "createdAt": "2025-11-12T09:17:15.945Z"
+    "createdAt": "2025-11-12T09:17:15.945Z",
+    "isAvailable": true
   },
   {
     "id": 1762939290693,
@@ -627,7 +632,8 @@
       }
     ],
     "photo": "/uploads/1762939290683_L'Aumône pour un Pauvre.png",
-    "createdAt": "2025-11-12T09:21:30.693Z"
+    "createdAt": "2025-11-12T09:21:30.693Z",
+    "isAvailable": false
   },
   {
     "id": 1762939883767,
@@ -647,7 +653,8 @@
       }
     ],
     "photo": "/uploads/1762939883758_IMG_1836.JPG",
-    "createdAt": "2025-11-12T09:31:23.767Z"
+    "createdAt": "2025-11-12T09:31:23.767Z",
+    "isAvailable": true
   },
   {
     "id": 1762939920585,
@@ -672,7 +679,8 @@
       }
     ],
     "photo": "/uploads/1762939920576_IMG-20241018-WA0000.jpg",
-    "createdAt": "2025-11-12T09:32:00.585Z"
+    "createdAt": "2025-11-12T09:32:00.585Z",
+    "isAvailable": false
   },
   {
     "id": 1762940539823,
@@ -692,7 +700,8 @@
       }
     ],
     "photo": "/uploads/1762940539817_IMG_1802.JPG",
-    "createdAt": "2025-11-12T09:42:19.823Z"
+    "createdAt": "2025-11-12T09:42:19.823Z",
+    "isAvailable": false
   },
   {
     "id": 1762942142331,
@@ -712,6 +721,7 @@
       }
     ],
     "photo": "/uploads/1762942142324_IMG_1794.JPG",
-    "createdAt": "2025-11-12T10:09:02.332Z"
+    "createdAt": "2025-11-12T10:09:02.332Z",
+    "isAvailable": true
   }
 ]
