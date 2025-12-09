@@ -11,6 +11,7 @@ export type PageKey =
   | "publish"
   | "annonces"
   | "profil"
+  | "profil_edit"
   | "announce_details"
   | "filters"
   | "reservation";

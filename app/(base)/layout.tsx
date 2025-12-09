@@ -4,7 +4,6 @@ import "./home/index.css";
 import Link from "next/link";
 import HomeIcon from '@mui/icons-material/Home';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
-import TextSnippetIcon from '@mui/icons-material/TextSnippet';
 import PermIdentityIcon from '@mui/icons-material/PermIdentity';
 import HomeContent from "./home/page";
 import { SubmitHandler, useForm } from "react-hook-form";
@@ -12,6 +11,7 @@ import { InputsAnnounceSearch } from "../types/InputsAnnounceSearch";
 import AnnouncementContent from "./announcement/page";
 import AnnounceDetails from "./announcement/AnnouncementDetails";
 import ProfileDetails from "./profile/profileDetails";
+import ProfileEditContent from "./profile/EditProfileContent";
 import { ContentProvider, useContent, PageKey } from "./ContentContext";
 import LogoutOutlined from '@mui/icons-material/LogoutOutlined';
 import { useRouter } from 'next/navigation';
@@ -23,12 +23,13 @@ import FilterPageContent from "./search/FilterPageContent";
 import ReservationContent from "./reservation/page";
 import MessageContent from "./message/page";
 import ChatContent from "./message/ChatContent";
+import TodayIcon from '@mui/icons-material/Today';
 
 const navItems = [
         { id: "home", label: "Accueil", icon: HomeIcon, href: "/" },
         { id: "messages", label: "Messages", icon: MailOutlineIcon, href: "/messages" },
         { id: "search", label: "Rechercher", icon: SearchOutlined, href: "/search" },
-        { id: "annonces", label: "Réservations", icon: TextSnippetIcon, href: "/annonces" },
+        { id: "annonces", label: "Réservations", icon: TodayIcon, href: "/annonces" },
         { id: "profil", label: "Profil", icon: PermIdentityIcon, href: "/profil" }
         ];
 
@@ -43,6 +44,7 @@ const contentComponents = {
     annonces: AnnouncementContent,
     announce_details: AnnounceDetails,
     profil: ProfileDetails,
+    profil_edit: ProfileEditContent,
     publish: PublishAnnouncementContent,
 };
 
@@ -52,7 +54,7 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
     const router = useRouter();
     const currentNav = navItems.find(item => item.id === currentPage);
     const CurrentContent = (contentComponents as Record<string, React.ComponentType>)[currentPage] || HomeContent;
-    const hideBottomNav = currentPage === "messages" || currentPage === "message_chat" || currentPage === "annonces" || currentPage === "profil";
+    const hideBottomNav = currentPage === "messages" || currentPage === "message_chat" || currentPage === "annonces" || currentPage === "profil" || currentPage === "profil_edit";
     const {
         register,
         handleSubmit,
