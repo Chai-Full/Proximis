@@ -11,6 +11,7 @@ import { InputsAnnounceSearch } from "../types/InputsAnnounceSearch";
 import AnnouncementContent from "./announcement/page";
 import AnnounceDetails from "./announcement/AnnouncementDetails";
 import ProfileDetails from "./profile/profileDetails";
+import EditAnnouncementContent from "./announcement/EditAnnouncementContent";
 import ProfileEditContent from "./profile/EditProfileContent";
 import { ContentProvider, useContent, PageKey } from "./ContentContext";
 import LogoutOutlined from '@mui/icons-material/LogoutOutlined';
@@ -43,6 +44,7 @@ const contentComponents = {
     reservation: ReservationContent,
     annonces: AnnouncementContent,
     announce_details: AnnounceDetails,
+    announce_edit: EditAnnouncementContent,
     profil: ProfileDetails,
     profil_edit: ProfileEditContent,
     publish: PublishAnnouncementContent,

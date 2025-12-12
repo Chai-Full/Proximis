@@ -18,9 +18,6 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 export default function AnnounceDetails() {
   const { selectedAnnouncementId, setHeaderTitle, setSelectedProfileId, setCurrentPage, setReservationDraft, currentUserId } = useContent();
 
-  useEffect(() => {
-    console.log('AnnounceDetails selectedAnnouncementId:', selectedAnnouncementId);
-  }, [selectedAnnouncementId]);
 
   const announcement = (announcements as any[]).find(a => String(a.id) === String(selectedAnnouncementId));
   const users = (usersData as any).users ?? [];
@@ -45,8 +42,6 @@ export default function AnnounceDetails() {
         </div>
     );
   }
-
-  console.log("announce : ", announcement);
   
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<any>(dayjs());
@@ -78,9 +73,20 @@ export default function AnnounceDetails() {
           <div style={{ backgroundColor: "#47474772", borderRadius: 7, display: 'flex', alignItems: 'center', height: 40, width: 40, justifyContent: 'center', cursor: 'pointer'}}>
             <StarOutlined sx={{ color: "#FFFFFF", fontSize: 32, cursor: 'pointer' }} />
           </div>
-          <div style={{ backgroundColor: "#47474772", borderRadius: 7, display: 'flex', alignItems: 'center', height: 40, width: 40, justifyContent: 'center', cursor: 'pointer'}}>
-            <ModeOutlined sx={{ color: "#FFFFFF", fontSize: 32, cursor: 'pointer' }} />
-          </div>
+          {currentUserId != null && Number(currentUserId) === Number(announcement.userId) ? (
+            <button
+              style={{ backgroundColor: "#47474772", borderRadius: 7, display: 'flex', alignItems: 'center', height: 40, width: 40, justifyContent: 'center', cursor: 'pointer'}}
+              onClick={() => {
+                console.log("click");
+                console.log("currentUserId : ", currentUserId);
+                console.log("announcement.userId : ", announcement.userId);
+                console.log("currentUserId === announcement.userId : ", currentUserId === announcement.userId);
+                setCurrentPage && setCurrentPage("announce_edit");
+              }}
+            >
+              <ModeOutlined sx={{ color: "#FFFFFF", fontSize: 32, cursor: 'pointer' }} />
+            </button>
+          ) : null}
         </div>
         <div className='publicationTime'>
             <span className='T6'>

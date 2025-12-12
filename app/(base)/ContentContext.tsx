@@ -9,6 +9,7 @@ export type PageKey =
   | "message_chat"
   | "search"
   | "publish"
+  | "announce_edit"
   | "annonces"
   | "profil"
   | "profil_edit"
