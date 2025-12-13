@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import { useContent } from '../ContentContext';
 import announcements from '../../../data/announcements.json';
 import usersData from '../../../data/users.json';
-import { ChatBubbleOutlineOutlined, CheckBoxOutlined, FmdGoodOutlined, ModeOutlined, StarOutlined } from '@mui/icons-material';
+import { ChatBubbleOutlineOutlined, CheckBoxOutlined, FmdGoodOutlined, ModeOutlined, FavoriteBorder, Favorite } from '@mui/icons-material';
 import Radio from '@mui/material/Radio';
 import { getDayLabelById } from '@/lib/daylabel';
 import dayjs from 'dayjs';
@@ -47,6 +47,89 @@ export default function AnnounceDetails() {
   const [selectedDate, setSelectedDate] = useState<any>(dayjs());
   const [isChecking, setIsChecking] = useState(false);
   const [notification, setNotification] = useState<{ open: boolean; message: string; severity: 'success'|'warning'|'error'|'info' }>({ open: false, message: '', severity: 'info' });
+  
+  // Favorites management
+  const [isFavorite, setIsFavorite] = useState<boolean>(false);
+  const [isTogglingFavorite, setIsTogglingFavorite] = useState<boolean>(false);
+  
+  useEffect(() => {
+    const checkFavorite = async () => {
+      if (typeof window === 'undefined' || !announcement || !currentUserId) {
+        setIsFavorite(false);
+        return;
+      }
+      try {
+        const params = new URLSearchParams({
+          userId: String(currentUserId),
+          announcementId: String(announcement.id),
+        });
+        const res = await fetch(`/api/favorites?${params.toString()}`);
+        const data = await res.json();
+        if (res.ok && data.exists) {
+          setIsFavorite(true);
+        } else {
+          setIsFavorite(false);
+        }
+      } catch (e) {
+        console.error('Error checking favorite', e);
+        setIsFavorite(false);
+      }
+    };
+    checkFavorite();
+  }, [announcement, currentUserId]);
+
+  const toggleFavorite = async () => {
+    if (!announcement || !currentUserId || isTogglingFavorite) return;
+    
+    setIsTogglingFavorite(true);
+    try {
+      if (isFavorite) {
+        // Remove from favorites
+        const params = new URLSearchParams({
+          userId: String(currentUserId),
+          announcementId: String(announcement.id),
+        });
+        const res = await fetch(`/api/favorites?${params.toString()}`, {
+          method: 'DELETE',
+        });
+        const data = await res.json();
+        if (res.ok && data.ok) {
+          setIsFavorite(false);
+          setNotification({ open: true, message: 'Retiré des favoris', severity: 'info' });
+        } else {
+          setNotification({ open: true, message: 'Erreur lors de la suppression', severity: 'error' });
+        }
+      } else {
+        // Add to favorites
+        const res = await fetch('/api/favorites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: currentUserId,
+            announcementId: announcement.id,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok && data.ok) {
+          setIsFavorite(true);
+          setNotification({ open: true, message: 'Ajouté aux favoris', severity: 'success' });
+        } else if (res.status === 409) {
+          // Already exists, just update state
+          setIsFavorite(true);
+        } else {
+          setNotification({ open: true, message: 'Erreur lors de l\'ajout', severity: 'error' });
+        }
+      }
+    } catch (e) {
+      console.error('Error toggling favorite', e);
+      setNotification({ open: true, message: 'Erreur lors de la modification des favoris', severity: 'error' });
+    } finally {
+      setIsTogglingFavorite(false);
+    }
+  };
+
+  // Check if user is the author
+  const isAuthor = currentUserId != null && Number(currentUserId) === Number(announcement.userId);
 
   function formatTime(iso?: string | null) {
     if (!iso) return '--:--';
@@ -70,10 +153,19 @@ export default function AnnounceDetails() {
         }}
       >
         <div className='actionButtons'>
-          <div style={{ backgroundColor: "#47474772", borderRadius: 7, display: 'flex', alignItems: 'center', height: 40, width: 40, justifyContent: 'center', cursor: 'pointer'}}>
-            <StarOutlined sx={{ color: "#FFFFFF", fontSize: 32, cursor: 'pointer' }} />
-          </div>
-          {currentUserId != null && Number(currentUserId) === Number(announcement.userId) ? (
+          {!isAuthor && (
+            <div 
+              style={{ backgroundColor: "#47474772", borderRadius: 7, display: 'flex', alignItems: 'center', height: 40, width: 40, justifyContent: 'center', cursor: 'pointer'}}
+              onClick={toggleFavorite}
+            >
+              {isFavorite ? (
+                <Favorite sx={{ color: "#ff9202", fontSize: 32, cursor: 'pointer' }} />
+              ) : (
+                <FavoriteBorder sx={{ color: "#FFFFFF", fontSize: 32, cursor: 'pointer' }} />
+              )}
+            </div>
+          )}
+          {isAuthor ? (
             <button
               style={{ backgroundColor: "#47474772", borderRadius: 7, display: 'flex', alignItems: 'center', height: 40, width: 40, justifyContent: 'center', cursor: 'pointer'}}
               onClick={() => {

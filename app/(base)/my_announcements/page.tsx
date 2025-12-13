@@ -4,12 +4,14 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useContent } from "../ContentContext";
 import Star from "@mui/icons-material/Star";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import FavoriteBorder from "@mui/icons-material/FavoriteBorder";
 import announcementsData from "../../../data/announcements.json";
 import usersData from "../../../data/users.json";
 import { getDayLabels } from "@/lib/daylabel";
 import dayjs from "dayjs";
 import "dayjs/locale/fr";
 import updateLocale from "dayjs/plugin/updateLocale";
+import "./index.css";
 
 dayjs.locale("fr");
 dayjs.extend(updateLocale);
@@ -18,14 +20,13 @@ dayjs.extend(updateLocale);
 dayjs.updateLocale("fr", {
   monthsShort: ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."],
 });
-import "./index.css";
 
 type TabType = "my_announcements" | "reservations" | "favorites";
 
 interface AnnouncementCardData {
   id: number | string;
   title: string;
-  photo?: string | null;
+  photo?: string;
   price?: number;
   category?: string;
   slots?: { day: number; start?: string | null; end?: string | null }[];
@@ -34,7 +35,7 @@ interface AnnouncementCardData {
   description?: string;
 }
 
-function MyAnnouncementCard({ announcement }: { announcement: AnnouncementCardData }) {
+function MyAnnouncementCard({ announcement, showFavoriteIcon = false }: { announcement: AnnouncementCardData; showFavoriteIcon?: boolean }) {
   const { setCurrentPage, setSelectedAnnouncementId } = useContent();
   const dayLabels = getDayLabels(announcement.slots);
   const rating = announcement.rating ?? 4.8;
@@ -67,30 +68,66 @@ function MyAnnouncementCard({ announcement }: { announcement: AnnouncementCardDa
             }}
           />
           <div className="myAnnouncementCardDetails">
-            <div className="myAnnouncementCardHeader">
-                <h3 className="myAnnouncementCardTitle">{announcement.title}</h3>
-                <div className="myAnnouncementCardRating">
+            {showFavoriteIcon ? (
+              // Layout for favorites view
+              <>
+                <div className="myAnnouncementCardHeader">
+                  <h3 className="myAnnouncementCardTitle">{announcement.title}</h3>
+                  <FavoriteBorder sx={{ color: "var(--secondary)", fontSize: "18px" }} />
+                </div>
+                <div className="myAnnouncementCardDescriptionRating">
+                  {truncatedDescription && (
+                    <p className="myAnnouncementCardDescription">{truncatedDescription}</p>
+                  )}
+                  <div className="myAnnouncementCardRating">
                     <Star sx={{ color: "#FFE135", fontSize: "18px" }} />
                     <span>{rating}</span>
+                  </div>
                 </div>
-            </div>
-            {truncatedDescription && (
-              <p className="myAnnouncementCardDescription">{truncatedDescription}</p>
-            )}
-            <div className="myAnnouncementCardDaysRow">
-              <div className="myAnnouncementCardDays">
-                {dayLabels.length > 0 ? (
-                  dayLabels.map((day, idx) => (
-                    <span key={idx} className="dayBadge">
-                      {day}
-                    </span>
-                  ))
-                ) : (
-                  <span className="dayBadge empty">Aucun créneau</span>
+                <div className="myAnnouncementCardDaysRow">
+                  <div className="myAnnouncementCardDays">
+                    {dayLabels.length > 0 ? (
+                      dayLabels.map((day, idx) => (
+                        <span key={idx} className="dayBadge">
+                          {day}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="dayBadge empty">Aucun créneau</span>
+                    )}
+                  </div>
+                  <span className="priceText">{announcement.price ? `${announcement.price}€/h` : "—"}</span>
+                </div>
+              </>
+            ) : (
+              // Layout for my announcements view
+              <>
+                <div className="myAnnouncementCardHeader">
+                  <h3 className="myAnnouncementCardTitle">{announcement.title}</h3>
+                  <div className="myAnnouncementCardRating">
+                    <Star sx={{ color: "#FFE135", fontSize: "18px" }} />
+                    <span>{rating}</span>
+                  </div>
+                </div>
+                {truncatedDescription && (
+                  <p className="myAnnouncementCardDescription">{truncatedDescription}</p>
                 )}
-              </div>
-              <span className="priceText">{announcement.price ? `${announcement.price}€/h` : "—"}</span>
-            </div>
+                <div className="myAnnouncementCardDaysRow">
+                  <div className="myAnnouncementCardDays">
+                    {dayLabels.length > 0 ? (
+                      dayLabels.map((day, idx) => (
+                        <span key={idx} className="dayBadge">
+                          {day}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="dayBadge empty">Aucun créneau</span>
+                    )}
+                  </div>
+                  <span className="priceText">{announcement.price ? `${announcement.price}€/h` : "—"}</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -224,7 +261,7 @@ function ReservationCard({ data }: { data: ReservationCardData }) {
           <div className="reservationCardFooter">
             <div className="reservationCardTimeName">
               <AccessTimeIcon sx={{ fontSize: "16px", color: "#545454" }} />
-              <span>{startTime} - {providerName}</span>
+              <span>{startTime} - {providerName || "Prestataire"}</span>
             </div>
             <span className={`reservationStatusBadge ${getStatusClass(status)}`}>
               {statusLabel}
@@ -237,7 +274,7 @@ function ReservationCard({ data }: { data: ReservationCardData }) {
 }
 
 export default function MyAnnouncementsContent() {
-  const { currentUserId, setHeaderTitle } = useContent();
+  const { currentUserId, setHeaderTitle, currentPage } = useContent();
   // Determine which view to show based on localStorage (set by PrivateMenu)
   const getViewType = (): TabType => {
     if (typeof window !== "undefined") {
@@ -248,7 +285,14 @@ export default function MyAnnouncementsContent() {
     }
     return "my_announcements";
   };
-  const [viewType] = useState<TabType>(getViewType);
+  const [viewType, setViewType] = useState<TabType>(getViewType);
+  
+  // Sync viewType with localStorage changes (when navigating from profile menu or bottom nav)
+  useEffect(() => {
+    const currentView = getViewType();
+    setViewType(currentView);
+  }, [currentPage]);
+  
   const [reservations, setReservations] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -282,7 +326,7 @@ export default function MyAnnouncementsContent() {
         if (res.ok && json?.reservations) {
           setReservations(json.reservations || []);
         } else if (res.ok && Array.isArray(json)) {
-          setReservations(json as any[]);
+          setReservations(json);
         } else {
           setReservations([]);
         }
@@ -318,7 +362,7 @@ export default function MyAnnouncementsContent() {
         (a: any) => String(a.id) === String(r.announcementId)
       ) as any;
       
-          // Get provider name (prénom + première lettre du nom)
+      // Get provider name (prénom + première lettre du nom)
       const provider = ann ? users.find((u: any) => String(u.id) === String(ann.userId)) : null;
       let providerName = "Prestataire";
       if (provider) {
@@ -358,21 +402,45 @@ export default function MyAnnouncementsContent() {
     });
   }, [reservations]);
 
-  // Get favorites (from localStorage for now)
-  const favorites = useMemo(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const favs = localStorage.getItem(`proximis_favorites_${currentUserId}`);
-      if (!favs) return [];
-      const favoriteIds = JSON.parse(favs) as (number | string)[];
-      const announcementsList = Array.isArray(announcementsData) ? announcementsData : [];
-      return favoriteIds
-        .map((id) => announcementsList.find((a: any) => String(a.id) === String(id)))
-        .filter((a) => a !== undefined) as AnnouncementCardData[];
-    } catch (e) {
-      return [];
+  // Get favorites (from API)
+  const [favorites, setFavorites] = useState<AnnouncementCardData[]>([]);
+  const [loadingFavorites, setLoadingFavorites] = useState(false);
+
+  useEffect(() => {
+    if (!currentUserId || viewType !== "favorites") {
+      setFavorites([]);
+      return;
     }
-  }, [currentUserId]);
+    
+    const loadFavorites = async () => {
+      setLoadingFavorites(true);
+      try {
+        const params = new URLSearchParams({
+          userId: String(currentUserId),
+        });
+        const res = await fetch(`/api/favorites?${params.toString()}`);
+        const data = await res.json();
+        if (res.ok && data.favorites) {
+          const favoritesIds = data.favorites.map((f: any) => f.announcementId);
+          const announcementsList = Array.isArray(announcementsData) ? announcementsData : [];
+          const favoritesAnnouncements = announcementsList
+            .filter((a: any) =>
+              favoritesIds.some((favId: number | string) => String(favId) === String(a.id))
+            ) as AnnouncementCardData[];
+          setFavorites(favoritesAnnouncements);
+        } else {
+          setFavorites([]);
+        }
+      } catch (e) {
+        console.error("Error loading favorites", e);
+        setFavorites([]);
+      } finally {
+        setLoadingFavorites(false);
+      }
+    };
+    
+    loadFavorites();
+  }, [currentUserId, viewType]);
 
   if (!currentUserId) {
     return (
@@ -424,14 +492,18 @@ export default function MyAnnouncementsContent() {
 
             {viewType === "favorites" && (
               <>
-                {favorites.length === 0 ? (
+                {loadingFavorites ? (
+                  <div className="emptyState">
+                    <p>Chargement des favoris...</p>
+                  </div>
+                ) : favorites.length === 0 ? (
                   <div className="emptyState">
                     <p>Vous n'avez aucun favori.</p>
                   </div>
                 ) : (
                   <div className="announcementsList">
                     {favorites.map((ann) => (
-                      <MyAnnouncementCard key={ann.id} announcement={ann} />
+                      <MyAnnouncementCard key={ann.id} announcement={ann} showFavoriteIcon={true} />
                     ))}
                   </div>
                 )}
@@ -443,4 +515,3 @@ export default function MyAnnouncementsContent() {
     </div>
   );
 }
-
