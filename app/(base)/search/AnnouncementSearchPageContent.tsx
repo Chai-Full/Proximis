@@ -15,7 +15,7 @@ import MapOutlined from '@mui/icons-material/MapOutlined';
 
 function AnnouncementSearchPageContent() {
     const [view, setView] = React.useState<'list' | 'map'>('list');
-    const { setCurrentPage, appliedFilters, setAppliedFilters } = useContent();
+    const { setCurrentPage, appliedFilters, setAppliedFilters, currentUserId } = useContent();
 
     // search input state (controlled) - initialize from appliedFilters.keyword
     const [searchKeyword, setSearchKeyword] = React.useState<string>(() => (appliedFilters && typeof appliedFilters.keyword === 'string') ? appliedFilters.keyword : '');
@@ -37,7 +37,13 @@ function AnnouncementSearchPageContent() {
 
     // apply filters to announcements
     const filteredAnnouncements = React.useMemo(() => {
-        const list = Array.isArray(announcements) ? announcements : [];
+        let list = Array.isArray(announcements) ? announcements : [];
+        
+        // Filter out announcements where the current user is the author
+        if (currentUserId != null) {
+            list = list.filter((a: any) => String(a.userId) !== String(currentUserId));
+        }
+        
         if (!appliedFilters) return list;
 
         const hasKeyword = typeof appliedFilters.keyword === 'string' && appliedFilters.keyword.trim() !== '';

@@ -248,7 +248,16 @@ export default function MyAnnouncementsContent() {
     }
     return "my_announcements";
   };
-  const [viewType] = useState<TabType>(getViewType);
+  const [viewType, setViewType] = useState<TabType>(getViewType);
+  
+  // Sync viewType with localStorage changes (when navigating from profile menu)
+  // Check localStorage on every render to catch changes made by PrivateMenu
+  useEffect(() => {
+    const currentView = getViewType();
+    if (currentView !== viewType) {
+      setViewType(currentView);
+    }
+  });
   const [reservations, setReservations] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -358,21 +367,45 @@ export default function MyAnnouncementsContent() {
     });
   }, [reservations]);
 
-  // Get favorites (from localStorage for now)
-  const favorites = useMemo(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const favs = localStorage.getItem(`proximis_favorites_${currentUserId}`);
-      if (!favs) return [];
-      const favoriteIds = JSON.parse(favs) as (number | string)[];
-      const announcementsList = Array.isArray(announcementsData) ? announcementsData : [];
-      return favoriteIds
-        .map((id) => announcementsList.find((a: any) => String(a.id) === String(id)))
-        .filter((a) => a !== undefined) as AnnouncementCardData[];
-    } catch (e) {
-      return [];
+  // Get favorites (from API)
+  const [favorites, setFavorites] = useState<AnnouncementCardData[]>([]);
+  const [loadingFavorites, setLoadingFavorites] = useState(false);
+
+  useEffect(() => {
+    if (!currentUserId || viewType !== "favorites") {
+      setFavorites([]);
+      return;
     }
-  }, [currentUserId]);
+    
+    const loadFavorites = async () => {
+      setLoadingFavorites(true);
+      try {
+        const params = new URLSearchParams({
+          userId: String(currentUserId),
+        });
+        const res = await fetch(`/api/favorites?${params.toString()}`);
+        const data = await res.json();
+        if (res.ok && data.favorites) {
+          const favoritesIds = data.favorites.map((f: any) => f.announcementId);
+          const announcementsList = Array.isArray(announcementsData) ? announcementsData : [];
+          const favoritesAnnouncements = announcementsList
+            .filter((a: any) =>
+              favoritesIds.some((favId: number | string) => String(favId) === String(a.id))
+            ) as AnnouncementCardData[];
+          setFavorites(favoritesAnnouncements);
+        } else {
+          setFavorites([]);
+        }
+      } catch (e) {
+        console.error("Error loading favorites", e);
+        setFavorites([]);
+      } finally {
+        setLoadingFavorites(false);
+      }
+    };
+    
+    loadFavorites();
+  }, [currentUserId, viewType]);
 
   if (!currentUserId) {
     return (
@@ -424,7 +457,11 @@ export default function MyAnnouncementsContent() {
 
             {viewType === "favorites" && (
               <>
-                {favorites.length === 0 ? (
+                {loadingFavorites ? (
+                  <div className="emptyState">
+                    <p>Chargement des favoris...</p>
+                  </div>
+                ) : favorites.length === 0 ? (
                   <div className="emptyState">
                     <p>Vous n'avez aucun favori.</p>
                   </div>

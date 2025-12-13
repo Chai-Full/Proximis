@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useContent } from "../ContentContext";
 import usersData from "../../../data/users.json";
 import reservationsData from "../../../data/reservations.json";
@@ -18,6 +18,7 @@ import OutboxIcon from '@mui/icons-material/Outbox';
 
 export default function ProfileDetails() {
   const { selectedProfileId, currentUserId, setHeaderTitle, setCurrentPage } = useContent();
+  const [favoritesCount, setFavoritesCount] = useState<number>(0);
   const users = (usersData as any).users ?? [];
   const reservations = (reservationsData as any).reservations ?? [];
 
@@ -61,6 +62,40 @@ export default function ProfileDetails() {
     [reservations, user]
   );
 
+  // Count reservations to evaluate (status: "to_evaluate")
+  const reservationsToEvaluate = useMemo(
+    () => userReservations.filter((r: any) => r.status === "to_evaluate"),
+    [userReservations]
+  );
+
+  // Load favorites count from API
+  useEffect(() => {
+    if (!isCurrentUser || !currentUserId) {
+      setFavoritesCount(0);
+      return;
+    }
+
+    const loadFavoritesCount = async () => {
+      try {
+        const params = new URLSearchParams({
+          userId: String(currentUserId),
+        });
+        const res = await fetch(`/api/favorites?${params.toString()}`);
+        const data = await res.json();
+        if (res.ok && data.favorites) {
+          setFavoritesCount(data.favorites.length);
+        } else {
+          setFavoritesCount(0);
+        }
+      } catch (e) {
+        console.error("Error loading favorites count", e);
+        setFavoritesCount(0);
+      }
+    };
+
+    loadFavoritesCount();
+  }, [isCurrentUser, currentUserId]);
+
   // Derived simple stats from available data (no mock)
   const stats: PrivateStats = {
     services: userReservations.length,
@@ -75,9 +110,9 @@ export default function ProfileDetails() {
       title: "Mes réservations",
       icon: OutboxIcon,
       count: userReservations.length,
-      badge: userReservations.length > 0 ? `${userReservations.length} à évaluer` : undefined,
+      badge: reservationsToEvaluate.length > 0 ? `${reservationsToEvaluate.length} à évaluer` : undefined,
     },
-    { id: "favoris", title: "Mes favoris", icon: FavoriteBorderOutlined, count: 0 },
+    { id: "favoris", title: "Mes favoris", icon: FavoriteBorderOutlined, count: favoritesCount },
   ];
 
   useEffect(() => {
