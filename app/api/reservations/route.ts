@@ -121,6 +121,125 @@ export async function GET(req: Request) {
       existing = [];
     }
 
+    // Check and update reservations with status "reserved" that are past their date and time
+    let hasUpdates = false;
+    const now = new Date();
+    
+    try {
+      // Load announcements to get slot information
+      const annPath = path.join(dataDir, 'announcements.json');
+      let announcements: any[] = [];
+      try {
+        const annContent = await fs.readFile(annPath, 'utf8');
+        const parsedAnn = JSON.parse(annContent);
+        announcements = Array.isArray(parsedAnn?.announcements) 
+          ? parsedAnn.announcements 
+          : Array.isArray(parsedAnn) 
+          ? parsedAnn 
+          : [];
+      } catch (e) {
+        // If we can't load announcements, we'll skip the time check and only check dates
+      }
+
+      for (let i = 0; i < existing.length; i++) {
+        const reservation = existing[i];
+        
+        // Only check reservations with status "reserved"
+        if (reservation.status !== 'reserved') continue;
+        
+        if (!reservation.date) continue;
+
+        // Parse reservation date (YYYY-MM-DD)
+        const reservationDate = new Date(reservation.date + 'T00:00:00Z');
+        const reservationDateOnly = new Date(Date.UTC(
+          reservationDate.getUTCFullYear(),
+          reservationDate.getUTCMonth(),
+          reservationDate.getUTCDate()
+        ));
+        const todayDateOnly = new Date(Date.UTC(
+          now.getUTCFullYear(),
+          now.getUTCMonth(),
+          now.getUTCDate()
+        ));
+
+        // Check if reservation date is in the past
+        if (reservationDateOnly < todayDateOnly) {
+          // Date is in the past, update status to "to_evaluate"
+          existing[i] = {
+            ...reservation,
+            status: 'to_evaluate',
+            updatedAt: new Date().toISOString(),
+          };
+          hasUpdates = true;
+        } else if (reservationDateOnly.getTime() === todayDateOnly.getTime()) {
+          // Same date, check if the slot end time has passed
+          try {
+            const announcement = announcements.find(
+              (a: any) => String(a.id) === String(reservation.announcementId)
+            );
+            
+            if (announcement && announcement.slots && Array.isArray(announcement.slots)) {
+              const slot = announcement.slots[reservation.slotIndex];
+              
+              if (slot && slot.end) {
+                // Parse slot end time
+                let slotEndTime: Date;
+                if (typeof slot.end === 'string') {
+                  // Try to parse as ISO string first
+                  if (slot.end.includes('T') || slot.end.includes('Z')) {
+                    const slotDate = new Date(slot.end);
+                    // Extract time from slot and apply to reservation date
+                    const slotHours = slotDate.getUTCHours();
+                    const slotMinutes = slotDate.getUTCMinutes();
+                    slotEndTime = new Date(Date.UTC(
+                      reservationDate.getUTCFullYear(),
+                      reservationDate.getUTCMonth(),
+                      reservationDate.getUTCDate(),
+                      slotHours,
+                      slotMinutes
+                    ));
+                  } else {
+                    // Assume it's HH:mm format, combine with reservation date
+                    const [hours, minutes] = slot.end.split(':').map(Number);
+                    slotEndTime = new Date(Date.UTC(
+                      reservationDate.getUTCFullYear(),
+                      reservationDate.getUTCMonth(),
+                      reservationDate.getUTCDate(),
+                      hours || 0,
+                      minutes || 0
+                    ));
+                  }
+                  
+                  // Check if slot end time has passed
+                  if (slotEndTime < now) {
+                    existing[i] = {
+                      ...reservation,
+                      status: 'to_evaluate',
+                      updatedAt: new Date().toISOString(),
+                    };
+                    hasUpdates = true;
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            // If we can't parse the slot time, just check the date
+            // (already handled above)
+            console.warn('Error parsing slot time for reservation', reservation.id, e);
+          }
+        }
+      }
+
+      // Save updates if any were made
+      if (hasUpdates) {
+        const out = { reservations: existing };
+        await fs.writeFile(filePath, JSON.stringify(out, null, 2), 'utf8');
+      }
+    } catch (err) {
+      // Log error but don't fail the request
+      console.error('Error updating reservation statuses:', err);
+    }
+
     // normalize date if provided
     const normalizedDate = dateParam ? String(dateParam).match(/^\d{4}-\d{2}-\d{2}/)?.[0] : null;
 

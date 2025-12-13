@@ -16,7 +16,9 @@ export type PageKey =
   | "announce_details"
   | "filters"
   | "reservation"
-  | "my_announcements";
+  | "my_announcements"
+  | "evaluate"
+  | "reviews";
 
 type ContentContextType = {
   currentPage: PageKey;
@@ -43,6 +45,9 @@ type ContentContextType = {
   // reservation draft stored when user initiates a booking (now includes selected date ISO)
   reservationDraft?: { announcementId: number | string; slotIndex: number; date?: string } | null;
   setReservationDraft?: (d: { announcementId: number | string; slotIndex: number; date?: string } | null) => void;
+  // selected reservation id when evaluating a reservation
+  selectedReservationId?: number | string | null;
+  setSelectedReservationId?: (id: number | string | null) => void;
   // applied filters from the filter page
   appliedFilters?: InputsAnnounceSearch | null;
   setAppliedFilters: (f: InputsAnnounceSearch | null) => void;
@@ -75,6 +80,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
   const [appliedFilters, setAppliedFilters] = useState<InputsAnnounceSearch | null>(null);
   const [reservationDraft, setReservationDraft] = useState<{ announcementId: number | string; slotIndex: number; date?: string } | null>(null);
+  const [selectedReservationId, setSelectedReservationId] = useState<number | string | null>(null);
 
   const setCurrentPage = useCallback((p: PageKey, replaceHistory?: PageKey[]) => {
     if (replaceHistory !== undefined) {
@@ -127,6 +133,8 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setAppliedFilters,
         reservationDraft,
         setReservationDraft,
+        selectedReservationId,
+        setSelectedReservationId,
       }}
     >
       {children}
