@@ -16,6 +16,51 @@ import MapOutlined from '@mui/icons-material/MapOutlined';
 function AnnouncementSearchPageContent() {
     const [view, setView] = React.useState<'list' | 'map'>('list');
     const { setCurrentPage, appliedFilters, setAppliedFilters, currentUserId } = useContent();
+    const [favoriteIds, setFavoriteIds] = React.useState<Set<string>>(new Set());
+
+    // Load user favorites
+    React.useEffect(() => {
+        if (!currentUserId) {
+            setFavoriteIds(new Set());
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadFavorites = async () => {
+            try {
+                const params = new URLSearchParams({
+                    userId: String(currentUserId),
+                });
+                const res = await fetch(`/api/favorites?${params.toString()}`);
+                const data = await res.json();
+
+                if (cancelled) return;
+
+                if (res.ok && data.favorites && Array.isArray(data.favorites)) {
+                    const ids = new Set<string>(data.favorites.map((f: any) => String(f.announcementId)));
+                    if (!cancelled) {
+                        setFavoriteIds(ids);
+                    }
+                } else {
+                    if (!cancelled) {
+                        setFavoriteIds(new Set<string>());
+                    }
+                }
+            } catch (error) {
+                console.error("Error loading favorites", error);
+                if (!cancelled) {
+                    setFavoriteIds(new Set());
+                }
+            }
+        };
+
+        loadFavorites();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentUserId]);
 
     // search input state (controlled) - initialize from appliedFilters.keyword
     const [searchKeyword, setSearchKeyword] = React.useState<string>(() => (appliedFilters && typeof appliedFilters.keyword === 'string') ? appliedFilters.keyword : '');
@@ -44,7 +89,19 @@ function AnnouncementSearchPageContent() {
             list = list.filter((a: any) => String(a.userId) !== String(currentUserId));
         }
         
-        if (!appliedFilters) return list;
+        if (!appliedFilters) {
+            // Sort by favorites first even when no filters are applied
+            if (favoriteIds.size > 0) {
+                return list.sort((a: any, b: any) => {
+                    const aIsFavorite = favoriteIds.has(String(a.id));
+                    const bIsFavorite = favoriteIds.has(String(b.id));
+                    if (aIsFavorite && !bIsFavorite) return -1;
+                    if (!aIsFavorite && bIsFavorite) return 1;
+                    return 0;
+                });
+            }
+            return list;
+        }
 
         const hasKeyword = typeof appliedFilters.keyword === 'string' && appliedFilters.keyword.trim() !== '';
         const hasCategory = typeof appliedFilters.category === 'string' && appliedFilters.category !== '';
@@ -52,7 +109,19 @@ function AnnouncementSearchPageContent() {
         const hasDistance = typeof appliedFilters.distance === 'number';
         const hasSlots = Array.isArray(appliedFilters.slots) && appliedFilters.slots.length > 0;
 
-        if (!hasKeyword && !hasCategory && !hasPrice && !hasDistance && !hasSlots) return list;
+        if (!hasKeyword && !hasCategory && !hasPrice && !hasDistance && !hasSlots) {
+            // Sort by favorites first even when no filters match
+            if (favoriteIds.size > 0) {
+                return list.sort((a: any, b: any) => {
+                    const aIsFavorite = favoriteIds.has(String(a.id));
+                    const bIsFavorite = favoriteIds.has(String(b.id));
+                    if (aIsFavorite && !bIsFavorite) return -1;
+                    if (!aIsFavorite && bIsFavorite) return 1;
+                    return 0;
+                });
+            }
+            return list;
+        }
 
         const scored: Array<any> = [];
 
@@ -123,18 +192,24 @@ function AnnouncementSearchPageContent() {
         }
 
         // tri : plus de correspondances en premier, puis distance croissante, puis prix croissant
+        // (favoris seulement prioritaires quand aucun filtre n'est appliqué)
         scored.sort((x, y) => {
+            // By score first (relevance)
             if (y._score !== x._score) return y._score - x._score;
+            
+            // Then by distance
             const ax = typeof x.item.scope === 'number' ? x.item.scope : Infinity;
             const ay = typeof y.item.scope === 'number' ? y.item.scope : Infinity;
             if (ax !== ay) return ax - ay;
+            
+            // Finally by price
             const px = typeof x.item.price === 'number' ? x.item.price : Infinity;
             const py = typeof y.item.price === 'number' ? y.item.price : Infinity;
             return px - py;
         });
 
         return scored.map(s => s.item);
-    }, [appliedFilters]);
+    }, [appliedFilters, favoriteIds]);
 
 
 
