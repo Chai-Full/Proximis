@@ -1,0 +1,24 @@
+{
+  "evaluations": [
+    {
+      "id": 1765649581669,
+      "reservationId": 1762926677207,
+      "announcementId": 1762703145340,
+      "userId": 3,
+      "rating": 3,
+      "comment": "c'était bien",
+      "createdAt": "2025-12-13T18:13:01.669Z",
+      "updatedAt": "2025-12-13T18:13:01.669Z"
+    },
+    {
+      "id": 1765652100422,
+      "reservationId": 1762926361260,
+      "announcementId": 1762703145340,
+      "userId": 3,
+      "rating": 5,
+      "comment": "Toujours impécables",
+      "createdAt": "2025-12-13T18:55:00.422Z",
+      "updatedAt": "2025-12-13T18:55:00.422Z"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "favorites": [
+    {
+      "userId": 3,
+      "announcementId": 1762939035945,
+      "createdAt": "2025-12-13T08:57:23.755Z"
+    },
+    {
+      "userId": 3,
+      "announcementId": 1762938710136,
+      "createdAt": "2025-12-13T09:01:18.278Z"
+    },
+    {
+      "userId": 1,
+      "announcementId": 1762704533690,
+      "createdAt": "2025-12-13T19:37:37.620Z"
+    },
+    {
+      "userId": 3,
+      "announcementId": 1762939883767,
+      "createdAt": "2025-12-13T21:07:36.362Z"
+    }
+  ]
+}

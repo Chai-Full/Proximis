@@ -1,0 +1,224 @@
+{
+  "reservations": [
+    {
+      "id": 1762926361260,
+      "announcementId": 1762703145340,
+      "slotIndex": 1,
+      "userId": 3,
+      "date": "2025-11-16",
+      "status": "completed",
+      "createdAt": "2025-11-12T05:46:01.260Z",
+      "updatedAt": "2025-12-13T18:55:00.439Z"
+    },
+    {
+      "id": 1762926677207,
+      "announcementId": 1762703145340,
+      "slotIndex": 2,
+      "userId": 3,
+      "date": "2025-11-20",
+      "status": "completed",
+      "createdAt": "2025-11-12T05:51:17.208Z",
+      "updatedAt": "2025-12-13T18:13:01.690Z"
+    },
+    {
+      "id": 1762927955246,
+      "announcementId": 1762703145340,
+      "slotIndex": 1,
+      "userId": 3,
+      "date": "2025-11-16",
+      "status": "to_evaluate",
+      "createdAt": "2025-11-12T06:12:35.246Z",
+      "updatedAt": "2025-12-13T18:54:18.715Z"
+    },
+    {
+      "id": 1762936886224,
+      "announcementId": 1762935879704,
+      "slotIndex": 0,
+      "userId": 3,
+      "date": "2025-11-15",
+      "status": "to_evaluate",
+      "createdAt": "2025-11-12T08:41:26.224Z",
+      "updatedAt": "2025-12-13T18:54:18.715Z"
+    },
+    {
+      "id": 1762938578733,
+      "announcementId": 1762703145340,
+      "slotIndex": 1,
+      "userId": 5,
+      "date": "2025-11-16",
+      "status": "to_pay",
+      "createdAt": "2025-11-12T09:09:38.733Z",
+      "updatedAt": "2025-11-12T09:09:38.733Z"
+    },
+    {
+      "id": 1762938598877,
+      "announcementId": 1762800000001,
+      "slotIndex": 0,
+      "userId": 4,
+      "date": "2025-11-22",
+      "status": "to_pay",
+      "createdAt": "2025-11-12T09:09:58.877Z",
+      "updatedAt": "2025-11-12T09:09:58.877Z"
+    },
+    {
+      "id": 1762939947099,
+      "announcementId": 1762800000004,
+      "slotIndex": 0,
+      "userId": 4,
+      "date": "2025-11-23",
+      "status": "to_evaluate",
+      "createdAt": "2025-11-12T09:32:27.099Z",
+      "updatedAt": "2025-12-13T18:54:18.715Z"
+    },
+    {
+      "id": 1762942358094,
+      "announcementId": 1762800000013,
+      "slotIndex": 0,
+      "userId": 5,
+      "date": "2025-11-13",
+      "status": "completed",
+      "createdAt": "2025-11-12T10:12:38.094Z",
+      "updatedAt": "2025-11-22T18:00:00.000Z"
+    },
+    {
+      "id": 1765568737071,
+      "announcementId": 1762939920585,
+      "slotIndex": 1,
+      "userId": 3,
+      "date": "2025-12-17",
+      "status": "reserved",
+      "createdAt": "2025-12-12T19:45:37.071Z",
+      "updatedAt": "2025-12-12T19:46:00.000Z"
+    },
+    {
+      "id": 1765636145290,
+      "announcementId": 1762935879704,
+      "slotIndex": 0,
+      "userId": 3,
+      "date": "2025-12-20",
+      "status": "reserved",
+      "createdAt": "2025-12-13T14:29:05.290Z",
+      "updatedAt": "2025-12-13T14:29:09.242Z"
+    },
+    {
+      "id": 1765636213433,
+      "announcementId": 1762935879704,
+      "slotIndex": 0,
+      "userId": 3,
+      "date": "2025-12-27",
+      "status": "reserved",
+      "createdAt": "2025-12-13T14:30:13.433Z",
+      "updatedAt": "2025-12-13T14:30:15.536Z"
+    },
+    {
+      "id": 1765636779180,
+      "announcementId": 1762938918710,
+      "slotIndex": 0,
+      "userId": 3,
+      "date": "2025-12-17",
+      "status": "reserved",
+      "createdAt": "2025-12-13T14:39:39.180Z",
+      "updatedAt": "2025-12-13T14:39:41.901Z"
+    },
+    {
+      "id": 1765639761929,
+      "announcementId": 1762939290693,
+      "slotIndex": 3,
+      "userId": 3,
+      "date": "2025-12-18",
+      "status": "reserved",
+      "createdAt": "2025-12-13T15:29:21.929Z",
+      "updatedAt": "2025-12-13T15:29:22.781Z"
+    },
+    {
+      "id": 1765640925942,
+      "announcementId": 1762939290693,
+      "slotIndex": 4,
+      "userId": 3,
+      "date": "2025-12-19",
+      "status": "reserved",
+      "createdAt": "2025-12-13T15:48:45.942Z",
+      "updatedAt": "2025-12-13T15:48:46.898Z"
+    },
+    {
+      "id": 1765640980711,
+      "announcementId": 1762939883767,
+      "slotIndex": 0,
+      "userId": 3,
+      "date": "2025-12-15",
+      "status": "reserved",
+      "createdAt": "2025-12-13T15:49:40.711Z",
+      "updatedAt": "2025-12-13T15:49:41.739Z"
+    },
+    {
+      "id": 1765641959117,
+      "announcementId": 1762939883767,
+      "slotIndex": 0,
+      "userId": 3,
+      "date": "2025-12-22",
+      "status": "reserved",
+      "createdAt": "2025-12-13T16:05:59.117Z",
+      "updatedAt": "2025-12-13T16:05:59.312Z"
+    },
+    {
+      "id": 1765642209573,
+      "announcementId": 1762942142331,
+      "slotIndex": 0,
+      "userId": 3,
+      "date": "2025-12-27",
+      "status": "reserved",
+      "createdAt": "2025-12-13T16:10:09.573Z",
+      "updatedAt": "2025-12-13T16:10:10.507Z"
+    },
+    {
+      "id": 1765642374660,
+      "announcementId": 1762800000005,
+      "slotIndex": 0,
+      "userId": 3,
+      "date": "2025-12-17",
+      "status": "reserved",
+      "createdAt": "2025-12-13T16:12:54.660Z",
+      "updatedAt": "2025-12-13T16:12:56.332Z"
+    },
+    {
+      "id": 1765643479025,
+      "announcementId": 1762938710136,
+      "slotIndex": 0,
+      "userId": 3,
+      "date": "2025-12-29",
+      "status": "reserved",
+      "createdAt": "2025-12-13T16:31:19.025Z",
+      "updatedAt": "2025-12-13T16:31:20.048Z"
+    },
+    {
+      "id": 1765643594397,
+      "announcementId": 1762800000015,
+      "slotIndex": 0,
+      "userId": 3,
+      "date": "2025-12-19",
+      "status": "reserved",
+      "createdAt": "2025-12-13T16:33:14.397Z",
+      "updatedAt": "2025-12-13T16:33:15.525Z"
+    },
+    {
+      "id": 1765644174611,
+      "announcementId": 1762800000018,
+      "slotIndex": 0,
+      "userId": 3,
+      "date": "2025-12-16",
+      "status": "reserved",
+      "createdAt": "2025-12-13T16:42:54.611Z",
+      "updatedAt": "2025-12-13T16:42:54.778Z"
+    },
+    {
+      "id": 1765644790149,
+      "announcementId": 1762800000009,
+      "slotIndex": 0,
+      "userId": 3,
+      "date": "2025-12-13",
+      "status": "to_evaluate",
+      "createdAt": "2025-12-13T16:53:10.149Z",
+      "updatedAt": "2025-12-13T18:54:18.716Z"
+    }
+  ]
+}
