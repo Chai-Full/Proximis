@@ -217,7 +217,7 @@ function AnnouncementSearchPageContent() {
     return (
         <div>
             <div className='searchHeader'>
-                <div className='searchHeaderActionButton' onClick={() => {/*setView(view === 'map' ? 'list' : 'map')*/}} style={{cursor: 'pointer'}}>
+                <div className='searchHeaderActionButton' onClick={() => setView(view === 'map' ? 'list' : 'map')} style={{cursor: 'pointer'}}>
                     {view === 'map' ? <FormatListBulletedOutlined /> : <MapOutlined />}
                 </div>
                 <Paper
@@ -251,9 +251,9 @@ function AnnouncementSearchPageContent() {
             {/* filters is its own page now (navigated via ContentContext) */}
 
             {view === 'map' && (
-                <div style={{ padding: 16 }}>
-                    <AnnouncementSearchWithMapContent />
-                </div>
+                <AnnouncementSearchWithMapContent 
+                    {...{ announcements: filteredAnnouncements, appliedFilters: appliedFilters || null } as any}
+                />
             )}
 
             {view === 'list' && (
