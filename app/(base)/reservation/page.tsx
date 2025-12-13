@@ -150,21 +150,40 @@ function PaymentButton({ announcement, reservationDraft, setReservationDraft, go
 
     setLoading(true);
     try {
+      // First, create the reservation with status "A régler"
       const res = await fetch('/api/reservations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ announcementId: reservationDraft.announcementId, slotIndex: reservationDraft.slotIndex, userId: currentUserId, date: reservationDraft.date }),
       });
       const data = await res.json();
-      if (res.ok && data?.ok) {
-        setSeverity('success');
-        setMessage('Réservation enregistrée.');
-        setOpen(true);
-        // clear draft and return to previous page so the user sees the notification briefly
-        setReservationDraft && setReservationDraft(null);
-        setTimeout(() => {
-          goBack && goBack();
-        }, 700);
+      if (res.ok && data?.ok && data?.reservation) {
+        // After successful creation, update status to "reserved" (payment validated)
+        const updateRes = await fetch('/api/reservations', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: data.reservation.id, status: 'reserved' }),
+        });
+        
+        if (updateRes.ok) {
+          setSeverity('success');
+          setMessage('Réservation enregistrée et payée.');
+          setOpen(true);
+          // clear draft and return to previous page so the user sees the notification briefly
+          setReservationDraft && setReservationDraft(null);
+          setTimeout(() => {
+            goBack && goBack();
+          }, 700);
+        } else {
+          // Reservation created but status update failed
+          setSeverity('warning');
+          setMessage('Réservation enregistrée mais erreur lors de la mise à jour du statut.');
+          setOpen(true);
+          setReservationDraft && setReservationDraft(null);
+          setTimeout(() => {
+            goBack && goBack();
+          }, 700);
+        }
       } else if (res.status === 409) {
         // duplicate reservation
         setSeverity('warning');
