@@ -134,6 +134,12 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
                                        // when user clicks the navbar profile, show the connected user's profile (by id)
                                        if (setSelectedProfileId) setSelectedProfileId(currentUserId ?? null);
                                        setCurrentPage('profil');
+                                   } else if (id === 'annonces') {
+                                       // when user clicks "Réservations" in bottom nav, go to reservations view in MyAnnouncementsContent
+                                       if (typeof window !== "undefined") {
+                                           localStorage.setItem("proximis_myAnnouncements_view", "reservations");
+                                       }
+                                       setCurrentPage('my_announcements');
                                    } else {
                                        setCurrentPage(id as PageKey);
                                    }

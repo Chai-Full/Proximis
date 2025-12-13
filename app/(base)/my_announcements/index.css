@@ -45,7 +45,7 @@
   box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--primary);
   display: flex;
   flex-direction: column;
 }
@@ -85,6 +85,18 @@
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
+}
+
+.myAnnouncementCardDescriptionRating {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.myAnnouncementCardDescriptionRating .myAnnouncementCardDescription {
+  flex: 1;
+  margin: 0;
 }
 
 .myAnnouncementCardRating span {
@@ -153,8 +165,8 @@
 
 .priceText {
   font-size: 16px;
-  font-weight: 600;
-  color: #1ea792;
+  font-weight: 400;
+  color: var(--primary);
   white-space: nowrap;
   flex-shrink: 0;
 }
