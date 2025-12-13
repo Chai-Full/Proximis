@@ -68,6 +68,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Duplicate reservation' }, { status: 409 });
     }
 
+    // Prevent reserving a slot that is already taken (any status) by any user for the same date and slotIndex
+    // A slot is considered unavailable if it's already reserved for the same announcement, same slotIndex, and same date
+    const alreadyTaken = existing.find((r: any) => 
+      String(r.announcementId) === String(body.announcementId) && 
+      Number(r.slotIndex) === Number(body.slotIndex) && 
+      String(r.date) === String(normalizedDate)
+    );
+    if (alreadyTaken) {
+      return NextResponse.json({ error: 'This slot is already taken for this date' }, { status: 409 });
+    }
+
     const id = Date.now();
     const newRes = {
       id,

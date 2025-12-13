@@ -54,7 +54,7 @@ const contentComponents = {
 
 // Inner component consumes the ContentContext (must be inside ContentProvider)
 function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) {
-    const { currentPage, setCurrentPage, history, goBack, headerTitle, setHeaderTitle, setSelectedProfileId, currentUserId, setCurrentUserId } = useContent();
+    const { currentPage, setCurrentPage, history, goBack, headerTitle, setHeaderTitle, setSelectedProfileId, currentUserId, setCurrentUserId, selectedAnnouncementId, reservationDraft } = useContent();
     const router = useRouter();
     const currentNav = navItems.find(item => item.id === currentPage);
     const CurrentContent = (contentComponents as Record<string, React.ComponentType>)[currentPage] || HomeContent;
@@ -67,7 +67,11 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
       } = useForm<InputsAnnounceSearch>();
       const onSubmit: SubmitHandler<InputsAnnounceSearch> = (data) => console.log(data);
 
+    // Track if component is mounted to avoid hydration mismatch
+    const [mounted, setMounted] = React.useState(false);
+
     useEffect(() => {
+        setMounted(true);
         window.history.replaceState(null, "/home", "");
     }, []);
     const title = headerTitle ?? currentNav?.label ?? "Accueil";
@@ -81,11 +85,26 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
                     boxShadow: currentPage === "search" ? "none" : undefined,
                 }}
             >
-                {history.length > 0 ? (
+                {(history.length > 0 || 
+                  (currentPage === 'reservation' && (selectedAnnouncementId || reservationDraft)) ||
+                  (currentPage === 'profil' && history.length === 0) ||
+                  (currentPage === 'my_announcements' && history.length === 0)) ? (
                     <button
                         aria-label="back"
                         className="backButton"
-                        onClick={() => goBack()}
+                        onClick={() => {
+                            // If on reservation page without history but with selectedAnnouncementId, go to announce_details
+                            if (currentPage === 'reservation' && history.length === 0 && selectedAnnouncementId) {
+                                setCurrentPage('announce_details');
+                            } 
+                            // If on profil or my_announcements without history, go to home
+                            else if ((currentPage === 'profil' || currentPage === 'my_announcements') && history.length === 0) {
+                                setCurrentPage('home');
+                            } 
+                            else {
+                                goBack();
+                            }
+                        }}
                         style={{
                             position: "absolute",
                             left: 16,
@@ -100,7 +119,8 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
                     {title}
                 </span>
                 {/* logout button on the right when user is logged in and on home page */}
-                {currentUserId != null && currentPage === "home" && (
+                {/* Only render after mount to avoid hydration mismatch */}
+                {mounted && currentUserId != null && currentPage === "home" && (
                     <button
                         aria-label="logout"
                         className="backButton"
@@ -133,13 +153,27 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
                                    if (id === 'profil') {
                                        // when user clicks the navbar profile, show the connected user's profile (by id)
                                        if (setSelectedProfileId) setSelectedProfileId(currentUserId ?? null);
-                                       setCurrentPage('profil');
+                                       // Ensure history includes home if coming from bottom nav
+                                       if (currentPage !== 'profil') {
+                                           if (history.length === 0 && currentPage === 'home') {
+                                               setCurrentPage('profil', ['home']);
+                                           } else {
+                                               setCurrentPage('profil');
+                                           }
+                                       }
                                    } else if (id === 'annonces') {
                                        // when user clicks "Réservations" in bottom nav, go to reservations view in MyAnnouncementsContent
                                        if (typeof window !== "undefined") {
                                            localStorage.setItem("proximis_myAnnouncements_view", "reservations");
                                        }
-                                       setCurrentPage('my_announcements');
+                                       // Ensure history includes home if coming from bottom nav
+                                       if (currentPage !== 'my_announcements') {
+                                           if (history.length === 0 && currentPage === 'home') {
+                                               setCurrentPage('my_announcements', ['home']);
+                                           } else {
+                                               setCurrentPage('my_announcements');
+                                           }
+                                       }
                                    } else {
                                        setCurrentPage(id as PageKey);
                                    }

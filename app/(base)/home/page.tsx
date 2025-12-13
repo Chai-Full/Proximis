@@ -10,15 +10,47 @@ import StarsOutlined from '@mui/icons-material/StarsOutlined';
 import AnnouncementCard from '../announcement/AnnouncementCard';
 
 export default function HomeContent() {
-    const { currentPage, setCurrentPage, currentUserId } = useContent();
+    const { currentPage, setCurrentPage, currentUserId, clearHistory, history } = useContent();
     const router = useRouter();
+    const [mounted, setMounted] = React.useState(false);
+
+    // Track when component is mounted
+    React.useEffect(() => {
+        setMounted(true);
+    }, []);
 
     React.useEffect(() => {
-        // if no user is logged in, redirect to login page
-        if (currentUserId == null) {
+        // Wait for component to mount and context to load before checking
+        if (!mounted) return;
+        
+        // Check both context and localStorage to avoid premature redirect
+        const checkUserId = () => {
+            if (currentUserId != null) return;
+            
+            // Also check localStorage directly as fallback
+            try {
+                const stored = localStorage.getItem('proximis_userId');
+                if (stored) return; // User is logged in, don't redirect
+            } catch (e) {
+                // ignore
+            }
+            
+            // Only redirect if truly no user is logged in
             router.push('/');
+        };
+        
+        // Small delay to allow context to load
+        const timer = setTimeout(checkUserId, 100);
+        return () => clearTimeout(timer);
+    }, [currentUserId, router, mounted]);
+
+    // Clear history when arriving on home page, but only if we're not coming from a navigation with history
+    // This prevents clearing history when navigating back from message_chat
+    React.useEffect(() => {
+        if (currentPage === 'home' && history.length === 0) {
+            clearHistory && clearHistory();
         }
-    }, [currentUserId, router]);
+    }, [currentPage, clearHistory, history.length]);
     const stats = [
         { label: "Services rendus", value: "12" },
         { label: "Services reçus", value: "8" },
