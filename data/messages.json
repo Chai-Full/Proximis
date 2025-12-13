@@ -1,0 +1,141 @@
+{
+  "conversations": [
+    {
+      "id": "conv_3_5_1762938918710",
+      "fromUserId": 3,
+      "toUserId": 5,
+      "announcementId": 1762938918710,
+      "reservationId": 1765636779180,
+      "createdAt": "2025-12-13T14:39:43.039Z",
+      "updatedAt": "2025-12-13T14:39:43.039Z"
+    },
+    {
+      "id": "conv_3_5_1762939883767",
+      "fromUserId": 3,
+      "toUserId": 5,
+      "announcementId": 1762939883767,
+      "reservationId": 1765641959117,
+      "createdAt": "2025-12-13T15:49:43.188Z",
+      "updatedAt": "2025-12-13T16:05:59.657Z"
+    },
+    {
+      "id": "conv_3_5_1762942142331",
+      "fromUserId": 3,
+      "toUserId": 5,
+      "announcementId": 1762942142331,
+      "reservationId": 1765642209573,
+      "createdAt": "2025-12-13T16:10:11.722Z",
+      "updatedAt": "2025-12-13T16:10:11.722Z"
+    },
+    {
+      "id": "conv_3_1_1762800000005",
+      "fromUserId": 3,
+      "toUserId": 1,
+      "announcementId": 1762800000005,
+      "reservationId": 1765642374660,
+      "createdAt": "2025-12-13T16:12:57.685Z",
+      "updatedAt": "2025-12-13T16:12:57.685Z"
+    },
+    {
+      "id": "conv_3_1_1762800000015",
+      "fromUserId": 3,
+      "toUserId": 1,
+      "announcementId": 1762800000015,
+      "reservationId": 1765643594397,
+      "createdAt": "2025-12-13T16:33:15.728Z",
+      "updatedAt": "2025-12-13T16:33:15.728Z"
+    },
+    {
+      "id": "conv_3_1_1762800000018",
+      "fromUserId": 3,
+      "toUserId": 1,
+      "announcementId": 1762800000018,
+      "reservationId": 1765644174611,
+      "createdAt": "2025-12-13T16:42:54.938Z",
+      "updatedAt": "2025-12-13T16:42:54.938Z"
+    },
+    {
+      "id": "conv_3_1_1762800000009",
+      "fromUserId": 3,
+      "toUserId": 1,
+      "announcementId": 1762800000009,
+      "reservationId": 1765644790149,
+      "createdAt": "2025-12-13T16:53:12.938Z",
+      "updatedAt": "2025-12-13T16:53:12.938Z"
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg_1765636783039",
+      "conversationId": "conv_3_5_1762938918710",
+      "fromUserId": 3,
+      "toUserId": 5,
+      "text": "Bonjour Joana, j'ai réservé et payé votre service \"repassage\" pour le 2025.12.17.",
+      "createdAt": "2025-12-13T14:39:43.039Z",
+      "read": false
+    },
+    {
+      "id": "msg_1765640983188",
+      "conversationId": "conv_3_5_1762939883767",
+      "fromUserId": 3,
+      "toUserId": 5,
+      "text": "Bonjour Joana, j'ai réservé et payé votre service \"cuisine italienne\" pour le 2025.12.15.",
+      "createdAt": "2025-12-13T15:49:43.188Z",
+      "read": false
+    },
+    {
+      "id": "msg_1765641959657",
+      "conversationId": "conv_3_5_1762939883767",
+      "fromUserId": 3,
+      "toUserId": 5,
+      "text": "Bonjour Joana, j'ai réservé et payé votre service \"cuisine italienne\" pour le 22/12/2025.",
+      "createdAt": "2025-12-13T16:05:59.657Z",
+      "read": false
+    },
+    {
+      "id": "msg_1765642211722",
+      "conversationId": "conv_3_5_1762942142331",
+      "fromUserId": 3,
+      "toUserId": 5,
+      "text": "Bonjour Joana, j'ai réservé et payé votre service \"Je sais couper des arbres\" pour le 27/12/2025.",
+      "createdAt": "2025-12-13T16:10:11.722Z",
+      "read": false
+    },
+    {
+      "id": "msg_1765642377685",
+      "conversationId": "conv_3_1_1762800000005",
+      "fromUserId": 3,
+      "toUserId": 1,
+      "text": "Bonjour Georges, j'ai réservé et payé votre service \"Aide informatique à domicile\" pour le 17/12/2025.",
+      "createdAt": "2025-12-13T16:12:57.685Z",
+      "read": false
+    },
+    {
+      "id": "msg_1765643595728",
+      "conversationId": "conv_3_1_1762800000015",
+      "fromUserId": 3,
+      "toUserId": 1,
+      "text": "Bonjour Georges, j'ai réservé et payé votre service \"Montage meubles IKEA\" pour le 19/12/2025.",
+      "createdAt": "2025-12-13T16:33:15.728Z",
+      "read": false
+    },
+    {
+      "id": "msg_1765644174938",
+      "conversationId": "conv_3_1_1762800000018",
+      "fromUserId": 3,
+      "toUserId": 1,
+      "text": "Bonjour Georges, j'ai réservé et payé votre service \"Cours de dessin\" pour le 16/12/2025.",
+      "createdAt": "2025-12-13T16:42:54.938Z",
+      "read": false
+    },
+    {
+      "id": "msg_1765644792938",
+      "conversationId": "conv_3_1_1762800000009",
+      "fromUserId": 3,
+      "toUserId": 1,
+      "text": "Bonjour Georges, j'ai réservé et payé votre service \"Aide au déménagement\" pour le 13/12/2025.",
+      "createdAt": "2025-12-13T16:53:12.938Z",
+      "read": false
+    }
+  ]
+}

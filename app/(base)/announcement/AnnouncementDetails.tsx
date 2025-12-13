@@ -314,17 +314,22 @@ export default function AnnounceDetails() {
 
               const normalizedDate = dayjs(selectedDate).format('YYYY-MM-DD');
 
-              // call API to check duplicate reservation for this user/announcement/slot/date
+              // call API to check if this slot is already taken by any user for this announcement/slotIndex/date
               setIsChecking(true);
               try {
                 const params = new URLSearchParams({ announcementId: String(announcement.id), slotIndex: String(idx), date: normalizedDate });
-                // current user id is stored in localStorage (ContentProvider uses it), the server-side duplicate logic considers userId - we include it if present
-                const userId = (() => { try { return localStorage.getItem('proximis_userId'); } catch { return null; } })();
-                if (userId) params.set('userId', String(userId));
+                // Don't include userId to check if ANY user has reserved this slot for this date
                 const resp = await fetch('/api/reservations?' + params.toString());
                 const json = await resp.json();
                 if (resp.ok && json.exists) {
-                  setNotification({ open: true, message: 'Vous avez déjà réservé ce créneau à la date choisie.', severity: 'warning' });
+                  // Check if it's the current user's reservation
+                  const userId = (() => { try { return localStorage.getItem('proximis_userId'); } catch { return null; } })();
+                  const userReservation = userId && json.reservations?.find((r: any) => String(r.userId) === String(userId));
+                  if (userReservation) {
+                    setNotification({ open: true, message: 'Vous avez déjà réservé ce créneau à la date choisie.', severity: 'warning' });
+                  } else {
+                    setNotification({ open: true, message: 'Ce créneau est déjà réservé pour cette date.', severity: 'warning' });
+                  }
                   setIsChecking(false);
                   return;
                 }

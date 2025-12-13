@@ -8,13 +8,27 @@ import Notification from '../components/Notification';
 import './index.css';
 
 function Reservation() {
-  const { reservationDraft, setReservationDraft, setCurrentPage, setHeaderTitle, currentUserId, goBack } = useContent();
+  const { reservationDraft, setReservationDraft, setCurrentPage, setHeaderTitle, currentUserId, goBack, setSelectedConversationId, history, selectedAnnouncementId, setSelectedAnnouncementId } = useContent();
   React.useEffect(() => {
     setHeaderTitle && setHeaderTitle('Paiement');
     console.log("connected user id : ", currentUserId);
+    
+    // Ensure we have history - if coming from announce_details, add it to history if not present
+    // Only fix history once on mount to avoid infinite loops
+    if (history.length === 0 && selectedAnnouncementId) {
+      // If no history but we have a selected announcement, ensure we can go back
+      setCurrentPage && setCurrentPage('reservation', ['announce_details']);
+    }
+    
     return () => setHeaderTitle && setHeaderTitle(null);
-  }, [setHeaderTitle]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
   const announcementsList = Array.isArray(announcements) ? announcements : [];
+
+  React.useEffect(() => {
+    console.log('Reservation page - reservationDraft:', reservationDraft);
+    console.log('Reservation page - announcementsList length:', announcementsList.length);
+  }, [reservationDraft, announcementsList.length]);
 
   if (!reservationDraft) {
     return <div style={{ padding: 16 }}>Aucune réservation en cours. Retournez à la recherche.</div>;
@@ -23,7 +37,12 @@ function Reservation() {
   const announcement = announcementsList.find(a => String(a.id) === String(reservationDraft.announcementId));
   const slot = announcement && Array.isArray(announcement.slots) ? announcement.slots[reservationDraft.slotIndex] : null;
   const users = (usersData as any).users ?? [];
-    const author = announcement ? users.find((u: any) => String(u.id) === String(announcement.userId)) : null;
+  const author = announcement ? users.find((u: any) => String(u.id) === String(announcement.userId)) : null;
+  
+  React.useEffect(() => {
+    console.log('Reservation page - announcement found:', !!announcement);
+    console.log('Reservation page - author found:', !!author);
+  }, [announcement, author]);
 
   function formatTime(iso?: string | null) {
     if (!iso) return '--:--';
@@ -116,6 +135,11 @@ function Reservation() {
           setReservationDraft={setReservationDraft}
           goBack={goBack}
           currentUserId={currentUserId}
+          author={author}
+          users={users}
+          formattedDate={formattedDate}
+          setCurrentPage={setCurrentPage}
+          setSelectedConversationId={setSelectedConversationId}
         />
         <div className='secureBadge'>
             Paiement sécurisé. Vos informations sont cryptées et protégées.
@@ -126,18 +150,29 @@ function Reservation() {
   )
 }
 
-function PaymentButton({ announcement, reservationDraft, setReservationDraft, goBack, currentUserId }: any) {
+function PaymentButton({ announcement, reservationDraft, setReservationDraft, goBack, currentUserId, author, users, formattedDate, setCurrentPage, setSelectedConversationId }: any) {
   const [loading, setLoading] = React.useState(false);
-  const [open, setOpen] = React.useState(false);
+  // Use function to initialize state to avoid hydration issues
+  const [open, setOpen] = React.useState(() => false);
   const [message, setMessage] = React.useState('');
   const [severity, setSeverity] = React.useState<'success'|'warning'|'error'|'info'>('info');
 
   async function handlePay() {
     console.log('test de reser idUser ',  currentUserId);
+    console.log('reservationDraft:', reservationDraft);
+    console.log('announcement:', announcement);
+    console.log('author:', author);
     
     if (!reservationDraft || !announcement) {
       setSeverity('warning');
       setMessage('Aucune réservation à enregistrer.');
+      setOpen(true);
+      return;
+    }
+    
+    if (!reservationDraft.date) {
+      setSeverity('warning');
+      setMessage('Date de réservation manquante. Veuillez retourner à la page précédente et sélectionner une date.');
       setOpen(true);
       return;
     }
@@ -150,7 +185,7 @@ function PaymentButton({ announcement, reservationDraft, setReservationDraft, go
 
     setLoading(true);
     try {
-      // First, create the reservation with status "A régler"
+      // First, create the reservation with status "to_pay" (A régler)
       const res = await fetch('/api/reservations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -165,11 +200,85 @@ function PaymentButton({ announcement, reservationDraft, setReservationDraft, go
           body: JSON.stringify({ id: data.reservation.id, status: 'reserved' }),
         });
         
-        if (updateRes.ok) {
+        if (updateRes.ok && announcement && author) {
+          // Get current user name
+          const currentUser = users.find((u: any) => String(u.id) === String(currentUserId));
+          const currentUserName = currentUser 
+            ? `${currentUser.prenom || ""} ${currentUser.nom || ""}`.trim() || currentUser.name || "Utilisateur"
+            : "Utilisateur";
+          
+          // Create message to the announcement owner
+          const authorName = author.prenom || author.nom || "Prestataire";
+          // Format date properly for the message
+          const messageDate = reservationDraft?.date ? dayjs(reservationDraft.date).format('DD/MM/YYYY') : formattedDate;
+          const messageText = `Bonjour ${authorName}, j'ai réservé et payé votre service "${announcement.title}" pour le ${messageDate}.`;
+          
+          console.log('Creating message with:', {
+            fromUserId: currentUserId,
+            toUserId: announcement.userId,
+            announcementId: announcement.id,
+            reservationId: data.reservation.id,
+            initialMessage: messageText,
+          });
+          
+          const messageRes = await fetch('/api/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fromUserId: currentUserId,
+              toUserId: announcement.userId,
+              announcementId: announcement.id,
+              reservationId: data.reservation.id,
+              initialMessage: messageText,
+            }),
+          });
+          
+          const messageData = await messageRes.json();
+          console.log('Message API response:', { resOk: messageRes.ok, messageData });
+          
+          if (messageRes.ok && messageData?.ok && messageData?.conversation) {
+            console.log('Message created successfully, conversation ID:', messageData.conversation.id);
+            
+            // Clear reservation draft
+            setReservationDraft && setReservationDraft(null);
+            
+            // Set the conversation ID first
+            setSelectedConversationId && setSelectedConversationId(messageData.conversation.id);
+            
+            // Store in localStorage as fallback
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('proximis_selectedConversationId', messageData.conversation.id);
+            }
+            
+            // Show success message
+            setSeverity('success');
+            setMessage('Réservation enregistrée et payée. Redirection vers la conversation...');
+            setOpen(true);
+            
+            // Navigate to chat directly with history [home, messages] so back goes to messages, then home
+            // Use a slightly longer timeout to ensure state updates are complete
+            setTimeout(() => {
+              console.log('Navigating to chat page with conversation ID:', messageData.conversation.id);
+              if (setCurrentPage) {
+                setCurrentPage('message_chat', ['home', 'messages']);
+              }
+            }, 1500);
+          } else {
+            // Message creation failed but reservation is ok
+            console.error('Message creation failed:', messageData);
+            setSeverity('warning');
+            setMessage(`Réservation enregistrée et payée. ${messageData?.error ? `Erreur lors de l'envoi du message: ${messageData.error}` : 'Impossible d\'envoyer le message automatique.'}`);
+            setOpen(true);
+            setReservationDraft && setReservationDraft(null);
+            setTimeout(() => {
+              goBack && goBack();
+            }, 2000);
+          }
+        } else if (updateRes.ok) {
+          // Status updated but couldn't create message (missing data)
           setSeverity('success');
           setMessage('Réservation enregistrée et payée.');
           setOpen(true);
-          // clear draft and return to previous page so the user sees the notification briefly
           setReservationDraft && setReservationDraft(null);
           setTimeout(() => {
             goBack && goBack();

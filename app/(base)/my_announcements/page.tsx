@@ -208,10 +208,10 @@ function ReservationCard({ data }: { data: ReservationCardData }) {
   const slot = announcement.slots?.[reservation.slotIndex];
   const startTime = slot?.start ? dayjs(slot.start).format("HH:mm") : "--:--";
 
-  // Get status date (updatedAt or createdAt) - format: "28 sept."
-  const statusDate = reservation.updatedAt || reservation.createdAt;
-  const formattedDate = statusDate 
-    ? dayjs(statusDate).locale("fr").format("D MMM")
+  // Get scheduled date (reservation.date) - format: "28 sept."
+  const scheduledDate = reservation.date;
+  const formattedDate = scheduledDate 
+    ? dayjs(scheduledDate).locale("fr").format("D MMM")
     : "";
 
   // Determine status badge style

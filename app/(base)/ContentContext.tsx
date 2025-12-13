@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useCallback } from "react";
 import usersData from '../../data/users.json';
 import { InputsAnnounceSearch } from '../types/InputsAnnounceSearch';
 
@@ -22,8 +22,9 @@ type ContentContextType = {
   currentPage: PageKey;
   // history of previous pages (stack)
   history: PageKey[];
-  setCurrentPage: (p: PageKey) => void;
+  setCurrentPage: (p: PageKey, replaceHistory?: PageKey[]) => void;
   goBack: () => void;
+  clearHistory: () => void;
   // optional header override (used by pages like publish to show step)
   headerTitle?: string | null;
   setHeaderTitle: (t: string | null) => void;
@@ -58,36 +59,51 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const users = (usersData as any).users ?? [];
   // Do not auto-login any user by default; default is null unless localStorage has a session
-  const defaultUserId = null;
-  const [currentUserId, setCurrentUserId] = useState<number | null>(() => {
+  // Initialize as null to avoid hydration mismatch, then update on mount
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  
+  // Load userId from localStorage after mount to avoid hydration mismatch
+  React.useEffect(() => {
     try {
       const v = localStorage.getItem('proximis_userId');
-      return v ? Number(v) : defaultUserId;
+      if (v) {
+        setCurrentUserId(Number(v));
+      }
     } catch (e) {
-      return defaultUserId;
+      // ignore
     }
-  });
+  }, []);
   const [appliedFilters, setAppliedFilters] = useState<InputsAnnounceSearch | null>(null);
-  const [reservationDraft, setReservationDraft] = useState<{ announcementId: number | string; slotIndex: number } | null>(null);
+  const [reservationDraft, setReservationDraft] = useState<{ announcementId: number | string; slotIndex: number; date?: string } | null>(null);
 
-  const setCurrentPage = (p: PageKey) => {
-    setHistory(prev => {
-      // push currentPage onto history when navigating to a different page
-      if (prev.length === 0 && currentPage === p) return prev;
-      if (currentPage === p) return prev;
-      return [...prev, currentPage];
-    });
-    setCurrentPageState(p);
-  };
+  const setCurrentPage = useCallback((p: PageKey, replaceHistory?: PageKey[]) => {
+    if (replaceHistory !== undefined) {
+      // Replace history with the provided array
+      setHistory(replaceHistory);
+      setCurrentPageState(p);
+    } else {
+      setHistory(prev => {
+        // push currentPage onto history when navigating to a different page
+        if (prev.length === 0 && currentPage === p) return prev;
+        if (currentPage === p) return prev;
+        return [...prev, currentPage];
+      });
+      setCurrentPageState(p);
+    }
+  }, [currentPage]);
 
-  const goBack = () => {
+  const goBack = useCallback(() => {
     setHistory(prev => {
       if (prev.length === 0) return prev;
       const last = prev[prev.length - 1];
       setCurrentPageState(last);
       return prev.slice(0, prev.length - 1);
     });
-  };
+  }, []);
+
+  const clearHistory = useCallback(() => {
+    setHistory([]);
+  }, []);
 
   return (
     <ContentContext.Provider
@@ -96,6 +112,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
         history,
         setCurrentPage,
         goBack,
+        clearHistory,
         headerTitle,
         setHeaderTitle,
         selectedAnnouncementId,
