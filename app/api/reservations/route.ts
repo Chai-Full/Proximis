@@ -75,7 +75,9 @@ export async function POST(req: Request) {
       slotIndex: body.slotIndex,
       userId: body.userId,
       date: normalizedDate,
+      status: "to_pay" as const,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
     existing.push(newRes);
@@ -124,6 +126,46 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: true, count: matches.length, reservations: matches, exists: matches.length > 0 });
   } catch (err) {
     console.error('Error reading reservations', err);
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
+}
+
+export async function PUT(req: Request) {
+  try {
+    const body = (await req.json()) as { id: number | string; status: "to_pay" | "reserved" | "to_evaluate" | "completed" };
+    if (!body || !body.id || !body.status) {
+      return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+    }
+
+    const dataDir = path.join(process.cwd(), 'data');
+    const filePath = path.join(dataDir, 'reservations.json');
+
+    let existing: any[] = [];
+    try {
+      const content = await fs.readFile(filePath, 'utf8');
+      existing = JSON.parse(content)?.reservations ?? [];
+    } catch (e) {
+      return NextResponse.json({ error: 'Reservations file not found' }, { status: 404 });
+    }
+
+    const index = existing.findIndex((r: any) => String(r.id) === String(body.id));
+    if (index === -1) {
+      return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });
+    }
+
+    // Update reservation status
+    existing[index] = {
+      ...existing[index],
+      status: body.status,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const out = { reservations: existing };
+    await fs.writeFile(filePath, JSON.stringify(out, null, 2), 'utf8');
+
+    return NextResponse.json({ ok: true, reservation: existing[index] });
+  } catch (err) {
+    console.error('Error updating reservation', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

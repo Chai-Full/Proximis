@@ -5,14 +5,20 @@
       "announcementId": 1762703145340,
       "slotIndex": 1,
       "userId": 3,
-      "createdAt": "2025-11-12T05:46:01.260Z"
+      "date": "2025-11-16",
+      "status": "to_evaluate",
+      "createdAt": "2025-11-12T05:46:01.260Z",
+      "updatedAt": "2025-11-28T14:30:00.000Z"
     },
     {
       "id": 1762926677207,
       "announcementId": 1762703145340,
       "slotIndex": 2,
       "userId": 3,
-      "createdAt": "2025-11-12T05:51:17.208Z"
+      "date": "2025-11-20",
+      "status": "to_evaluate",
+      "createdAt": "2025-11-12T05:51:17.208Z",
+      "updatedAt": "2025-11-25T16:30:00.000Z"
     },
     {
       "id": 1762927955246,
@@ -20,7 +26,9 @@
       "slotIndex": 1,
       "userId": 3,
       "date": "2025-11-16",
-      "createdAt": "2025-11-12T06:12:35.246Z"
+      "status": "reserved",
+      "createdAt": "2025-11-12T06:12:35.246Z",
+      "updatedAt": "2025-11-12T06:13:00.000Z"
     },
     {
       "id": 1762936886224,
@@ -28,7 +36,9 @@
       "slotIndex": 0,
       "userId": 3,
       "date": "2025-11-15",
-      "createdAt": "2025-11-12T08:41:26.224Z"
+      "status": "reserved",
+      "createdAt": "2025-11-12T08:41:26.224Z",
+      "updatedAt": "2025-11-12T08:42:00.000Z"
     },
     {
       "id": 1762938578733,
@@ -36,7 +46,9 @@
       "slotIndex": 1,
       "userId": 5,
       "date": "2025-11-16",
-      "createdAt": "2025-11-12T09:09:38.733Z"
+      "status": "to_pay",
+      "createdAt": "2025-11-12T09:09:38.733Z",
+      "updatedAt": "2025-11-12T09:09:38.733Z"
     },
     {
       "id": 1762938598877,
@@ -44,7 +56,9 @@
       "slotIndex": 0,
       "userId": 4,
       "date": "2025-11-22",
-      "createdAt": "2025-11-12T09:09:58.877Z"
+      "status": "to_pay",
+      "createdAt": "2025-11-12T09:09:58.877Z",
+      "updatedAt": "2025-11-12T09:09:58.877Z"
     },
     {
       "id": 1762939947099,
@@ -52,7 +66,9 @@
       "slotIndex": 0,
       "userId": 4,
       "date": "2025-11-23",
-      "createdAt": "2025-11-12T09:32:27.099Z"
+      "status": "reserved",
+      "createdAt": "2025-11-12T09:32:27.099Z",
+      "updatedAt": "2025-11-12T09:33:00.000Z"
     },
     {
       "id": 1762942358094,
@@ -60,7 +76,19 @@
       "slotIndex": 0,
       "userId": 5,
       "date": "2025-11-13",
-      "createdAt": "2025-11-12T10:12:38.094Z"
+      "status": "completed",
+      "createdAt": "2025-11-12T10:12:38.094Z",
+      "updatedAt": "2025-11-22T18:00:00.000Z"
+    },
+    {
+      "id": 1765568737071,
+      "announcementId": 1762939920585,
+      "slotIndex": 1,
+      "userId": 3,
+      "date": "2025-12-17",
+      "status": "reserved",
+      "createdAt": "2025-12-12T19:45:37.071Z",
+      "updatedAt": "2025-12-12T19:46:00.000Z"
     }
   ]
 }

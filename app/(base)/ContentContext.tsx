@@ -15,7 +15,8 @@ export type PageKey =
   | "profil_edit"
   | "announce_details"
   | "filters"
-  | "reservation";
+  | "reservation"
+  | "my_announcements";
 
 type ContentContextType = {
   currentPage: PageKey;

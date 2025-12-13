@@ -1,0 +1,371 @@
+.myAnnouncementsContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #ffffff;
+}
+
+/* Content Area */
+.myAnnouncementsContent {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.myAnnouncementsContent.noHorizontalPadding {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.announcementsList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.emptyState {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 48px 16px;
+  text-align: center;
+  color: #8c8c8c;
+}
+
+.emptyState p {
+  margin: 0;
+  font-size: 16px;
+}
+
+/* Announcement Card */
+.myAnnouncementCard {
+  background-color: #ffffff;
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+}
+
+.myAnnouncementCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.myAnnouncementCardTop {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.myAnnouncementCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.myAnnouncementCardTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #000000;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.myAnnouncementCardRating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.myAnnouncementCardRating span {
+  font-size: 14px;
+  font-weight: 500;
+  color: #000000;
+}
+
+.myAnnouncementCardContent {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+/* Card Image */
+.myAnnouncementCardImage {
+  width: 100px;
+  height: 100px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  background-color: #f0f0f0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Card Details */
+.myAnnouncementCardDetails {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Description */
+.myAnnouncementCardDescription {
+  margin: 0;
+  font-size: 14px;
+  color: #545454;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  margin-bottom: 8px;
+}
+
+/* Days Badges Row (with price on same line) */
+.myAnnouncementCardDaysRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.myAnnouncementCardDays {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.priceText {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1ea792;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.dayBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  background-color: #1ea792;
+  color: #ffffff;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  min-width: 24px;
+  height: 24px;
+}
+
+.dayBadge.empty {
+  background-color: #e0e0e0;
+  color: #8c8c8c;
+}
+
+/* Footer */
+.myAnnouncementCardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 8px;
+  margin-top: 8px;
+  border-top: 1px solid #f0f0f0;
+  margin-left: -12px;
+  margin-right: -12px;
+  margin-bottom: -12px;
+  padding: 12px;
+}
+
+.categoryBadge {
+  padding: 4px 10px;
+  background-color: #e8f5f3;
+  color: #1ea792;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.statusBadge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.statusBadge.available {
+  background-color: #fff3e0;
+  color: #f57c00;
+}
+
+.statusBadge.closed {
+  background-color: #f5f5f5;
+  color: #8c8c8c;
+}
+
+/* Reservation Card Styles */
+.reservationsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.reservationCard {
+  background-color: #ffffff;
+  border-bottom: 1px solid var(--primary);
+  border-left: 3px solid var(--primary);
+  border-right: 1px solid var(--primary);
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.reservationCard:hover {
+  background-color: #f5f5f5;
+}
+
+.reservationCardOrange {
+  background-color: #fff3e0;
+  border-bottom: 1px solid var(--secondary);
+  border-top: 1px solid var(--secondary);
+  border-left: 6px solid var(--secondary);
+  border-right: 1px solid var(--secondary);
+}
+
+.reservationCardOrange:hover {
+  background-color: #ffe0b2;
+}
+
+.reservationCardContent {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.reservationCardImage {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  background-color: #f0f0f0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.reservationCardDetails {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.reservationCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.reservationCardTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #000000;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.reservationCardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.reservationCardTimeName {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #545454;
+  flex: 1;
+}
+
+.reservationStatusBadge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.reservationStatusBadge.statusToEvaluate {
+  background-color: #ff9800;
+  color: #ffffff;
+}
+
+.reservationStatusBadge.statusReserved {
+  background-color: #1ea792;
+  color: #ffffff;
+}
+
+.reservationStatusBadge.statusToPay {
+  background-color: #ffc107;
+  color: #000000;
+}
+
+.reservationStatusBadge.statusFinished {
+  background-color: #e0e0e0;
+  color: #545454;
+}
+
+.reservationDate {
+  font-size: 12px;
+  color: #8c8c8c;
+  flex-shrink: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  /*.myAnnouncementCardImage {
+    width: 80px;
+    height: 80px;
+  }*/
+
+  .myAnnouncementCardTitle {
+    font-size: 14px;
+  }
+
+  .myAnnouncementCardDescription {
+    font-size: 12px;
+  }
+
+  .reservationCardImage {
+    width: 50px;
+    height: 50px;
+  }
+
+  .reservationCardTitle {
+    font-size: 14px;
+  }
+}
+
