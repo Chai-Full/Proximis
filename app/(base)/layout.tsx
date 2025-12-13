@@ -26,6 +26,8 @@ import MessageContent from "./message/page";
 import ChatContent from "./message/ChatContent";
 import TodayIcon from '@mui/icons-material/Today';
 import MyAnnouncementsContent from "./my_announcements/page";
+import EvaluateContent from "./evaluate/page";
+import ReviewsContent from "./reviews/page";
 
 const navItems = [
         { id: "home", label: "Accueil", icon: HomeIcon, href: "/" },
@@ -50,6 +52,8 @@ const contentComponents = {
     profil_edit: ProfileEditContent,
     publish: PublishAnnouncementContent,
     my_announcements: MyAnnouncementsContent,
+    evaluate: EvaluateContent,
+    reviews: ReviewsContent,
 };
 
 // Inner component consumes the ContentContext (must be inside ContentProvider)
@@ -58,7 +62,7 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
     const router = useRouter();
     const currentNav = navItems.find(item => item.id === currentPage);
     const CurrentContent = (contentComponents as Record<string, React.ComponentType>)[currentPage] || HomeContent;
-    const hideBottomNav = currentPage === "messages" || currentPage === "message_chat" || currentPage === "annonces" || currentPage === "profil" || currentPage === "profil_edit" || currentPage === "my_announcements" || currentPage === "announce_details";
+    const hideBottomNav = currentPage === "messages" || currentPage === "message_chat" || currentPage === "annonces" || currentPage === "profil" || currentPage === "profil_edit" || currentPage === "my_announcements" || currentPage === "announce_details" || currentPage === "evaluate" || currentPage === "reviews";
     const {
         register,
         handleSubmit,

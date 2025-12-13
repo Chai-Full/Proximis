@@ -52,6 +52,10 @@ export default function AnnounceDetails() {
   const [isFavorite, setIsFavorite] = useState<boolean>(false);
   const [isTogglingFavorite, setIsTogglingFavorite] = useState<boolean>(false);
   
+  // Reviews/Evaluations data
+  const [averageRating, setAverageRating] = useState<number | null>(null);
+  const [reviewsCount, setReviewsCount] = useState<number>(0);
+  
   useEffect(() => {
     const checkFavorite = async () => {
       if (typeof window === 'undefined' || !announcement || !currentUserId) {
@@ -77,6 +81,42 @@ export default function AnnounceDetails() {
     };
     checkFavorite();
   }, [announcement, currentUserId]);
+
+  // Load evaluations to calculate average rating and count
+  useEffect(() => {
+    if (!announcement) return;
+
+    const loadEvaluations = async () => {
+      try {
+        const params = new URLSearchParams({
+          announcementId: String(announcement.id),
+        });
+        const res = await fetch(`/api/evaluations?${params.toString()}`);
+        const data = await res.json();
+
+        if (res.ok && data?.evaluations && Array.isArray(data.evaluations)) {
+          const evaluations = data.evaluations;
+          setReviewsCount(evaluations.length);
+          
+          if (evaluations.length > 0) {
+            const avg = evaluations.reduce((sum: number, evaluation: any) => sum + evaluation.rating, 0) / evaluations.length;
+            setAverageRating(avg);
+          } else {
+            setAverageRating(null);
+          }
+        } else {
+          setReviewsCount(0);
+          setAverageRating(null);
+        }
+      } catch (error) {
+        console.error('Error loading evaluations:', error);
+        setReviewsCount(0);
+        setAverageRating(null);
+      }
+    };
+
+    loadEvaluations();
+  }, [announcement]);
 
   const toggleFavorite = async () => {
     if (!announcement || !currentUserId || isTogglingFavorite) return;
@@ -351,7 +391,9 @@ export default function AnnounceDetails() {
           </Button>
           <div style={{ display: 'flex', alignItems: 'center', flex: '0 0 auto' }}>
               <Star sx={{ color: "#FFE135" }} />
-              <span className='T4' style={{color:"#545454"}}>5 - 3 Avis</span>
+              <span className='T4' style={{color:"#545454"}}>
+                {averageRating !== null ? averageRating.toFixed(1) : '—'} - {reviewsCount} {reviewsCount === 1 ? 'Avis' : 'Avis'}
+              </span>
           </div>
           <Button 
             variant="outlined"
@@ -362,6 +404,9 @@ export default function AnnounceDetails() {
               color: "#8C8C8C",
               borderColor: "#8C8C8C",
               textTransform: "none"
+            }}
+            onClick={() => {
+              setCurrentPage && setCurrentPage('reviews');
             }}
             >
             Voir tous les avis

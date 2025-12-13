@@ -1,7 +1,7 @@
 "use client";
 import LocationOn from '@mui/icons-material/LocationOn';
 import Star from '@mui/icons-material/Star';
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import './index.css';
 import { useContent } from '../ContentContext';
 import { getDayLabels } from '@/lib/daylabel';
@@ -24,12 +24,65 @@ interface AnnouncementCardProps {
 
 const AnnouncementCard = ({ announcement, profilPage=false }: AnnouncementCardProps) => {
   const { id, title, price, photo, slots, category } = announcement;
-  
+  const { setCurrentPage, setSelectedAnnouncementId } = useContent();
+  const [averageRating, setAverageRating] = useState<number>(0);
 
-    const { setCurrentPage, setSelectedAnnouncementId } = useContent();
+  // Load average rating from evaluations
+  useEffect(() => {
+    if (!id) {
+      setAverageRating(0);
+      return;
+    }
 
-    console.log("content : ", announcement, " page profil : ", profilPage);
-    
+    let cancelled = false;
+
+    const loadRating = async () => {
+      try {
+        const params = new URLSearchParams({
+          announcementId: String(id),
+        });
+        const res = await fetch(`/api/evaluations?${params.toString()}`);
+        const data = await res.json();
+
+        if (cancelled) return;
+
+        if (res.ok && data?.evaluations && Array.isArray(data.evaluations)) {
+          const evaluations = data.evaluations;
+          
+          if (evaluations.length > 0) {
+            const avg = evaluations.reduce((sum: number, evaluation: any) => {
+              const rating = typeof evaluation.rating === 'number' ? evaluation.rating : 0;
+              return sum + rating;
+            }, 0) / evaluations.length;
+            if (!cancelled) {
+              setAverageRating(avg);
+            }
+          } else {
+            if (!cancelled) {
+              setAverageRating(0);
+            }
+          }
+        } else {
+          if (!cancelled) {
+            setAverageRating(0);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading rating for announcement', id, error);
+        if (!cancelled) {
+          setAverageRating(0);
+        }
+      }
+    };
+
+    loadRating();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const displayRating = averageRating > 0 ? averageRating.toFixed(1) : '0';
 
     return (
         <div
@@ -65,7 +118,7 @@ const AnnouncementCard = ({ announcement, profilPage=false }: AnnouncementCardPr
                     </span>
                     <div style={{ display: 'flex', alignItems: 'center', flex: '0 0 auto' }}>
                         <Star sx={{ color: "#FFE135" }} />
-                        <span className='T5'>5</span>
+                        <span className='T5'>{displayRating}</span>
                     </div>
                 </div>
                 <div className='announcementAvailability'>

@@ -38,7 +38,64 @@ interface AnnouncementCardData {
 function MyAnnouncementCard({ announcement, showFavoriteIcon = false }: { announcement: AnnouncementCardData; showFavoriteIcon?: boolean }) {
   const { setCurrentPage, setSelectedAnnouncementId } = useContent();
   const dayLabels = getDayLabels(announcement.slots);
-  const rating = announcement.rating ?? 4.8;
+  const [averageRating, setAverageRating] = useState<number>(0);
+
+  // Load average rating from evaluations
+  useEffect(() => {
+    if (!announcement.id) {
+      setAverageRating(0);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadRating = async () => {
+      try {
+        const params = new URLSearchParams({
+          announcementId: String(announcement.id),
+        });
+        const res = await fetch(`/api/evaluations?${params.toString()}`);
+        const data = await res.json();
+
+        if (cancelled) return;
+
+        if (res.ok && data?.evaluations && Array.isArray(data.evaluations)) {
+          const evaluations = data.evaluations;
+          
+          if (evaluations.length > 0) {
+            const avg = evaluations.reduce((sum: number, evaluation: any) => {
+              const rating = typeof evaluation.rating === 'number' ? evaluation.rating : 0;
+              return sum + rating;
+            }, 0) / evaluations.length;
+            if (!cancelled) {
+              setAverageRating(avg);
+            }
+          } else {
+            if (!cancelled) {
+              setAverageRating(0);
+            }
+          }
+        } else {
+          if (!cancelled) {
+            setAverageRating(0);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading rating for announcement', announcement.id, error);
+        if (!cancelled) {
+          setAverageRating(0);
+        }
+      }
+    };
+
+    loadRating();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [announcement.id]);
+
+  const rating = averageRating > 0 ? averageRating.toFixed(1) : '0';
 
   const handleClick = () => {
     setSelectedAnnouncementId && setSelectedAnnouncementId(announcement.id);
@@ -173,6 +230,7 @@ function getStatusLabel(status?: ReservationStatus): string {
 
 function ReservationCard({ data }: { data: ReservationCardData }) {
   const { reservation, announcement, providerName } = data;
+  const { setCurrentPage, setSelectedReservationId } = useContent();
 
   const handleClick = () => {
     const status = reservation.status || "to_pay";
@@ -191,8 +249,10 @@ function ReservationCard({ data }: { data: ReservationCardData }) {
         break;
       case "to_evaluate":
         // Action pour "A évaluer" : ouvrir le formulaire d'évaluation
-        // TODO: Implémenter l'ouverture du formulaire d'évaluation
-        console.log("Ouvrir formulaire d'évaluation pour réservation:", reservation.id);
+        if (setSelectedReservationId && setCurrentPage) {
+          setSelectedReservationId(reservation.id);
+          setCurrentPage("evaluate");
+        }
         break;
       case "completed":
         // Action pour "Terminé" : afficher l'historique

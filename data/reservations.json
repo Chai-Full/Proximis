@@ -6,9 +6,9 @@
       "slotIndex": 1,
       "userId": 3,
       "date": "2025-11-16",
-      "status": "to_evaluate",
+      "status": "completed",
       "createdAt": "2025-11-12T05:46:01.260Z",
-      "updatedAt": "2025-11-28T14:30:00.000Z"
+      "updatedAt": "2025-12-13T18:55:00.439Z"
     },
     {
       "id": 1762926677207,
@@ -16,9 +16,9 @@
       "slotIndex": 2,
       "userId": 3,
       "date": "2025-11-20",
-      "status": "to_evaluate",
+      "status": "completed",
       "createdAt": "2025-11-12T05:51:17.208Z",
-      "updatedAt": "2025-11-25T16:30:00.000Z"
+      "updatedAt": "2025-12-13T18:13:01.690Z"
     },
     {
       "id": 1762927955246,
@@ -26,9 +26,9 @@
       "slotIndex": 1,
       "userId": 3,
       "date": "2025-11-16",
-      "status": "reserved",
+      "status": "to_evaluate",
       "createdAt": "2025-11-12T06:12:35.246Z",
-      "updatedAt": "2025-11-12T06:13:00.000Z"
+      "updatedAt": "2025-12-13T18:54:18.715Z"
     },
     {
       "id": 1762936886224,
@@ -36,9 +36,9 @@
       "slotIndex": 0,
       "userId": 3,
       "date": "2025-11-15",
-      "status": "reserved",
+      "status": "to_evaluate",
       "createdAt": "2025-11-12T08:41:26.224Z",
-      "updatedAt": "2025-11-12T08:42:00.000Z"
+      "updatedAt": "2025-12-13T18:54:18.715Z"
     },
     {
       "id": 1762938578733,
@@ -66,9 +66,9 @@
       "slotIndex": 0,
       "userId": 4,
       "date": "2025-11-23",
-      "status": "reserved",
+      "status": "to_evaluate",
       "createdAt": "2025-11-12T09:32:27.099Z",
-      "updatedAt": "2025-11-12T09:33:00.000Z"
+      "updatedAt": "2025-12-13T18:54:18.715Z"
     },
     {
       "id": 1762942358094,
@@ -216,9 +216,9 @@
       "slotIndex": 0,
       "userId": 3,
       "date": "2025-12-13",
-      "status": "reserved",
+      "status": "to_evaluate",
       "createdAt": "2025-12-13T16:53:10.149Z",
-      "updatedAt": "2025-12-13T16:53:11.280Z"
+      "updatedAt": "2025-12-13T18:54:18.716Z"
     }
   ]
 }

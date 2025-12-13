@@ -96,11 +96,79 @@ export default function ProfileDetails() {
     loadFavoritesCount();
   }, [isCurrentUser, currentUserId]);
 
-  // Derived simple stats from available data (no mock)
+  // Load reviews count and average rating from all user's announcements
+  const [reviewsCount, setReviewsCount] = useState<number>(0);
+  const [averageRating, setAverageRating] = useState<number>(0);
+
+  useEffect(() => {
+    if (!user || userAnnouncements.length === 0) {
+      setReviewsCount(0);
+      setAverageRating(0);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadReviewsStats = async () => {
+      try {
+        // Load evaluations for all user's announcements
+        const allEvaluations: any[] = [];
+        
+        for (const announcement of userAnnouncements) {
+          try {
+            const params = new URLSearchParams({
+              announcementId: String(announcement.id),
+            });
+            const res = await fetch(`/api/evaluations?${params.toString()}`);
+            const data = await res.json();
+            
+            if (res.ok && data?.evaluations && Array.isArray(data.evaluations)) {
+              allEvaluations.push(...data.evaluations);
+            }
+          } catch (e) {
+            console.error(`Error loading evaluations for announcement ${announcement.id}`, e);
+          }
+        }
+
+        if (cancelled) return;
+
+        // Calculate total reviews count and average rating
+        const totalReviews = allEvaluations.length;
+        let avgRating = 0;
+        
+        if (totalReviews > 0) {
+          const sum = allEvaluations.reduce((acc, evaluation) => {
+            const rating = typeof evaluation.rating === 'number' ? evaluation.rating : 0;
+            return acc + rating;
+          }, 0);
+          avgRating = sum / totalReviews;
+        }
+
+        if (!cancelled) {
+          setReviewsCount(totalReviews);
+          setAverageRating(avgRating);
+        }
+      } catch (error) {
+        console.error("Error loading reviews stats", error);
+        if (!cancelled) {
+          setReviewsCount(0);
+          setAverageRating(0);
+        }
+      }
+    };
+
+    loadReviewsStats();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, userAnnouncements]);
+
+  // Derived simple stats from available data
   const stats: PrivateStats = {
     services: userReservations.length,
-    reviews: 0,
-    note: 0,
+    reviews: reviewsCount,
+    note: averageRating,
   };
 
   const menu: MenuItem[] = [
@@ -175,7 +243,7 @@ export default function ProfileDetails() {
           <div style={{ display: "flex", alignItems: "center", flex: "0 0 auto" }}>
             <Star sx={{ color: "#FFE135" }} />
             <span className="T5">
-              4,9 <span style={{ color: "#8c8c8c" }}> (23 avis)</span>
+              {averageRating > 0 ? averageRating.toFixed(1).replace('.', ',') : '0'} <span style={{ color: "#8c8c8c" }}> ({reviewsCount} avis)</span>
             </span>
           </div>
         </div>
