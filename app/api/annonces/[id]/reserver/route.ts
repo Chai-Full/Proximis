@@ -188,11 +188,11 @@ export async function POST(
 
     // Get announcement creator
     const announcementCreator = await db.collection('users').findOne({ id: Number(announcement.userId) });
-    const { _id: creatorId, ...creatorData } = announcementCreator || {};
+    const creatorData: any = announcementCreator ? { ...announcementCreator } : null;
 
     // Get user data
     const userDoc = await db.collection('users').findOne({ id: user.userId });
-    const { _id: userId, ...userData } = userDoc || {};
+    const userData: any = userDoc ? { ...userDoc } : null;
 
     const responseData = {
       idReservation: reservation.id,
@@ -204,7 +204,7 @@ export async function POST(
       annonce: {
         idAnnonce: announcement.id,
         nomAnnonce: announcement.title,
-        userCreateur: announcementCreator
+        userCreateur: creatorData
           ? {
               idUser: creatorData.id,
               nomUser: creatorData.nom,
@@ -213,7 +213,7 @@ export async function POST(
             }
           : null,
       },
-      user: userDoc
+      user: userData
         ? {
             idUser: userData.id,
             nomUser: userData.nom,

@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     const conversationId = `conv_${body.fromUserId}_${body.toUserId}_${body.announcementId}`;
 
     // Check if conversation already exists
-    let conversation = await db.collection('conversations').findOne({
+    let conversation: any = await db.collection('conversations').findOne({
       id: conversationId,
     });
 
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      await db.collection('conversations').insertOne(conversation);
+      await db.collection('conversations').insertOne(conversation as any);
     } else {
       // Update existing conversation
       await db.collection('conversations').updateOne(
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
           },
         }
       );
-      conversation = await db.collection('conversations').findOne({ id: conversationId });
+      conversation = await db.collection('conversations').findOne({ id: conversationId }) as any;
     }
 
     // Create initial message

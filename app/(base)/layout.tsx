@@ -171,7 +171,7 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
                                        // when user clicks the navbar profile, show the connected user's profile (by id)
                                        if (setSelectedProfileId) setSelectedProfileId(currentUserId ?? null);
                                        // Ensure history includes home if coming from bottom nav
-                                       if (currentPage !== 'profil') {
+                                       if ((currentPage as PageKey) !== 'profil') {
                                            if (history.length === 0 && currentPage === 'home') {
                                                setCurrentPage('profil', ['home']);
                                            } else {
@@ -184,7 +184,7 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
                                            localStorage.setItem("proximis_myAnnouncements_view", "reservations");
                                        }
                                        // Ensure history includes home if coming from bottom nav
-                                       if (currentPage !== 'my_announcements') {
+                                       if ((currentPage as PageKey) !== 'my_announcements') {
                                            if (history.length === 0 && currentPage === 'home') {
                                                setCurrentPage('my_announcements', ['home']);
                                            } else {

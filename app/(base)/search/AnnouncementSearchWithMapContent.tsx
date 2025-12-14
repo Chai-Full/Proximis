@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { APIProvider, Map, Marker, useMap } from '@vis.gl/react-google-maps';
 import { useContent } from '../ContentContext';
-import AnnouncementCard from '../announcement/AnnouncementCard';
+import AnnouncementCard from '../announcement/announcementCard';
 import usersData from '../../../data/users.json';
 import { ChevronLeft, ChevronRight } from '@mui/icons-material';
 import './map.css';

@@ -1,3 +1,4 @@
+"use client";
 import React from 'react'
 import { useContent } from '../ContentContext';
 import { fetchWithAuth } from '../lib/auth';

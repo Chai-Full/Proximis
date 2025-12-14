@@ -5,7 +5,7 @@ import "./index.css";
 import CloudUploadOutlined from "@mui/icons-material/CloudUploadOutlined";
 import FavoriteBorderOutlined from "@mui/icons-material/FavoriteBorderOutlined";
 import Star from "@mui/icons-material/Star";
-import AnnouncementCard from "../announcement/AnnouncementCard";
+import AnnouncementCard from "../announcement/announcementCard";
 import ProfileHeader from "./ProfileHeader";
 import PrivateStatsRow from "./PrivateStatsRow";
 import PrivateMenu from "./PrivateMenu";

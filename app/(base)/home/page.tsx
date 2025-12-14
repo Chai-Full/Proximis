@@ -6,7 +6,7 @@ import { useContent } from '../ContentContext';
 import { useRouter } from 'next/navigation';
 import { AddCircleOutlineOutlined, LightbulbCircleOutlined, Schedule, StarOutlineOutlined, Today } from '@mui/icons-material';
 import StarsOutlined from '@mui/icons-material/StarsOutlined';
-import AnnouncementCard from '../announcement/AnnouncementCard';
+import AnnouncementCard from '../announcement/announcementCard';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import { fetchWithAuth } from '../lib/auth';

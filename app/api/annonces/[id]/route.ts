@@ -93,13 +93,13 @@ export async function GET(
     const avis = await Promise.all(
       evaluations.map(async (evaluation: any) => {
         const evalUser = await db.collection('users').findOne({ id: Number(evaluation.userId) });
-        const { _id: evalUserId, ...evalUserData } = evalUser || {};
+        const evalUserData: any = evalUser ? { ...evalUser } : null;
         return {
           idAvis: evaluation.id,
           noteAvis: evaluation.rating,
           commentaire: evaluation.comment,
           dateAvis: evaluation.createdAt,
-          user: evalUser
+          user: evalUserData
             ? {
                 idUser: evalUserData.id,
                 nomUser: evalUserData.nom,

@@ -1,12 +1,12 @@
 "use client";
 import React from 'react';
 import { useContent } from '../ContentContext';
-import AnnouncementCard from './AnnouncementCard';
+import AnnouncementCard from './announcementCard';
 import { useEffect, useState } from 'react';
 import { fetchWithAuth } from '../lib/auth';
 import dayjs from 'dayjs';
 import { Typography } from '@mui/material';
-import { SkeletonAnnouncementCard, SkeletonReservationCard } from '../components/Skeleton';
+import { Skeleton, SkeletonAnnouncementCard, SkeletonReservationCard } from '../components/Skeleton';
 
 export default function AnnouncementContent (){
   const { currentUserId } = useContent();
