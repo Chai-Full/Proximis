@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/app/lib/auth';
-import { prisma } from '@/app/lib/prisma';
-import { CreateReservationInput } from '@/app/types/api';
+import { getDb } from '@/app/lib/mongodb';
 
 /**
  * @swagger
@@ -59,7 +58,7 @@ export async function POST(
     }
 
     const { id } = await params;
-    const annonceId = parseInt(id);
+    const annonceId = Number(id);
 
     if (isNaN(annonceId)) {
       return NextResponse.json(
@@ -68,30 +67,27 @@ export async function POST(
       );
     }
 
-    // Vérifier que l'annonce existe
-    const annonce = await prisma.annonce.findUnique({
-      where: { idAnnonce: annonceId },
-      include: {
-        creneaux: true,
-      },
-    });
+    const db = await getDb();
 
-    if (!annonce) {
+    // Verify announcement exists
+    const announcement = await db.collection('announcements').findOne({ id: annonceId });
+
+    if (!announcement) {
       return NextResponse.json(
         { success: false, error: 'Annonce non trouvée' },
         { status: 404 }
       );
     }
 
-    // Vérifier que l'utilisateur ne réserve pas sa propre annonce
-    if (annonce.userCreateurId === user.idUser) {
+    // Check if user is trying to reserve their own announcement
+    if (Number(announcement.userId) === user.userId) {
       return NextResponse.json(
         { success: false, error: 'Vous ne pouvez pas réserver votre propre annonce' },
         { status: 400 }
       );
     }
 
-    const body: CreateReservationInput = await req.json();
+    const body = await req.json();
     const { dateDebut, dateFin } = body;
 
     if (!dateDebut || !dateFin) {
@@ -111,100 +107,126 @@ export async function POST(
       );
     }
 
-    // Vérifier si des créneaux sont disponibles pour cette période
-    if (annonce.creneaux.length > 0) {
-      const creneauDisponible = annonce.creneaux.find(
-        (c) => !c.estReserve && debut >= c.dateDebut && fin <= c.dateFin
-      );
+    // Check if slots are available for this period
+    // For MongoDB, we check if there's a matching slot and if it's not already reserved
+    const slots = announcement.slots || [];
+    if (slots.length > 0) {
+      // Find a slot that matches the requested period
+      const matchingSlot = slots.find((slot: any) => {
+        const slotStart = new Date(slot.start);
+        const slotEnd = new Date(slot.end);
+        return debut >= slotStart && fin <= slotEnd;
+      });
 
-      if (!creneauDisponible) {
+      if (!matchingSlot) {
         return NextResponse.json(
           { success: false, error: 'Aucun créneau disponible pour cette période' },
           { status: 400 }
         );
       }
 
-      // Marquer le créneau comme réservé
-      await prisma.creneau.update({
-        where: { idCreneau: creneauDisponible.idCreneau },
-        data: { estReserve: true },
+      // Check if this slot is already reserved
+      const existingReservation = await db.collection('reservations').findOne({
+        announcementId: annonceId,
+        date: {
+          $gte: debut.toISOString().split('T')[0],
+          $lte: fin.toISOString().split('T')[0],
+        },
+        status: { $ne: 'cancelled' },
       });
+
+      if (existingReservation) {
+        return NextResponse.json(
+          { success: false, error: 'Cette période est déjà réservée' },
+          { status: 400 }
+        );
+      }
     }
 
-    // Vérifier s'il n'y a pas déjà une réservation en conflit
-    const reservationExistante = await prisma.reservation.findFirst({
-      where: {
-        annonceId,
-        OR: [
-          {
-            AND: [
-              { dateDebut: { lte: debut } },
-              { dateFin: { gte: debut } },
-            ],
-          },
-          {
-            AND: [
-              { dateDebut: { lte: fin } },
-              { dateFin: { gte: fin } },
-            ],
-          },
-          {
-            AND: [
-              { dateDebut: { gte: debut } },
-              { dateFin: { lte: fin } },
-            ],
-          },
-        ],
-        statusResa: {
-          not: 'annulee',
+    // Check for conflicting reservations
+    const conflictingReservation = await db.collection('reservations').findOne({
+      announcementId: annonceId,
+      $or: [
+        {
+          $and: [
+            { date: { $lte: debut.toISOString().split('T')[0] } },
+            { date: { $gte: debut.toISOString().split('T')[0] } },
+          ],
         },
-      },
+        {
+          $and: [
+            { date: { $lte: fin.toISOString().split('T')[0] } },
+            { date: { $gte: fin.toISOString().split('T')[0] } },
+          ],
+        },
+      ],
+      status: { $ne: 'cancelled' },
     });
 
-    if (reservationExistante) {
+    if (conflictingReservation) {
       return NextResponse.json(
         { success: false, error: 'Cette période est déjà réservée' },
         { status: 400 }
       );
     }
 
-    // Créer la réservation
-    const reservation = await prisma.reservation.create({
-      data: {
-        annonceId,
-        userId: user.idUser,
-        dateDebut: debut,
-        dateFin: fin,
-        statusResa: 'en_attente',
+    // Create reservation
+    const reservation = {
+      id: Date.now(),
+      announcementId: annonceId,
+      userId: user.userId,
+      dateDebut: debut.toISOString(),
+      dateFin: fin.toISOString(),
+      date: debut.toISOString().split('T')[0], // YYYY-MM-DD format
+      statusResa: 'en_attente',
+      status: 'to_pay', // Using the MongoDB status format
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await db.collection('reservations').insertOne(reservation);
+
+    // Get announcement creator
+    const announcementCreator = await db.collection('users').findOne({ id: Number(announcement.userId) });
+    const { _id: creatorId, ...creatorData } = announcementCreator || {};
+
+    // Get user data
+    const userDoc = await db.collection('users').findOne({ id: user.userId });
+    const { _id: userId, ...userData } = userDoc || {};
+
+    const responseData = {
+      idReservation: reservation.id,
+      annonceId: reservation.announcementId,
+      userId: reservation.userId,
+      dateDebut: reservation.dateDebut,
+      dateFin: reservation.dateFin,
+      statusResa: reservation.statusResa,
+      annonce: {
+        idAnnonce: announcement.id,
+        nomAnnonce: announcement.title,
+        userCreateur: announcementCreator
+          ? {
+              idUser: creatorData.id,
+              nomUser: creatorData.nom,
+              prenomUser: creatorData.prenom,
+              photoUser: creatorData.photo,
+            }
+          : null,
       },
-      include: {
-        annonce: {
-          include: {
-            userCreateur: {
-              select: {
-                idUser: true,
-                nomUser: true,
-                prenomUser: true,
-                photoUser: true,
-              },
-            },
-          },
-        },
-        user: {
-          select: {
-            idUser: true,
-            nomUser: true,
-            prenomUser: true,
-            photoUser: true,
-          },
-        },
-      },
-    });
+      user: userDoc
+        ? {
+            idUser: userData.id,
+            nomUser: userData.nom,
+            prenomUser: userData.prenom,
+            photoUser: userData.photo,
+          }
+        : null,
+    };
 
     return NextResponse.json(
       {
         success: true,
-        data: reservation,
+        data: responseData,
       },
       { status: 201 }
     );
@@ -216,4 +238,3 @@ export async function POST(
     );
   }
 }
-

@@ -1,13 +1,10 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import { useContent } from "../ContentContext";
-import usersData from "../../../data/users.json";
-import reservationsData from "../../../data/reservations.json";
 import "./index.css";
 import CloudUploadOutlined from "@mui/icons-material/CloudUploadOutlined";
 import FavoriteBorderOutlined from "@mui/icons-material/FavoriteBorderOutlined";
 import Star from "@mui/icons-material/Star";
-import announcementsData from "../../../data/announcements.json";
 import AnnouncementCard from "../announcement/AnnouncementCard";
 import ProfileHeader from "./ProfileHeader";
 import PrivateStatsRow from "./PrivateStatsRow";
@@ -15,12 +12,16 @@ import PrivateMenu from "./PrivateMenu";
 import { MenuItem, PrivateStats } from "./ProfileTypes";
 import TextSnippetIcon from '@mui/icons-material/TextSnippet';
 import OutboxIcon from '@mui/icons-material/Outbox';
+import { fetchWithAuth } from "../lib/auth";
+import { SkeletonProfile } from "../components/Skeleton";
 
 export default function ProfileDetails() {
   const { selectedProfileId, currentUserId, setHeaderTitle, setCurrentPage } = useContent();
   const [favoritesCount, setFavoritesCount] = useState<number>(0);
-  const users = (usersData as any).users ?? [];
-  const reservations = (reservationsData as any).reservations ?? [];
+  const [users, setUsers] = useState<any[]>([]);
+  const [reservations, setReservations] = useState<any[]>([]);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
   const targetUserId = useMemo(() => {
     if (selectedProfileId != null) return Number(selectedProfileId);
@@ -32,6 +33,80 @@ export default function ProfileDetails() {
     targetUserId != null &&
     currentUserId != null &&
     Number(targetUserId) === Number(currentUserId);
+
+  // Load users, announcements, and reservations from MongoDB
+  useEffect(() => {
+    if (!targetUserId) {
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+
+    const loadData = async () => {
+      try {
+        // Load users
+        const usersRes = await fetchWithAuth('/api/users');
+        if (usersRes.ok) {
+          const usersData = await usersRes.json();
+          if (usersData?.users && Array.isArray(usersData.users)) {
+            if (!cancelled) setUsers(usersData.users);
+          }
+        }
+
+        // Load announcements
+        const announcementsRes = await fetchWithAuth('/api/annonces?page=1&limit=1000');
+        if (announcementsRes.ok) {
+          const announcementsData = await announcementsRes.json();
+          if (announcementsData?.success && announcementsData?.data?.annonces) {
+            const transformed = announcementsData.data.annonces.map((a: any) => ({
+              id: a.idAnnonce,
+              title: a.nomAnnonce,
+              category: a.typeAnnonce,
+              scope: a.lieuAnnonce,
+              price: a.prixAnnonce,
+              description: a.descAnnonce,
+              userId: a.userCreateur?.idUser,
+              createdAt: a.datePublication,
+              photo: a.photos?.[0]?.urlPhoto,
+              slots: a.creneaux?.map((c: any) => ({
+                start: c.dateDebut,
+                end: c.dateFin,
+                estReserve: c.estReserve,
+              })) || [],
+              isAvailable: a.creneaux?.some((c: any) => !c.estReserve) !== false,
+            }));
+            if (!cancelled) setAnnouncements(transformed);
+          }
+        }
+
+        // Load reservations
+        if (currentUserId) {
+          const reservationsRes = await fetchWithAuth(`/api/reservations?userId=${currentUserId}`);
+          if (reservationsRes.ok) {
+            const reservationsData = await reservationsRes.json();
+            if (reservationsData?.reservations && Array.isArray(reservationsData.reservations)) {
+              if (!cancelled) setReservations(reservationsData.reservations);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading data', error);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [targetUserId, currentUserId]);
+
   const user = useMemo(() => {
     if (targetUserId == null) return null;
     return users.find((u: any) => Number(u.id) === Number(targetUserId)) ?? null;
@@ -46,8 +121,8 @@ export default function ProfileDetails() {
     .toUpperCase();
 
   const userAnnouncements = useMemo(
-    () => (user ? announcementsData.filter((a: any) => Number(a.userId) === Number(user.id)) : []),
-    [user]
+    () => (user ? announcements.filter((a: any) => Number(a.userId) === Number(user.id)) : []),
+    [user, announcements]
   );
   const availableAnnouncements = useMemo(
     () => userAnnouncements.filter((a: any) => a.isAvailable !== false),
@@ -80,9 +155,9 @@ export default function ProfileDetails() {
         const params = new URLSearchParams({
           userId: String(currentUserId),
         });
-        const res = await fetch(`/api/favorites?${params.toString()}`);
+        const res = await fetchWithAuth(`/api/favorites?${params.toString()}`);
         const data = await res.json();
-        if (res.ok && data.favorites) {
+        if (res.ok && data.favorites && Array.isArray(data.favorites)) {
           setFavoritesCount(data.favorites.length);
         } else {
           setFavoritesCount(0);
@@ -119,7 +194,7 @@ export default function ProfileDetails() {
             const params = new URLSearchParams({
               announcementId: String(announcement.id),
             });
-            const res = await fetch(`/api/evaluations?${params.toString()}`);
+            const res = await fetchWithAuth(`/api/evaluations?${params.toString()}`);
             const data = await res.json();
             
             if (res.ok && data?.evaluations && Array.isArray(data.evaluations)) {
@@ -191,6 +266,10 @@ export default function ProfileDetails() {
     setHeaderTitle && setHeaderTitle(null);
     return () => {};
   }, [isCurrentUser, user, fullName, setHeaderTitle]);
+
+  if (loading) {
+    return <SkeletonProfile />;
+  }
 
   if (!user) {
     return (

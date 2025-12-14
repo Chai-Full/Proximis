@@ -1,105 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getDb } from '../../lib/mongodb';
 import { requireAuth } from '@/app/lib/auth';
-import { prisma } from '@/app/lib/prisma';
-import { CreateConversationInput } from '@/app/types/api';
 
-/**
- * @swagger
- * /api/conversations:
- *   get:
- *     tags:
- *       - Conversations
- *     summary: Liste les conversations de l'utilisateur connecté
- *     security:
- *       - BearerAuth: []
- *     responses:
- *       200:
- *         description: Liste des conversations
- *       401:
- *         description: Non authentifié
- */
-export async function GET(req: NextRequest) {
-  try {
-    const { user, error } = await requireAuth(req);
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: error || 'Non authentifié' },
-        { status: 401 }
-      );
-    }
-
-    // Récupérer toutes les conversations où l'utilisateur est participant
-    const conversations = await prisma.conversation.findMany({
-      where: {
-        participants: {
-          some: {
-            userId: user.idUser,
-          },
-        },
-      },
-      include: {
-        annonce: {
-          select: {
-            idAnnonce: true,
-            nomAnnonce: true,
-            photos: {
-              take: 1,
-            },
-          },
-        },
-        participants: {
-          include: {
-            user: {
-              select: {
-                idUser: true,
-                nomUser: true,
-                prenomUser: true,
-                photoUser: true,
-              },
-            },
-          },
-        },
-        messages: {
-          orderBy: {
-            dateMessage: 'desc',
-          },
-          take: 1,
-        },
-        _count: {
-          select: {
-            messages: {
-              where: {
-                estLu: false,
-                conversation: {
-                  participants: {
-                    some: {
-                      userId: user.idUser,
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-      orderBy: {
-        idConversation: 'desc',
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
-      data: conversations,
-    });
-  } catch (error: any) {
-    console.error('Erreur GET /api/conversations:', error);
-    return NextResponse.json(
-      { success: false, error: 'Erreur lors de la récupération des conversations' },
-      { status: 500 }
-    );
-  }
-}
+type CreateConversationBody = {
+  fromUserId: number | string;
+  toUserId: number | string;
+  announcementId: number | string;
+  reservationId?: number | string;
+  initialMessage: string;
+};
 
 /**
  * @swagger
@@ -107,7 +16,8 @@ export async function GET(req: NextRequest) {
  *   post:
  *     tags:
  *       - Conversations
- *     summary: Crée une nouvelle conversation
+ *     summary: Create a new conversation
+ *     description: Create a new conversation with an initial message
  *     security:
  *       - BearerAuth: []
  *     requestBody:
@@ -117,22 +27,28 @@ export async function GET(req: NextRequest) {
  *           schema:
  *             type: object
  *             required:
- *               - annonceId
- *               - userId
+ *               - fromUserId
+ *               - toUserId
+ *               - announcementId
+ *               - initialMessage
  *             properties:
- *               annonceId:
- *                 type: integer
- *               userId:
- *                 type: integer
+ *               fromUserId:
+ *                 type: string
+ *               toUserId:
+ *                 type: string
+ *               announcementId:
+ *                 type: string
+ *               reservationId:
+ *                 type: string
+ *               initialMessage:
+ *                 type: string
  *     responses:
- *       201:
- *         description: Conversation créée avec succès
+ *       200:
+ *         description: Conversation created successfully
  *       400:
- *         description: Données invalides ou conversation déjà existante
- *       401:
- *         description: Non authentifié
- *       404:
- *         description: Annonce ou utilisateur non trouvé
+ *         description: Invalid payload
+ *       500:
+ *         description: Server error
  */
 export async function POST(req: NextRequest) {
   try {
@@ -140,119 +56,172 @@ export async function POST(req: NextRequest) {
 
     if (!user) {
       return NextResponse.json(
-        { success: false, error: error || 'Non authentifié' },
+        { ok: false, error: error || 'Unauthorized' },
         { status: 401 }
       );
     }
 
-    const body: CreateConversationInput = await req.json();
-    const { annonceId, userId } = body;
-
-    if (!annonceId || !userId) {
-      return NextResponse.json(
-        { success: false, error: 'annonceId et userId sont requis' },
-        { status: 400 }
-      );
+    const body = (await req.json()) as CreateConversationBody;
+    if (!body || !body.fromUserId || !body.toUserId || !body.announcementId || !body.initialMessage) {
+      return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
     }
 
-    // Vérifier que l'annonce existe
-    const annonce = await prisma.annonce.findUnique({
-      where: { idAnnonce: annonceId },
+    const db = await getDb();
+
+    // Generate conversation ID (combination of user IDs and announcement ID)
+    const conversationId = `conv_${body.fromUserId}_${body.toUserId}_${body.announcementId}`;
+
+    // Check if conversation already exists
+    let conversation = await db.collection('conversations').findOne({
+      id: conversationId,
     });
 
-    if (!annonce) {
-      return NextResponse.json(
-        { success: false, error: 'Annonce non trouvée' },
-        { status: 404 }
-      );
-    }
-
-    // Vérifier que l'autre utilisateur existe
-    const autreUser = await prisma.user.findUnique({
-      where: { idUser: userId },
-    });
-
-    if (!autreUser) {
-      return NextResponse.json(
-        { success: false, error: 'Utilisateur non trouvé' },
-        { status: 404 }
-      );
-    }
-
-    // Vérifier qu'une conversation n'existe pas déjà
-    const conversationExistante = await prisma.conversation.findFirst({
-      where: {
-        annonceId,
-        participants: {
-          every: {
-            userId: {
-              in: [user.idUser, userId],
-            },
-          },
-        },
-      },
-    });
-
-    if (conversationExistante) {
-      return NextResponse.json(
+    if (!conversation) {
+      // Create new conversation
+      conversation = {
+        id: conversationId,
+        fromUserId: Number(body.fromUserId),
+        toUserId: Number(body.toUserId),
+        announcementId: Number(body.announcementId),
+        reservationId: body.reservationId ? Number(body.reservationId) : null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      await db.collection('conversations').insertOne(conversation);
+    } else {
+      // Update existing conversation
+      await db.collection('conversations').updateOne(
+        { id: conversationId },
         {
-          success: true,
-          data: conversationExistante,
-          message: 'Conversation déjà existante',
-        },
-        { status: 200 }
+          $set: {
+            updatedAt: new Date().toISOString(),
+            ...(body.reservationId && { reservationId: Number(body.reservationId) }),
+          },
+        }
       );
+      conversation = await db.collection('conversations').findOne({ id: conversationId });
     }
 
-    // Créer la conversation avec les participants
-    const conversation = await prisma.conversation.create({
-      data: {
-        annonceId,
-        participants: {
-          create: [
-            { userId: user.idUser },
-            { userId },
-          ],
-        },
-      },
-      include: {
-        annonce: {
-          select: {
-            idAnnonce: true,
-            nomAnnonce: true,
-            photos: {
-              take: 1,
-            },
-          },
-        },
-        participants: {
-          include: {
-            user: {
-              select: {
-                idUser: true,
-                nomUser: true,
-                prenomUser: true,
-                photoUser: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    // Create initial message
+    const messageId = `msg_${Date.now()}`;
+    const message = {
+      id: messageId,
+      conversationId: conversationId,
+      fromUserId: Number(body.fromUserId),
+      toUserId: Number(body.toUserId),
+      text: body.initialMessage,
+      createdAt: new Date().toISOString(),
+      read: false,
+    };
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: conversation,
-      },
-      { status: 201 }
-    );
-  } catch (error: any) {
-    console.error('Erreur POST /api/conversations:', error);
-    return NextResponse.json(
-      { success: false, error: 'Erreur lors de la création de la conversation' },
-      { status: 500 }
-    );
+    await db.collection('messages').insertOne(message);
+
+    return NextResponse.json({ ok: true, conversation, message });
+  } catch (err) {
+    console.error('Error creating conversation/message', err);
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
 
+/**
+ * @swagger
+ * /api/conversations:
+ *   get:
+ *     tags:
+ *       - Conversations
+ *     summary: Get conversations
+ *     description: Retrieve conversations with optional filters
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         description: Filter by user ID (fromUserId or toUserId)
+ *       - in: query
+ *         name: conversationId
+ *         schema:
+ *           type: string
+ *         description: Get specific conversation with messages
+ *     responses:
+ *       200:
+ *         description: List of conversations and messages
+ *       404:
+ *         description: Conversation not found
+ *       500:
+ *         description: Server error
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const { user, error } = await requireAuth(req);
+
+    if (!user) {
+      return NextResponse.json(
+        { ok: false, error: error || 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const url = new URL(req.url);
+    const userId = url.searchParams.get('userId');
+    const conversationId = url.searchParams.get('conversationId');
+
+    const db = await getDb();
+
+    if (conversationId) {
+      // Get specific conversation with its messages
+      const conversation = await db.collection('conversations').findOne({
+        id: conversationId,
+      });
+
+      if (!conversation) {
+        return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+      }
+
+      const messages = await db.collection('messages')
+        .find({ conversationId })
+        .sort({ createdAt: 1 })
+        .toArray();
+
+      return NextResponse.json({ ok: true, conversation, messages });
+    }
+
+    if (userId) {
+      // Get all conversations for a user
+      const userIdNum = Number(userId);
+      console.log('Searching conversations for userId:', userIdNum);
+      
+      const userConversations = await db.collection('conversations')
+        .find({
+          $or: [
+            { fromUserId: userIdNum },
+            { toUserId: userIdNum },
+          ],
+        })
+        .toArray();
+
+      console.log('Found conversations:', userConversations.length, userConversations);
+
+      // Get messages for these conversations
+      const conversationIds = userConversations.map((c: any) => c.id);
+      const userMessages = await db.collection('messages')
+        .find({ conversationId: { $in: conversationIds } })
+        .sort({ createdAt: 1 })
+        .toArray();
+
+      console.log('Found messages:', userMessages.length);
+
+      return NextResponse.json({ ok: true, conversations: userConversations, messages: userMessages });
+    }
+
+    // Get all conversations and messages
+    const conversations = await db.collection('conversations').find({}).toArray();
+    const messages = await db.collection('messages').find({}).sort({ createdAt: 1 }).toArray();
+
+    return NextResponse.json({ ok: true, conversations, messages });
+  } catch (err) {
+    console.error('Error reading conversations/messages', err);
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
+}

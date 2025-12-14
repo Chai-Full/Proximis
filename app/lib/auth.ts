@@ -1,83 +1,50 @@
-import { NextRequest } from 'next/server';
-import { prisma } from './prisma';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyToken, extractTokenFromHeader } from './jwt';
 
-// Initialiser Firebase Admin SDK (côté serveur uniquement)
-if (!getApps().length) {
-  try {
-    // Utiliser les variables d'environnement
-    const projectId = process.env.FIREBASE_PROJECT_ID;
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-
-    if (!projectId || !clientEmail || !privateKey) {
-      throw new Error('Variables Firebase Admin manquantes dans .env.local');
-    }
-
-    initializeApp({
-      credential: cert({
-        projectId,
-        clientEmail,
-        privateKey,
-      }),
-    });
-  } catch (error) {
-    console.error('Erreur initialisation Firebase Admin:', error);
-    throw error;
-  }
+export interface AuthUser {
+  userId: number;
+  email: string;
 }
 
-const adminAuth = getAuth();
-
 /**
- * Vérifie le token Firebase et retourne l'utilisateur Prisma
+ * Middleware to verify JWT token from request headers
+ * Returns the authenticated user or null
  */
-export async function verifyAuth(req: NextRequest) {
+export async function verifyAuth(req: NextRequest): Promise<{ user: AuthUser | null; error?: string }> {
   try {
-    // Récupérer le token depuis le header Authorization
     const authHeader = req.headers.get('authorization');
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return { user: null, error: 'Token manquant' };
+    const token = extractTokenFromHeader(authHeader);
+
+    if (!token) {
+      return { user: null, error: 'No token provided' };
     }
 
-    const token = authHeader.split('Bearer ')[1];
+    const payload = verifyToken(token);
 
-    // Vérifier le token avec Firebase Admin
-    const decodedToken = await adminAuth.verifyIdToken(token);
-    const email = decodedToken.email;
-
-    if (!email) {
-      return { user: null, error: 'Email non trouvé dans le token' };
+    if (!payload) {
+      return { user: null, error: 'Invalid or expired token' };
     }
 
-    // Récupérer l'utilisateur depuis Prisma
-    const user = await prisma.user.findUnique({
-      where: { mailUser: email },
-    });
-
-    if (!user) {
-      return { user: null, error: 'Utilisateur non trouvé' };
-    }
-
-    return { user, error: null };
+    return {
+      user: {
+        userId: payload.userId,
+        email: payload.email,
+      },
+    };
   } catch (error: any) {
-    console.error('Erreur vérification auth:', error);
-    return { user: null, error: 'Token invalide ou expiré' };
+    return { user: null, error: error.message || 'Authentication failed' };
   }
 }
 
 /**
- * Middleware pour protéger les routes API
+ * Require authentication - returns error response if not authenticated
  */
-export async function requireAuth(req: NextRequest) {
+export async function requireAuth(req: NextRequest): Promise<{ user: AuthUser | null; error?: string }> {
   const { user, error } = await verifyAuth(req);
-  
-  if (!user) {
-    return { user: null, error: error || 'Non authentifié' };
-  }
-  
-  return { user, error: null };
-}
 
+  if (!user) {
+    return { user: null, error: error || 'Authentication required' };
+  }
+
+  return { user };
+}

@@ -5,13 +5,13 @@ import { useContent } from "../ContentContext";
 import Star from "@mui/icons-material/Star";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import FavoriteBorder from "@mui/icons-material/FavoriteBorder";
-import announcementsData from "../../../data/announcements.json";
-import usersData from "../../../data/users.json";
 import { getDayLabels } from "@/lib/daylabel";
+import { fetchWithAuth } from "../lib/auth";
 import dayjs from "dayjs";
 import "dayjs/locale/fr";
 import updateLocale from "dayjs/plugin/updateLocale";
 import "./index.css";
+import { SkeletonAnnouncementCard, SkeletonReservationCard } from "../components/Skeleton";
 
 dayjs.locale("fr");
 dayjs.extend(updateLocale);
@@ -54,7 +54,7 @@ function MyAnnouncementCard({ announcement, showFavoriteIcon = false }: { announ
         const params = new URLSearchParams({
           announcementId: String(announcement.id),
         });
-        const res = await fetch(`/api/evaluations?${params.toString()}`);
+        const res = await fetchWithAuth(`/api/evaluations?${params.toString()}`);
         const data = await res.json();
 
         if (cancelled) return;
@@ -355,6 +355,9 @@ export default function MyAnnouncementsContent() {
   
   const [reservations, setReservations] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
 
   // Set header title based on view type
   useEffect(() => {
@@ -369,10 +372,86 @@ export default function MyAnnouncementsContent() {
     };
   }, [setHeaderTitle, viewType]);
 
-  // Load reservations
+  // Load announcements and users from MongoDB
+  // Only load if needed (for my_announcements, reservations, or favorites views)
   useEffect(() => {
-    if (!currentUserId) {
+    if (!currentUserId || (viewType !== "my_announcements" && viewType !== "reservations" && viewType !== "favorites")) {
+      setAnnouncements([]);
+      setUsers([]);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingAnnouncements(true);
+
+    const loadData = async () => {
+      try {
+        // Load announcements
+        const announcementsRes = await fetchWithAuth('/api/annonces?page=1&limit=1000');
+        if (announcementsRes.ok) {
+          const announcementsData = await announcementsRes.json();
+          if (announcementsData?.success && announcementsData?.data?.annonces) {
+            const transformed = announcementsData.data.annonces.map((a: any) => ({
+              id: a.idAnnonce,
+              title: a.nomAnnonce,
+              category: a.typeAnnonce,
+              scope: a.lieuAnnonce,
+              price: a.prixAnnonce,
+              description: a.descAnnonce,
+              userId: a.userCreateur?.idUser,
+              createdAt: a.datePublication,
+              photo: a.photos?.[0]?.urlPhoto,
+              slots: a.creneaux?.map((c: any) => {
+                // Extract day of week from dateDebut (1 = Monday, 7 = Sunday)
+                // dayjs uses 0 = Sunday, so we need to convert: 0 -> 7, 1-6 -> 1-6
+                const dayOfWeek = c.dateDebut ? (() => {
+                  const date = dayjs(c.dateDebut);
+                  const jsDay = date.day(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+                  return jsDay === 0 ? 7 : jsDay; // Convert to 1 = Monday, 7 = Sunday
+                })() : undefined;
+                return {
+                  day: dayOfWeek,
+                  start: c.dateDebut,
+                  end: c.dateFin,
+                  estReserve: c.estReserve,
+                };
+              }).filter((c: any) => c.day != null && c.day >= 1 && c.day <= 7 && !c.estReserve) || [],
+            }));
+            if (!cancelled) setAnnouncements(transformed);
+          }
+        }
+
+        // Load users (only needed for reservations view to get provider names)
+        if (viewType === "reservations") {
+          const usersRes = await fetchWithAuth('/api/users');
+          if (usersRes.ok) {
+            const usersData = await usersRes.json();
+            if (usersData?.users && Array.isArray(usersData.users)) {
+              if (!cancelled) setUsers(usersData.users);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading data', error);
+      } finally {
+        if (!cancelled) {
+          setLoadingAnnouncements(false);
+        }
+      }
+    };
+
+    loadData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserId, viewType]);
+
+  // Load reservations (only when on reservations view)
+  useEffect(() => {
+    if (!currentUserId || viewType !== "reservations") {
       setReservations([]);
+      setLoading(false);
       return;
     }
     let mounted = true;
@@ -380,7 +459,7 @@ export default function MyAnnouncementsContent() {
     (async () => {
       try {
         const params = new URLSearchParams({ userId: String(currentUserId) });
-        const res = await fetch("/api/reservations?" + params.toString());
+        const res = await fetchWithAuth("/api/reservations?" + params.toString());
         const json = await res.json();
         if (!mounted) return;
         if (res.ok && json?.reservations) {
@@ -400,25 +479,22 @@ export default function MyAnnouncementsContent() {
     return () => {
       mounted = false;
     };
-  }, [currentUserId]);
+  }, [currentUserId, viewType]);
 
   // Get user's announcements
   const myAnnouncements = useMemo(() => {
     if (!currentUserId) return [];
-    const announcementsList = Array.isArray(announcementsData) ? announcementsData : [];
-    return announcementsList.filter(
+    return announcements.filter(
       (a: any) => String(a.userId) === String(currentUserId)
     ) as AnnouncementCardData[];
-  }, [currentUserId]);
+  }, [currentUserId, announcements]);
 
   // Get reservations with announcement data and provider names
   const reservationsWithAnnouncements = useMemo(() => {
     if (!reservations || reservations.length === 0) return [];
-    const announcementsList = Array.isArray(announcementsData) ? announcementsData : [];
-    const users = (usersData as any).users ?? [];
     
     return reservations.map((r: any) => {
-      const ann = announcementsList.find(
+      const ann = announcements.find(
         (a: any) => String(a.id) === String(r.announcementId)
       ) as any;
       
@@ -460,7 +536,7 @@ export default function MyAnnouncementsContent() {
       const dateB = b.reservation.updatedAt || b.reservation.createdAt || "";
       return dateB.localeCompare(dateA);
     });
-  }, [reservations]);
+  }, [reservations, announcements, users]);
 
   // Get favorites (from API)
   const [favorites, setFavorites] = useState<AnnouncementCardData[]>([]);
@@ -478,12 +554,11 @@ export default function MyAnnouncementsContent() {
         const params = new URLSearchParams({
           userId: String(currentUserId),
         });
-        const res = await fetch(`/api/favorites?${params.toString()}`);
+        const res = await fetchWithAuth(`/api/favorites?${params.toString()}`);
         const data = await res.json();
         if (res.ok && data.favorites) {
           const favoritesIds = data.favorites.map((f: any) => f.announcementId);
-          const announcementsList = Array.isArray(announcementsData) ? announcementsData : [];
-          const favoritesAnnouncements = announcementsList
+          const favoritesAnnouncements = announcements
             .filter((a: any) =>
               favoritesIds.some((favId: number | string) => String(favId) === String(a.id))
             ) as AnnouncementCardData[];
@@ -500,7 +575,7 @@ export default function MyAnnouncementsContent() {
     };
     
     loadFavorites();
-  }, [currentUserId, viewType]);
+  }, [currentUserId, viewType, announcements]);
 
   if (!currentUserId) {
     return (
@@ -514,60 +589,68 @@ export default function MyAnnouncementsContent() {
     <div className="myAnnouncementsContainer">
       {/* Content */}
       <div className={`myAnnouncementsContent ${viewType === "reservations" ? "noHorizontalPadding" : ""}`}>
-        {loading && viewType === "reservations" ? (
-          <div style={{ padding: 16, textAlign: "center" }}>Chargement...</div>
-        ) : (
+        {viewType === "my_announcements" && (
           <>
-            {viewType === "my_announcements" && (
-              <>
-                {myAnnouncements.length === 0 ? (
-                  <div className="emptyState">
-                    <p>Vous n'avez pas encore publié d'annonce.</p>
-                  </div>
-                ) : (
-                  <div className="announcementsList">
-                    {myAnnouncements.map((ann) => (
-                      <MyAnnouncementCard key={ann.id} announcement={ann} />
-                    ))}
-                  </div>
-                )}
-              </>
+            {loadingAnnouncements ? (
+              <div className="announcementsList" style={{ padding: '16px' }}>
+                <SkeletonAnnouncementCard />
+                <SkeletonAnnouncementCard />
+                <SkeletonAnnouncementCard />
+              </div>
+            ) : myAnnouncements.length === 0 ? (
+              <div className="emptyState">
+                <p>Vous n'avez pas encore publié d'annonce.</p>
+              </div>
+            ) : (
+              <div className="announcementsList">
+                {myAnnouncements.map((ann) => (
+                  <MyAnnouncementCard key={ann.id} announcement={ann} />
+                ))}
+              </div>
             )}
+          </>
+        )}
 
-            {viewType === "reservations" && (
-              <>
-                {reservationsWithAnnouncements.length === 0 ? (
-                  <div className="emptyState">
-                    <p>Vous n'avez aucune réservation.</p>
-                  </div>
-                ) : (
-                  <div className="reservationsList">
-                    {reservationsWithAnnouncements.map((data) => (
-                      <ReservationCard key={data.reservation.id} data={data} />
-                    ))}
-                  </div>
-                )}
-              </>
+        {viewType === "reservations" && (
+          <>
+            {loading || loadingAnnouncements ? (
+              <div className="reservationsList" style={{ padding: '16px' }}>
+                <SkeletonReservationCard />
+                <SkeletonReservationCard />
+                <SkeletonReservationCard />
+              </div>
+            ) : reservationsWithAnnouncements.length === 0 ? (
+              <div className="emptyState">
+                <p>Vous n'avez aucune réservation.</p>
+              </div>
+            ) : (
+              <div className="reservationsList">
+                {reservationsWithAnnouncements.map((data) => (
+                  <ReservationCard key={data.reservation.id} data={data} />
+                ))}
+              </div>
             )}
+          </>
+        )}
 
-            {viewType === "favorites" && (
-              <>
-                {loadingFavorites ? (
-                  <div className="emptyState">
-                    <p>Chargement des favoris...</p>
-                  </div>
-                ) : favorites.length === 0 ? (
-                  <div className="emptyState">
-                    <p>Vous n'avez aucun favori.</p>
-                  </div>
-                ) : (
-                  <div className="announcementsList">
-                    {favorites.map((ann) => (
-                      <MyAnnouncementCard key={ann.id} announcement={ann} showFavoriteIcon={true} />
-                    ))}
-                  </div>
-                )}
-              </>
+        {viewType === "favorites" && (
+          <>
+            {loadingFavorites || loadingAnnouncements ? (
+              <div className="announcementsList" style={{ padding: '16px' }}>
+                <SkeletonAnnouncementCard />
+                <SkeletonAnnouncementCard />
+                <SkeletonAnnouncementCard />
+              </div>
+            ) : favorites.length === 0 ? (
+              <div className="emptyState">
+                <p>Vous n'avez aucun favori.</p>
+              </div>
+            ) : (
+              <div className="announcementsList">
+                {favorites.map((ann) => (
+                  <MyAnnouncementCard key={ann.id} announcement={ann} showFavoriteIcon={true} />
+                ))}
+              </div>
             )}
           </>
         )}

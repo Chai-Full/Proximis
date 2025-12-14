@@ -1,0 +1,66 @@
+/* Base skeleton with shimmer effect */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #e8e8e8 0%,
+    #f0f0f0 20%,
+    #f5f5f5 50%,
+    #f0f0f0 80%,
+    #e8e8e8 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Variant styles */
+.skeleton-text {
+  height: 16px;
+  border-radius: 4px;
+}
+
+.skeleton-circular {
+  border-radius: 50%;
+}
+
+.skeleton-rectangular {
+  border-radius: 4px;
+}
+
+.skeleton-card {
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.skeleton-announcement-card {
+  background: #fff;
+}
+
+.skeleton-reservation-card {
+  background: #fff;
+}
+
+/* Dark mode support (optional) */
+@media (prefers-color-scheme: dark) {
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      #3a3a3a 0%,
+      #404040 50%,
+      #3a3a3a 100%
+    );
+    background-size: 200% 100%;
+  }
+}
+

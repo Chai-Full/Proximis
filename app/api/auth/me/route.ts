@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/app/lib/auth';
-import { prisma } from '@/app/lib/prisma';
+import { getDb } from '@/app/lib/mongodb';
 
 /**
  * @swagger
@@ -29,25 +29,36 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Récupérer l'utilisateur avec ses relations si nécessaire
-    const userWithDetails = await prisma.user.findUnique({
-      where: { idUser: user.idUser },
-      select: {
-        idUser: true,
-        nomUser: true,
-        prenomUser: true,
-        mailUser: true,
-        dateInscrUser: true,
-        photoUser: true,
-        modePrefUser: true,
-        perimPrefUser: true,
-        role: true,
-      },
-    });
+    const db = await getDb();
+
+    // Get user from MongoDB
+    const userDoc = await db.collection('users').findOne({ id: user.userId });
+
+    if (!userDoc) {
+      return NextResponse.json(
+        { success: false, error: 'Utilisateur non trouvé' },
+        { status: 404 }
+      );
+    }
+
+    const { _id, ...userData } = userDoc;
+
+    // Format response to match Prisma format
+    const responseData = {
+      idUser: userData.id,
+      nomUser: userData.nom,
+      prenomUser: userData.prenom,
+      mailUser: userData.email,
+      dateInscrUser: userData.createdAt,
+      photoUser: userData.photo,
+      modePrefUser: userData.type || null,
+      perimPrefUser: userData.scope || null,
+      role: userData.type || null,
+    };
 
     return NextResponse.json({
       success: true,
-      data: userWithDetails,
+      data: responseData,
     });
   } catch (error: any) {
     console.error('Erreur /api/auth/me:', error);
@@ -57,4 +68,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

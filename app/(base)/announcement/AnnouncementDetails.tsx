@@ -1,27 +1,142 @@
 "use client";
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useContent } from '../ContentContext';
-import announcements from '../../../data/announcements.json';
-import usersData from '../../../data/users.json';
 import { ChatBubbleOutlineOutlined, CheckBoxOutlined, FmdGoodOutlined, ModeOutlined, FavoriteBorder, Favorite } from '@mui/icons-material';
 import Radio from '@mui/material/Radio';
 import { getDayLabelById } from '@/lib/daylabel';
 import dayjs from 'dayjs';
-import { useState } from 'react';
 import { Button, CircularProgress } from '@mui/material';
 import Notification from '../components/Notification';
 import Star from '@mui/icons-material/Star';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { fetchWithAuth } from '../lib/auth';
+import { SkeletonProfile } from '../components/Skeleton';
 
 export default function AnnounceDetails() {
   const { selectedAnnouncementId, setHeaderTitle, setSelectedProfileId, setCurrentPage, setReservationDraft, currentUserId } = useContent();
+  const [announcement, setAnnouncement] = useState<any>(null);
+  const [author, setAuthor] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<any>(dayjs());
+  const [isChecking, setIsChecking] = useState(false);
+  const [notification, setNotification] = useState<{ open: boolean; message: string; severity: 'success'|'warning'|'error'|'info' }>({ open: false, message: '', severity: 'info' });
+  const [isFavorite, setIsFavorite] = useState<boolean>(false);
+  const [isTogglingFavorite, setIsTogglingFavorite] = useState<boolean>(false);
+  const [averageRating, setAverageRating] = useState<number | null>(null);
+  const [reviewsCount, setReviewsCount] = useState<number>(0);
 
+  // Load announcement and user data from MongoDB
+  useEffect(() => {
+    if (!selectedAnnouncementId) {
+      setLoading(false);
+      return;
+    }
 
-  const announcement = (announcements as any[]).find(a => String(a.id) === String(selectedAnnouncementId));
-  const users = (usersData as any).users ?? [];
-  const author = announcement ? users.find((u: any) => String(u.id) === String(announcement.userId)) : null;
+    let cancelled = false;
+    setLoading(true);
+
+    const loadData = async () => {
+      try {
+        // Load announcement
+        const announcementRes = await fetchWithAuth(`/api/announcements/${selectedAnnouncementId}`);
+        if (announcementRes.ok) {
+          const announcementData = await announcementRes.json();
+          if (announcementData?.ok && announcementData?.announcement) {
+            const ann = announcementData.announcement;
+            
+            // Transform slots to ensure day property is present and valid
+            // Keep it simple: if day is already valid (1-7), preserve it; otherwise extract from start date
+            const transformedSlots = (ann.slots || []).map((slot: any) => {
+              // Check if slot already has a valid day (1-7) as number
+              if (typeof slot.day === 'number' && slot.day >= 1 && slot.day <= 7) {
+                // Preserve the slot exactly as is, including day: 7 for Sunday
+                return { ...slot, day: slot.day };
+              }
+              
+              // If day is a string, convert it to number
+              if (typeof slot.day === 'string') {
+                const dayNum = parseInt(slot.day, 10);
+                if (!isNaN(dayNum) && dayNum >= 1 && dayNum <= 7) {
+                  return { ...slot, day: dayNum };
+                }
+              }
+              
+              // If slot.day is missing or invalid, try to extract from start date
+              if (slot.start) {
+                try {
+                  const date = dayjs(slot.start);
+                  if (date.isValid()) {
+                    const jsDay = date.day(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+                    const day = jsDay === 0 ? 7 : jsDay; // Convert to 1 = Monday, 7 = Sunday
+                    return { ...slot, day };
+                  }
+                } catch (e) {
+                  console.error('Error parsing slot start date:', e, slot);
+                }
+              }
+              
+              // If we can't determine the day, mark as invalid (will be filtered)
+              return { ...slot, day: 0 };
+            }).filter((slot: any) => {
+              // Filter out slots without valid day (1-7)
+              const day = typeof slot.day === 'number' ? slot.day : (typeof slot.day === 'string' ? parseInt(slot.day, 10) : 0);
+              return !isNaN(day) && day >= 1 && day <= 7;
+            });
+            
+            const transformedAnnouncement = {
+              ...ann,
+              slots: transformedSlots,
+            };
+            
+            if (!cancelled) {
+              setAnnouncement(transformedAnnouncement);
+              
+              // Load author user
+              if (ann.userId) {
+                const usersRes = await fetchWithAuth('/api/users');
+                if (usersRes.ok) {
+                  const usersData = await usersRes.json();
+                  if (usersData?.users && Array.isArray(usersData.users)) {
+                    const annUserId = typeof ann.userId === 'number' ? ann.userId : Number(ann.userId);
+                    const foundAuthor = usersData.users.find((u: any) => Number(u.id) === annUserId);
+                    if (!cancelled) {
+                      setAuthor(foundAuthor || null);
+                    }
+                  }
+                }
+              }
+            }
+          } else {
+            if (!cancelled) {
+              setAnnouncement(null);
+            }
+          }
+        } else {
+          if (!cancelled) {
+            setAnnouncement(null);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading announcement:', error);
+        if (!cancelled) {
+          setAnnouncement(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedAnnouncementId]);
 
   // set header title to announcement title while on this page
   useEffect(() => {
@@ -34,28 +149,6 @@ export default function AnnounceDetails() {
     return () => {};
   }, [announcement, setHeaderTitle]);
 
-  if (!announcement) {
-    return (
-      <div style={{ padding: 16 }}>
-          <h2>Annonce introuvable</h2>
-          <p>ID: {String(selectedAnnouncementId)}</p>
-        </div>
-    );
-  }
-  
-  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<any>(dayjs());
-  const [isChecking, setIsChecking] = useState(false);
-  const [notification, setNotification] = useState<{ open: boolean; message: string; severity: 'success'|'warning'|'error'|'info' }>({ open: false, message: '', severity: 'info' });
-  
-  // Favorites management
-  const [isFavorite, setIsFavorite] = useState<boolean>(false);
-  const [isTogglingFavorite, setIsTogglingFavorite] = useState<boolean>(false);
-  
-  // Reviews/Evaluations data
-  const [averageRating, setAverageRating] = useState<number | null>(null);
-  const [reviewsCount, setReviewsCount] = useState<number>(0);
-  
   useEffect(() => {
     const checkFavorite = async () => {
       if (typeof window === 'undefined' || !announcement || !currentUserId) {
@@ -67,7 +160,7 @@ export default function AnnounceDetails() {
           userId: String(currentUserId),
           announcementId: String(announcement.id),
         });
-        const res = await fetch(`/api/favorites?${params.toString()}`);
+        const res = await fetchWithAuth(`/api/favorites?${params.toString()}`);
         const data = await res.json();
         if (res.ok && data.exists) {
           setIsFavorite(true);
@@ -91,7 +184,7 @@ export default function AnnounceDetails() {
         const params = new URLSearchParams({
           announcementId: String(announcement.id),
         });
-        const res = await fetch(`/api/evaluations?${params.toString()}`);
+        const res = await fetchWithAuth(`/api/evaluations?${params.toString()}`);
         const data = await res.json();
 
         if (res.ok && data?.evaluations && Array.isArray(data.evaluations)) {
@@ -129,7 +222,7 @@ export default function AnnounceDetails() {
           userId: String(currentUserId),
           announcementId: String(announcement.id),
         });
-        const res = await fetch(`/api/favorites?${params.toString()}`, {
+        const res = await fetchWithAuth(`/api/favorites?${params.toString()}`, {
           method: 'DELETE',
         });
         const data = await res.json();
@@ -141,7 +234,7 @@ export default function AnnounceDetails() {
         }
       } else {
         // Add to favorites
-        const res = await fetch('/api/favorites', {
+        const res = await fetchWithAuth('/api/favorites', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -168,8 +261,22 @@ export default function AnnounceDetails() {
     }
   };
 
+  // Early returns after all hooks
+  if (loading) {
+    return <SkeletonProfile />;
+  }
+
+  if (!announcement) {
+    return (
+      <div style={{ padding: 16 }}>
+          <h2>Annonce introuvable</h2>
+          <p>ID: {String(selectedAnnouncementId)}</p>
+        </div>
+    );
+  }
+
   // Check if user is the author
-  const isAuthor = currentUserId != null && Number(currentUserId) === Number(announcement.userId);
+  const isAuthor = currentUserId != null && announcement && Number(currentUserId) === Number(announcement.userId);
 
   function formatTime(iso?: string | null) {
     if (!iso) return '--:--';
@@ -275,11 +382,11 @@ export default function AnnounceDetails() {
             <DateCalendar value={selectedDate} onChange={(d) => setSelectedDate(d)} minDate={dayjs()} />
           </LocalizationProvider>
           <div className='announcementAvailabilityOptions'>
-            {announcement.slots.length === 0 && <div><span className='T6'>Aucun créneau disponible</span></div>}
-            {announcement.slots.map((day:any, index:number) => (
+            {(!announcement.slots || announcement.slots.length === 0) && <div><span className='T6'>Aucun créneau disponible</span></div>}
+            {announcement.slots && announcement.slots.length > 0 && announcement.slots.map((slot:any, index:number) => (
                 <div className='announcementAvailabilityOptionsItem' key={index}>
                   <div className='announcementAvailabilityOption'>
-                    <span className='T6'>{getDayLabelById(day.day)}</span>
+                    <span className='T6'>{getDayLabelById(slot.day)}</span>
                   </div>
                     <Radio
                       checked={String(selectedSlot) === String(index)}
@@ -289,7 +396,7 @@ export default function AnnounceDetails() {
                       }}
                     />
                   <div>
-                    <span className='T6' style={{color: "#545454"}}>{formatTime(day.start)} - {formatTime(day.end)}</span>
+                    <span className='T6' style={{color: "#545454"}}>{formatTime(slot.start)} - {formatTime(slot.end)}</span>
                   </div>
 
                 </div>
@@ -359,7 +466,7 @@ export default function AnnounceDetails() {
               try {
                 const params = new URLSearchParams({ announcementId: String(announcement.id), slotIndex: String(idx), date: normalizedDate });
                 // Don't include userId to check if ANY user has reserved this slot for this date
-                const resp = await fetch('/api/reservations?' + params.toString());
+                const resp = await fetchWithAuth('/api/reservations?' + params.toString());
                 const json = await resp.json();
                 if (resp.ok && json.exists) {
                   // Check if it's the current user's reservation

@@ -19,7 +19,7 @@ import Notification from "../components/Notification";
 import { useContent } from "../ContentContext";
 import { AnnounceCategories } from "@/app/types/AnnouceService";
 import announcementsData from "../../../data/announcements.json";
-import { getLocalUserId } from "../lib/auth";
+import { getLocalUserId, getAuthHeader } from "../lib/auth";
 import Image from "next/image";
 
 type FormValues = {
@@ -521,9 +521,12 @@ export default function EditAnnouncementContent() {
             setSubmitting(true);
             const payload = { ...data, id: announcement.id, userId: currentUserId ?? getLocalUserId() };
 
-            const res = await fetch("/api/announcements/update", {
+            const res = await fetch(`/api/announcements/${announcement.id}`, {
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    ...getAuthHeader(),
+                    "Content-Type": "application/json",
+                },
                 body: JSON.stringify(payload),
             });
 

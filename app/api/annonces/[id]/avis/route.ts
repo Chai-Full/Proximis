@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/app/lib/auth';
-import { prisma } from '@/app/lib/prisma';
-import { CreateAvisInput } from '@/app/types/api';
+import { getDb } from '@/app/lib/mongodb';
 
 /**
  * @swagger
@@ -10,6 +9,8 @@ import { CreateAvisInput } from '@/app/types/api';
  *     tags:
  *       - Avis
  *     summary: Liste les avis d'une annonce
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -27,8 +28,17 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, error } = await requireAuth(req);
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: error || 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const { id } = await params;
-    const annonceId = parseInt(id);
+    const annonceId = Number(id);
 
     if (isNaN(annonceId)) {
       return NextResponse.json(
@@ -37,36 +47,47 @@ export async function GET(
       );
     }
 
-    // Vérifier que l'annonce existe
-    const annonce = await prisma.annonce.findUnique({
-      where: { idAnnonce: annonceId },
-    });
+    const db = await getDb();
 
-    if (!annonce) {
+    // Verify announcement exists
+    const announcement = await db.collection('announcements').findOne({ id: annonceId });
+
+    if (!announcement) {
       return NextResponse.json(
         { success: false, error: 'Annonce non trouvée' },
         { status: 404 }
       );
     }
 
-    const avis = await prisma.avis.findMany({
-      where: { annonceId },
-      include: {
-        user: {
-          select: {
-            idUser: true,
-            nomUser: true,
-            prenomUser: true,
-            photoUser: true,
-          },
-        },
-      },
-      orderBy: {
-        dateAvis: 'desc',
-      },
-    });
+    // Get evaluations (avis) for this announcement
+    const evaluations = await db.collection('evaluations')
+      .find({ announcementId: annonceId })
+      .sort({ createdAt: -1 })
+      .toArray();
 
-    // Calculer la moyenne des notes
+    // Enrich with user data
+    const avis = await Promise.all(
+      evaluations.map(async (eval: any) => {
+        const evalUser = await db.collection('users').findOne({ id: Number(eval.userId) });
+        const { _id: evalUserId, ...evalUserData } = evalUser || {};
+        return {
+          idAvis: eval.id,
+          noteAvis: eval.rating,
+          commentaire: eval.comment,
+          dateAvis: eval.createdAt,
+          user: evalUser
+            ? {
+                idUser: evalUserData.id,
+                nomUser: evalUserData.nom,
+                prenomUser: evalUserData.prenom,
+                photoUser: evalUserData.photo,
+              }
+            : null,
+        };
+      })
+    );
+
+    // Calculate average rating
     const moyenne = avis.length > 0
       ? avis.reduce((sum, a) => sum + a.noteAvis, 0) / avis.length
       : 0;
@@ -143,7 +164,7 @@ export async function POST(
     }
 
     const { id } = await params;
-    const annonceId = parseInt(id);
+    const annonceId = Number(id);
 
     if (isNaN(annonceId)) {
       return NextResponse.json(
@@ -152,50 +173,44 @@ export async function POST(
       );
     }
 
-    // Vérifier que l'annonce existe
-    const annonce = await prisma.annonce.findUnique({
-      where: { idAnnonce: annonceId },
-    });
+    const db = await getDb();
 
-    if (!annonce) {
+    // Verify announcement exists
+    const announcement = await db.collection('announcements').findOne({ id: annonceId });
+
+    if (!announcement) {
       return NextResponse.json(
         { success: false, error: 'Annonce non trouvée' },
         { status: 404 }
       );
     }
 
-    // Vérifier que l'utilisateur ne note pas sa propre annonce
-    if (annonce.userCreateurId === user.idUser) {
+    // Check if user is trying to rate their own announcement
+    if (Number(announcement.userId) === user.userId) {
       return NextResponse.json(
         { success: false, error: 'Vous ne pouvez pas noter votre propre annonce' },
         { status: 400 }
       );
     }
 
-    // Vérifier si l'utilisateur a déjà laissé un avis
-    const avisExistant = await prisma.avis.findFirst({
-      where: {
-        annonceId,
-        userId: user.idUser,
-      },
+    // Check if user already left a review
+    const existingEvaluation = await db.collection('evaluations').findOne({
+      announcementId: annonceId,
+      userId: user.userId,
     });
 
-    if (avisExistant) {
+    if (existingEvaluation) {
       return NextResponse.json(
         { success: false, error: 'Vous avez déjà laissé un avis pour cette annonce' },
         { status: 400 }
       );
     }
 
-    // Vérifier que l'utilisateur a réservé cette annonce
-    const reservation = await prisma.reservation.findFirst({
-      where: {
-        annonceId,
-        userId: user.idUser,
-        statusResa: {
-          in: ['confirmee', 'terminee'],
-        },
-      },
+    // Check if user has a completed reservation for this announcement
+    const reservation = await db.collection('reservations').findOne({
+      announcementId: annonceId,
+      userId: user.userId,
+      status: { $in: ['completed', 'reserved'] },
     });
 
     if (!reservation) {
@@ -205,7 +220,7 @@ export async function POST(
       );
     }
 
-    const body: CreateAvisInput = await req.json();
+    const body = await req.json();
     const { noteAvis, commentaire } = body;
 
     if (!noteAvis || noteAvis < 1 || noteAvis > 5) {
@@ -215,25 +230,38 @@ export async function POST(
       );
     }
 
-    // Créer l'avis
-    const avis = await prisma.avis.create({
-      data: {
-        annonceId,
-        userId: user.idUser,
-        noteAvis,
-        commentaire: commentaire || null,
-      },
-      include: {
-        user: {
-          select: {
-            idUser: true,
-            nomUser: true,
-            prenomUser: true,
-            photoUser: true,
-          },
-        },
-      },
-    });
+    // Create evaluation (avis)
+    const newEvaluation = {
+      id: Date.now(),
+      reservationId: Number(reservation.id),
+      announcementId: annonceId,
+      userId: user.userId,
+      rating: noteAvis,
+      comment: commentaire || null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await db.collection('evaluations').insertOne(newEvaluation);
+
+    // Get user data for response
+    const userDoc = await db.collection('users').findOne({ id: user.userId });
+    const { _id: userId, ...userData } = userDoc || {};
+
+    const avis = {
+      idAvis: newEvaluation.id,
+      noteAvis: newEvaluation.rating,
+      commentaire: newEvaluation.comment,
+      dateAvis: newEvaluation.createdAt,
+      user: userDoc
+        ? {
+            idUser: userData.id,
+            nomUser: userData.nom,
+            prenomUser: userData.prenom,
+            photoUser: userData.photo,
+          }
+        : null,
+    };
 
     return NextResponse.json(
       {
@@ -250,4 +278,3 @@ export async function POST(
     );
   }
 }
-

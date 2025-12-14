@@ -1,7 +1,6 @@
 import React from 'react'
 import { useContent } from '../ContentContext';
-import announcements from '../../../data/announcements.json';
-import usersData from '../../../data/users.json';
+import { fetchWithAuth } from '../lib/auth';
 import dayjs from 'dayjs';
 import { Button, TextField } from '@mui/material';
 import Notification from '../components/Notification';
@@ -9,6 +8,9 @@ import './index.css';
 
 function Reservation() {
   const { reservationDraft, setReservationDraft, setCurrentPage, setHeaderTitle, currentUserId, goBack, setSelectedConversationId, history, selectedAnnouncementId, setSelectedAnnouncementId } = useContent();
+  const [announcements, setAnnouncements] = React.useState<any[]>([]);
+  const [users, setUsers] = React.useState<any[]>([]);
+
   React.useEffect(() => {
     setHeaderTitle && setHeaderTitle('Paiement');
     console.log("connected user id : ", currentUserId);
@@ -23,21 +25,72 @@ function Reservation() {
     return () => setHeaderTitle && setHeaderTitle(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
-  const announcementsList = Array.isArray(announcements) ? announcements : [];
+
+  // Load announcements and users from MongoDB
+  React.useEffect(() => {
+    if (!currentUserId) return;
+
+    let cancelled = false;
+
+    const loadData = async () => {
+      try {
+        // Load announcements
+        const announcementsRes = await fetchWithAuth('/api/annonces?page=1&limit=1000');
+        if (announcementsRes.ok) {
+          const announcementsData = await announcementsRes.json();
+          if (announcementsData?.success && announcementsData?.data?.annonces) {
+            const transformed = announcementsData.data.annonces.map((a: any) => ({
+              id: a.idAnnonce,
+              title: a.nomAnnonce,
+              category: a.typeAnnonce,
+              scope: a.lieuAnnonce,
+              price: a.prixAnnonce,
+              description: a.descAnnonce,
+              userId: a.userCreateur?.idUser,
+              createdAt: a.datePublication,
+              photo: a.photos?.[0]?.urlPhoto,
+              slots: a.creneaux?.map((c: any) => ({
+                start: c.dateDebut,
+                end: c.dateFin,
+                estReserve: c.estReserve,
+              })) || [],
+            }));
+            if (!cancelled) setAnnouncements(transformed);
+          }
+        }
+
+        // Load users
+        const usersRes = await fetchWithAuth('/api/users');
+        if (usersRes.ok) {
+          const usersData = await usersRes.json();
+          if (usersData?.users && Array.isArray(usersData.users)) {
+            if (!cancelled) setUsers(usersData.users);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading data', error);
+      }
+    };
+
+    loadData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserId]);
 
   React.useEffect(() => {
     console.log('Reservation page - reservationDraft:', reservationDraft);
-    console.log('Reservation page - announcementsList length:', announcementsList.length);
-  }, [reservationDraft, announcementsList.length]);
+    console.log('Reservation page - announcementsList length:', announcements.length);
+  }, [reservationDraft, announcements.length]);
 
   if (!reservationDraft) {
     return <div style={{ padding: 16 }}>Aucune réservation en cours. Retournez à la recherche.</div>;
   }
 
-  const announcement = announcementsList.find(a => String(a.id) === String(reservationDraft.announcementId));
+  const announcement = announcements.find((a: any) => String(a.id) === String(reservationDraft.announcementId));
   const slot = announcement && Array.isArray(announcement.slots) ? announcement.slots[reservationDraft.slotIndex] : null;
-  const users = (usersData as any).users ?? [];
-  const author = announcement ? users.find((u: any) => String(u.id) === String(announcement.userId)) : null;
+  const author = announcement ? users.find((u: any) => Number(u.id) === Number(announcement.userId)) : null;
   
   React.useEffect(() => {
     console.log('Reservation page - announcement found:', !!announcement);
@@ -186,7 +239,7 @@ function PaymentButton({ announcement, reservationDraft, setReservationDraft, go
     setLoading(true);
     try {
       // First, create the reservation with status "to_pay" (A régler)
-      const res = await fetch('/api/reservations', {
+      const res = await fetchWithAuth('/api/reservations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ announcementId: reservationDraft.announcementId, slotIndex: reservationDraft.slotIndex, userId: currentUserId, date: reservationDraft.date }),
@@ -194,7 +247,7 @@ function PaymentButton({ announcement, reservationDraft, setReservationDraft, go
       const data = await res.json();
       if (res.ok && data?.ok && data?.reservation) {
         // After successful creation, update status to "reserved" (payment validated)
-        const updateRes = await fetch('/api/reservations', {
+        const updateRes = await fetchWithAuth('/api/reservations', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: data.reservation.id, status: 'reserved' }),
@@ -221,7 +274,7 @@ function PaymentButton({ announcement, reservationDraft, setReservationDraft, go
             initialMessage: messageText,
           });
           
-          const messageRes = await fetch('/api/messages', {
+          const messageRes = await fetchWithAuth('/api/conversations', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/app/lib/auth';
-import { prisma } from '@/app/lib/prisma';
-import { UpdateUserInput } from '@/app/types/api';
+import { getDb } from '@/app/lib/mongodb';
 
 /**
  * @swagger
@@ -10,6 +9,8 @@ import { UpdateUserInput } from '@/app/types/api';
  *     tags:
  *       - Utilisateurs
  *     summary: Récupère le profil d'un utilisateur
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -27,8 +28,17 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, error } = await requireAuth(req);
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: error || 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const { id } = await params;
-    const userId = parseInt(id);
+    const userId = Number(id);
 
     if (isNaN(userId)) {
       return NextResponse.json(
@@ -37,38 +47,46 @@ export async function GET(
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { idUser: userId },
-      select: {
-        idUser: true,
-        nomUser: true,
-        prenomUser: true,
-        mailUser: true,
-        dateInscrUser: true,
-        photoUser: true,
-        modePrefUser: true,
-        perimPrefUser: true,
-        role: true,
-        _count: {
-          select: {
-            annonces: true,
-            reservations: true,
-            avis: true,
-          },
-        },
-      },
-    });
+    const db = await getDb();
+    const userDoc = await db.collection('users').findOne({ id: userId });
 
-    if (!user) {
+    if (!userDoc) {
       return NextResponse.json(
         { success: false, error: 'Utilisateur non trouvé' },
         { status: 404 }
       );
     }
 
+    // Get counts
+    const annoncesCount = await db.collection('announcements')
+      .countDocuments({ userId: userId });
+    const reservationsCount = await db.collection('reservations')
+      .countDocuments({ userId: userId });
+    const evaluationsCount = await db.collection('evaluations')
+      .countDocuments({ userId: userId });
+
+    const { _id, ...userData } = userDoc;
+
+    const responseData = {
+      idUser: userData.id,
+      nomUser: userData.nom,
+      prenomUser: userData.prenom,
+      mailUser: userData.email,
+      dateInscrUser: userData.createdAt,
+      photoUser: userData.photo,
+      modePrefUser: userData.type || null,
+      perimPrefUser: userData.scope || null,
+      role: userData.type || null,
+      _count: {
+        annonces: annoncesCount,
+        reservations: reservationsCount,
+        avis: evaluationsCount,
+      },
+    };
+
     return NextResponse.json({
       success: true,
-      data: user,
+      data: responseData,
     });
   } catch (error: any) {
     console.error('Erreur GET /api/users/[id]:', error);
@@ -136,7 +154,7 @@ export async function PUT(
     }
 
     const { id } = await params;
-    const userId = parseInt(id);
+    const userId = Number(id);
 
     if (isNaN(userId)) {
       return NextResponse.json(
@@ -145,43 +163,69 @@ export async function PUT(
       );
     }
 
-    // Vérifier que l'utilisateur modifie son propre profil
-    if (user.idUser !== userId) {
+    // Check if user is updating their own profile
+    if (user.userId !== userId) {
       return NextResponse.json(
         { success: false, error: 'Vous ne pouvez modifier que votre propre profil' },
         { status: 403 }
       );
     }
 
-    const body: UpdateUserInput = await req.json();
+    const db = await getDb();
+    const userDoc = await db.collection('users').findOne({ id: userId });
+
+    if (!userDoc) {
+      return NextResponse.json(
+        { success: false, error: 'Utilisateur non trouvé' },
+        { status: 404 }
+      );
+    }
+
+    const body = await req.json();
     const { nomUser, prenomUser, photoUser, modePrefUser, perimPrefUser } = body;
 
-    // Mettre à jour l'utilisateur
-    const updatedUser = await prisma.user.update({
-      where: { idUser: userId },
-      data: {
-        ...(nomUser && { nomUser }),
-        ...(prenomUser && { prenomUser }),
-        ...(photoUser !== undefined && { photoUser }),
-        ...(modePrefUser && { modePrefUser }),
-        ...(perimPrefUser !== undefined && { perimPrefUser }),
-      },
-      select: {
-        idUser: true,
-        nomUser: true,
-        prenomUser: true,
-        mailUser: true,
-        dateInscrUser: true,
-        photoUser: true,
-        modePrefUser: true,
-        perimPrefUser: true,
-        role: true,
-      },
-    });
+    // Update user
+    const updateData: any = {
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (nomUser) updateData.nom = nomUser;
+    if (prenomUser) updateData.prenom = prenomUser;
+    if (photoUser !== undefined) updateData.photo = photoUser;
+    if (modePrefUser) updateData.type = modePrefUser;
+    if (perimPrefUser !== undefined) updateData.scope = perimPrefUser;
+
+    await db.collection('users').updateOne(
+      { id: userId },
+      { $set: updateData }
+    );
+
+    // Get updated user
+    const updatedUserDoc = await db.collection('users').findOne({ id: userId });
+    if (!updatedUserDoc) {
+      return NextResponse.json(
+        { success: false, error: 'Erreur lors de la mise à jour' },
+        { status: 500 }
+      );
+    }
+
+    const { _id, ...updatedUserData } = updatedUserDoc;
+
+    const responseData = {
+      idUser: updatedUserData.id,
+      nomUser: updatedUserData.nom,
+      prenomUser: updatedUserData.prenom,
+      mailUser: updatedUserData.email,
+      dateInscrUser: updatedUserData.createdAt,
+      photoUser: updatedUserData.photo,
+      modePrefUser: updatedUserData.type || null,
+      perimPrefUser: updatedUserData.scope || null,
+      role: updatedUserData.type || null,
+    };
 
     return NextResponse.json({
       success: true,
-      data: updatedUser,
+      data: responseData,
     });
   } catch (error: any) {
     console.error('Erreur PUT /api/users/[id]:', error);
@@ -191,4 +235,3 @@ export async function PUT(
     );
   }
 }
-

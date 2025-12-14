@@ -11,6 +11,7 @@ import "./index.css";
 import { APIProvider } from "@vis.gl/react-google-maps";
 import PlaceAutocomplete from "../../register/components/AutoCompletePlace";
 import Notification from "../components/Notification";
+import { fetchWithAuth } from "../lib/auth";
 
 type FormInputs = {
   prenom: string;
@@ -74,7 +75,7 @@ export default function EditProfileContent() {
     if (!currentUser) return;
     try {
       setSaving(true);
-      const res = await fetch("/api/profile", {
+      const res = await fetchWithAuth("/api/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

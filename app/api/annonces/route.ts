@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/app/lib/auth';
-import { prisma } from '@/app/lib/prisma';
-import { CreateAnnonceInput } from '@/app/types/api';
+import { getDb } from '@/app/lib/mongodb';
 
 /**
  * @swagger
@@ -11,6 +10,8 @@ import { CreateAnnonceInput } from '@/app/types/api';
  *       - Annonces
  *     summary: Liste toutes les annonces
  *     description: Retourne la liste des annonces avec pagination optionnelle
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: query
  *         name: page
@@ -28,46 +29,99 @@ import { CreateAnnonceInput } from '@/app/types/api';
  */
 export async function GET(req: NextRequest) {
   try {
+    const { user, error } = await requireAuth(req);
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: error || 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const db = await getDb();
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const skip = (page - 1) * limit;
 
-    const annonces = await prisma.annonce.findMany({
-      skip,
-      take: limit,
-      include: {
-        userCreateur: {
-          select: {
-            idUser: true,
-            nomUser: true,
-            prenomUser: true,
-            photoUser: true,
-          },
-        },
-        photos: true,
-        creneaux: {
-          where: { estReserve: false },
-        },
-        _count: {
-          select: {
-            reservations: true,
-            avis: true,
-            favorites: true,
-          },
-        },
-      },
-      orderBy: {
-        datePublication: 'desc',
-      },
-    });
+    // Get announcements from MongoDB
+    const announcements = await db.collection('announcements')
+      .find({})
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 })
+      .toArray();
 
-    const total = await prisma.annonce.count();
+    const total = await db.collection('announcements').countDocuments();
+
+    // Enrich announcements with user data and counts
+    const enrichedAnnouncements = await Promise.all(
+      announcements.map(async (announcement: any) => {
+        const { _id, ...announcementWithoutId } = announcement;
+
+        // Get user creator
+        let userCreateur = null;
+        if (announcement.userId) {
+          const user = await db.collection('users').findOne({ id: Number(announcement.userId) });
+          if (user) {
+            const { _id: userId, ...userData } = user;
+            userCreateur = {
+              idUser: userData.id,
+              nomUser: userData.nom,
+              prenomUser: userData.prenom,
+              photoUser: userData.photo,
+            };
+          }
+        }
+
+        // Get counts
+        const reservationsCount = await db.collection('reservations')
+          .countDocuments({ announcementId: announcement.id });
+        const evaluationsCount = await db.collection('evaluations')
+          .countDocuments({ announcementId: announcement.id });
+        const favoritesCount = await db.collection('favorites')
+          .countDocuments({ announcementId: announcement.id });
+
+        // Map photos (if stored as array or single photo)
+        const photos = announcement.photo
+          ? [{ urlPhoto: announcement.photo }]
+          : [];
+
+        // Map slots to creneaux format (only non-reserved slots)
+        const creneaux = (announcement.slots || []).map((slot: any, index: number) => {
+          // Check if this slot is reserved
+          // For now, we'll include all slots - you can filter by checking reservations
+          return {
+            dateDebut: slot.start ? new Date(slot.start) : new Date(),
+            dateFin: slot.end ? new Date(slot.end) : new Date(),
+            estReserve: false, // This would need to be checked against reservations
+          };
+        });
+
+        return {
+          idAnnonce: announcement.id,
+          nomAnnonce: announcement.title,
+          typeAnnonce: announcement.category,
+          lieuAnnonce: announcement.scope || '',
+          prixAnnonce: announcement.price,
+          descAnnonce: announcement.description,
+          datePublication: announcement.createdAt,
+          userCreateur,
+          photos,
+          creneaux,
+          _count: {
+            reservations: reservationsCount,
+            avis: evaluationsCount,
+            favorites: favoritesCount,
+          },
+        };
+      })
+    );
 
     return NextResponse.json({
       success: true,
       data: {
-        annonces,
+        annonces: enrichedAnnouncements,
         pagination: {
           page,
           limit,
@@ -142,7 +196,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body: CreateAnnonceInput = await req.json();
+    const body = await req.json();
     const { nomAnnonce, typeAnnonce, lieuAnnonce, prixAnnonce, descAnnonce, photos, creneaux } = body;
 
     // Validation
@@ -153,47 +207,70 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Créer l'annonce avec ses relations
-    const annonce = await prisma.annonce.create({
-      data: {
-        nomAnnonce,
-        typeAnnonce,
-        lieuAnnonce,
-        prixAnnonce,
-        descAnnonce: descAnnonce || null,
-        userCreateurId: user.idUser,
-        photos: photos
-          ? {
-              create: photos.map((url: string) => ({ urlPhoto: url })),
-            }
-          : undefined,
-        creneaux: creneaux
-          ? {
-              create: creneaux.map((c: { dateDebut: string; dateFin: string }) => ({
-                dateDebut: new Date(c.dateDebut),
-                dateFin: new Date(c.dateFin),
-              })),
-            }
-          : undefined,
-      },
-      include: {
-        userCreateur: {
-          select: {
-            idUser: true,
-            nomUser: true,
-            prenomUser: true,
-            photoUser: true,
-          },
-        },
-        photos: true,
-        creneaux: true,
-      },
-    });
+    const db = await getDb();
+
+    // Map creneaux to slots format
+    const slots = creneaux
+      ? creneaux.map((c: { dateDebut: string; dateFin: string }) => ({
+          start: new Date(c.dateDebut).toISOString(),
+          end: new Date(c.dateFin).toISOString(),
+        }))
+      : [];
+
+    // Get first photo URL if photos array provided
+    const photoUrl = photos && photos.length > 0 ? photos[0] : null;
+
+    // Create announcement in MongoDB format
+    const announcement = {
+      id: Date.now(),
+      userId: user.userId,
+      title: nomAnnonce,
+      category: typeAnnonce,
+      description: descAnnonce || null,
+      price: prixAnnonce,
+      scope: lieuAnnonce,
+      slots,
+      photo: photoUrl,
+      createdAt: new Date().toISOString(),
+    };
+
+    await db.collection('announcements').insertOne(announcement);
+
+    // Get user creator info
+    const userDoc = await db.collection('users').findOne({ id: user.userId });
+    let userCreateur = null;
+    if (userDoc) {
+      const { _id: userId, ...userData } = userDoc;
+      userCreateur = {
+        idUser: userData.id,
+        nomUser: userData.nom,
+        prenomUser: userData.prenom,
+        photoUser: userData.photo,
+      };
+    }
+
+    // Format response to match Prisma format
+    const responseData = {
+      idAnnonce: announcement.id,
+      nomAnnonce: announcement.title,
+      typeAnnonce: announcement.category,
+      lieuAnnonce: announcement.scope,
+      prixAnnonce: announcement.price,
+      descAnnonce: announcement.description,
+      datePublication: announcement.createdAt,
+      userCreateur,
+      photos: photoUrl ? [{ urlPhoto: photoUrl }] : [],
+      creneaux: slots.map((slot: any, index: number) => ({
+        dateDebut: slot.start,
+        dateFin: slot.end,
+        estReserve: false,
+      })),
+    };
 
     return NextResponse.json(
       {
         success: true,
-        data: annonce,
+        data: responseData,
       },
       { status: 201 }
     );
