@@ -17,7 +17,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import Slider from '@mui/material/Slider';
 import Notification from '../components/Notification';
 import { useContent } from '../ContentContext';
-import { getLocalUserId } from '../lib/auth';
+import { getLocalUserId, fetchWithAuth } from '../lib/auth';
 import Image from 'next/image';
 type FormValues = {
     title: string;
@@ -414,7 +414,7 @@ function Step3() {
 
 export default function PublishAnnouncementContent() {
     const [step, setStep] = useState<number>(1);
-    const { setHeaderTitle } = useContent();
+    const { setHeaderTitle, setCurrentPage, setSelectedAnnouncementId } = useContent();
     const [selectedSlots, setSelectedSlots] = useState<{ id: number; day: number; start: Dayjs | null; end: Dayjs | null }[]>([]);
     const methods = useForm<FormValues>({ defaultValues: { title: '', category: '', description: '', price: 0, scope: 0 } });
 
@@ -472,19 +472,28 @@ export default function PublishAnnouncementContent() {
             fd.append('payload', JSON.stringify(payload));
             if (photoFile instanceof File) fd.append('photo', photoFile);
 
-            const res = await fetch('/api/announcements', { method: 'POST', body: fd });
+            const res = await fetchWithAuth('/api/announcements', { method: 'POST', body: fd });
             const json = await res.json();
             setSubmitResult(json);
-            if (json?.ok) {
-                // reset form or navigate as needed
+            if (json?.ok && json?.announcement) {
+                // reset form
                 methods.reset();
                 setSelectedSlots([]);
                 setNotification({ open: true, message: 'Annonce créée avec succès', severity: 'success' });
+                
+                // Wait a bit for notification to show, then navigate
+                await new Promise<void>((resolve) => setTimeout(resolve, 1000));
+                
+                // Set the announcement ID and navigate to details page
+                // Replace history with just 'home' so back button goes to home
+                if (setSelectedAnnouncementId && setCurrentPage) {
+                    setSelectedAnnouncementId(json.announcement.id);
+                    setCurrentPage('announce_details', ['home']);
+                }
             } else {
                 setNotification({ open: true, message: json?.error ?? 'Erreur lors de la création', severity: 'error' });
+                setSubmitting(false);
             }
-            // simuler un délai de 1 seconde
-            await new Promise<void>((resolve) => setTimeout(resolve, 1000));
         } catch (e) {
             setSubmitResult({ ok: false, error: String(e) });
         } finally {

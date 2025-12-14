@@ -1,24 +1,50 @@
-import { NextResponse } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
-import getDb from '../../../lib/mongodb';
+import { NextRequest, NextResponse } from 'next/server';
+import { getDb } from '../../lib/mongodb';
+import { requireAuth } from '@/app/lib/auth';
 
-export async function GET() {
+/**
+ * @swagger
+ * /api/users:
+ *   get:
+ *     tags:
+ *       - Users
+ *     summary: Get all users
+ *     description: Retrieve all users from the database
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 ok:
+ *                   type: boolean
+ *                 users:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       500:
+ *         description: Server error
+ */
+export async function GET(req: NextRequest) {
   try {
-    try {
-      const db = await getDb();
-      const users = await db.collection('users').find({}).toArray();
-      return NextResponse.json({ ok: true, users });
-    } catch (e) {
-      const usersPath = path.join(process.cwd(), 'data', 'users.json');
-      try {
-        const raw = await fs.readFile(usersPath, 'utf-8');
-        const users = JSON.parse(raw)?.users ?? [];
-        return NextResponse.json({ ok: true, users });
-      } catch (err) {
-        return NextResponse.json({ ok: true, users: [] });
-      }
+    const { user, error } = await requireAuth(req);
+
+    if (!user) {
+      return NextResponse.json(
+        { ok: false, error: error || 'Unauthorized' },
+        { status: 401 }
+      );
     }
+
+    const db = await getDb();
+    const users = await db.collection('users').find({}).toArray();
+    // Remove MongoDB _id from each user
+    const usersWithoutId = users.map(({ _id, ...user }) => user);
+    return NextResponse.json({ ok: true, users: usersWithoutId });
   } catch (err: any) {
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
   }

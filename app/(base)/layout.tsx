@@ -62,7 +62,7 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
     const router = useRouter();
     const currentNav = navItems.find(item => item.id === currentPage);
     const CurrentContent = (contentComponents as Record<string, React.ComponentType>)[currentPage] || HomeContent;
-    const hideBottomNav = currentPage === "messages" || currentPage === "message_chat" || currentPage === "annonces" || currentPage === "profil" || currentPage === "profil_edit" || currentPage === "my_announcements" || currentPage === "announce_details" || currentPage === "evaluate" || currentPage === "reviews";
+    const hideBottomNav = currentPage === "messages" || currentPage === "message_chat" || currentPage === "annonces" || currentPage === "profil" || currentPage === "profil_edit" || currentPage === "my_announcements" || currentPage === "announce_details" || currentPage === "evaluate" || currentPage === "reviews" || currentPage === "publish";
     const {
         register,
         handleSubmit,
@@ -92,7 +92,8 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
                 {(history.length > 0 || 
                   (currentPage === 'reservation' && (selectedAnnouncementId || reservationDraft)) ||
                   (currentPage === 'profil' && history.length === 0) ||
-                  (currentPage === 'my_announcements' && history.length === 0)) ? (
+                  (currentPage === 'my_announcements' && history.length === 0) ||
+                  (currentPage === 'announce_details' && history.length === 0)) ? (
                     <button
                         aria-label="back"
                         className="backButton"
@@ -101,8 +102,8 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
                             if (currentPage === 'reservation' && history.length === 0 && selectedAnnouncementId) {
                                 setCurrentPage('announce_details');
                             } 
-                            // If on profil or my_announcements without history, go to home
-                            else if ((currentPage === 'profil' || currentPage === 'my_announcements') && history.length === 0) {
+                            // If on profil, my_announcements, or announce_details without history, go to home
+                            else if ((currentPage === 'profil' || currentPage === 'my_announcements' || currentPage === 'announce_details') && history.length === 0) {
                                 setCurrentPage('home');
                             } 
                             else {
@@ -128,8 +129,20 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
                     <button
                         aria-label="logout"
                         className="backButton"
-                        onClick={() => {
-                            try { localStorage.removeItem('proximis_userId'); } catch (e) {}
+                        onClick={async () => {
+                            try {
+                                // Call logout endpoint
+                                await fetch('/api/logout', { method: 'POST' });
+                            } catch (e) {
+                                // ignore
+                            }
+                            // Remove token and userId from localStorage
+                            try {
+                                localStorage.removeItem('proximis_userId');
+                                localStorage.removeItem('proximis_token');
+                            } catch (e) {
+                                // ignore
+                            }
                             setCurrentUserId && setCurrentUserId(null);
                             router.push('/');
                         }}

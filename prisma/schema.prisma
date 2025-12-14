@@ -1,0 +1,120 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  idUser        Int                    @id @default(autoincrement())
+  nomUser       String
+  prenomUser    String
+  mailUser      String                 @unique
+  dateInscrUser DateTime               @default(now())
+  photoUser     String? // URL Firebase Storage
+  modePrefUser  String? // clair / sombre
+  perimPrefUser Int?
+  role          Role                   @default(CLIENT)
+  annonces      Annonce[]              @relation("UserAnnonce")
+  reservations  Reservation[]          @relation("UserReservation")
+  avis          Avis[]
+  favorites     Annonce_Favorite[]
+  conversations User_in_Conversation[]
+}
+
+model Annonce {
+  idAnnonce       Int                @id @default(autoincrement())
+  nomAnnonce      String
+  typeAnnonce     String
+  datePublication DateTime           @default(now())
+  lieuAnnonce     String
+  prixAnnonce     Float
+  descAnnonce     String?
+  userCreateurId  Int
+  userCreateur    User               @relation("UserAnnonce", fields: [userCreateurId], references: [idUser])
+  photos          PhotoAnnonce[]
+  creneaux        Creneau[]
+  reservations    Reservation[]
+  avis            Avis[]
+  favorites       Annonce_Favorite[]
+  conversations   Conversation[]
+}
+
+model PhotoAnnonce {
+  idPhotoAnnonce Int     @id @default(autoincrement())
+  urlPhoto       String
+  annonceId      Int
+  annonce        Annonce @relation(fields: [annonceId], references: [idAnnonce])
+}
+
+model Creneau {
+  idCreneau  Int      @id @default(autoincrement())
+  dateDebut  DateTime
+  dateFin    DateTime
+  estReserve Boolean  @default(false)
+  annonceId  Int
+  annonce    Annonce  @relation(fields: [annonceId], references: [idAnnonce])
+}
+
+model Reservation {
+  idResa     Int      @id @default(autoincrement())
+  dateDebut  DateTime
+  dateFin    DateTime
+  statusResa String
+  userId     Int
+  annonceId  Int
+  annonce    Annonce  @relation(fields: [annonceId], references: [idAnnonce])
+  user       User     @relation("UserReservation", fields: [userId], references: [idUser])
+}
+
+model Conversation {
+  idConversation Int                    @id @default(autoincrement())
+  annonceId      Int
+  annonce        Annonce                @relation(fields: [annonceId], references: [idAnnonce])
+  messages       Message[]
+  participants   User_in_Conversation[]
+}
+
+model Message {
+  idMessage      Int          @id @default(autoincrement())
+  contenu        String
+  dateMessage    DateTime     @default(now())
+  estLu          Boolean      @default(false)
+  conversationId Int
+  conversation   Conversation @relation(fields: [conversationId], references: [idConversation])
+}
+
+model User_in_Conversation {
+  id             Int          @id @default(autoincrement())
+  conversationId Int
+  userId         Int
+  conversation   Conversation @relation(fields: [conversationId], references: [idConversation])
+  user           User         @relation(fields: [userId], references: [idUser])
+}
+
+model Annonce_Favorite {
+  id        Int     @id @default(autoincrement())
+  annonceId Int
+  userId    Int
+  annonce   Annonce @relation(fields: [annonceId], references: [idAnnonce])
+  user      User    @relation(fields: [userId], references: [idUser])
+}
+
+model Avis {
+  idAvis      Int      @id @default(autoincrement())
+  noteAvis    Float
+  commentaire String?
+  dateAvis    DateTime @default(now())
+  annonceId   Int
+  userId      Int
+  annonce     Annonce  @relation(fields: [annonceId], references: [idAnnonce])
+  user        User     @relation(fields: [userId], references: [idUser])
+}
+
+enum Role {
+  CLIENT
+  PRESTATAIRE
+  ADMIN
+}

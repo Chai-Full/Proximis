@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
+import { NextRequest, NextResponse } from 'next/server';
+import { getDb } from '../../lib/mongodb';
+import { requireAuth } from '@/app/lib/auth';
 
 type EvaluationBody = {
   reservationId: number | string;
@@ -10,8 +10,74 @@ type EvaluationBody = {
   userId: number | string | null;
 };
 
-export async function POST(req: Request) {
+/**
+ * @swagger
+ * /api/evaluations:
+ *   post:
+ *     tags:
+ *       - Evaluations
+ *     summary: Create or update an evaluation
+ *     description: Submit an evaluation for a completed reservation. Updates reservation status to "completed".
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - reservationId
+ *               - announcementId
+ *               - rating
+ *               - comment
+ *               - userId
+ *             properties:
+ *               reservationId:
+ *                 type: string
+ *                 description: ID of the reservation being evaluated
+ *               announcementId:
+ *                 type: string
+ *                 description: ID of the announcement
+ *               rating:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 5
+ *                 description: Rating from 1 to 5
+ *               comment:
+ *                 type: string
+ *                 description: Textual comment (required, cannot be empty)
+ *               userId:
+ *                 type: string
+ *                 description: ID of the user submitting the evaluation
+ *     responses:
+ *       200:
+ *         description: Evaluation saved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 ok:
+ *                   type: boolean
+ *                 evaluation:
+ *                   type: object
+ *       400:
+ *         description: Invalid payload or validation error
+ *       500:
+ *         description: Server error
+ */
+export async function POST(req: NextRequest) {
   try {
+    const { user, error } = await requireAuth(req);
+
+    if (!user) {
+      return NextResponse.json(
+        { ok: false, error: error || 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const body = (await req.json()) as EvaluationBody;
     
     if (!body || !body.reservationId || !body.announcementId || !body.rating || !body.comment || !body.userId) {
@@ -28,96 +94,54 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Comment cannot be empty' }, { status: 400 });
     }
 
-    const dataDir = path.join(process.cwd(), 'data');
-    const filePath = path.join(dataDir, 'evaluations.json');
-
-    // Ensure data directory exists
-    try {
-      await fs.access(dataDir);
-    } catch (e) {
-      await fs.mkdir(dataDir, { recursive: true });
-    }
-
-    // Load existing evaluations
-    let existing: any[] = [];
-    try {
-      const content = await fs.readFile(filePath, 'utf8');
-      const parsed = JSON.parse(content);
-      existing = Array.isArray(parsed?.evaluations) ? parsed.evaluations : Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-      existing = [];
-    }
+    const db = await getDb();
 
     // Check if evaluation already exists for this reservation
-    const existingEvaluationIndex = existing.findIndex(
-      (e: any) => String(e.reservationId) === String(body.reservationId)
-    );
+    const existingEvaluation = await db.collection('evaluations').findOne({
+      reservationId: Number(body.reservationId),
+    });
 
     let savedEvaluation;
-    if (existingEvaluationIndex !== -1) {
+    if (existingEvaluation) {
       // Update existing evaluation
-      existing[existingEvaluationIndex] = {
-        ...existing[existingEvaluationIndex],
-        rating: body.rating,
-        comment: body.comment.trim(),
-        updatedAt: new Date().toISOString(),
-      };
-      savedEvaluation = existing[existingEvaluationIndex];
+      await db.collection('evaluations').updateOne(
+        { _id: existingEvaluation._id },
+        {
+          $set: {
+            rating: body.rating,
+            comment: body.comment.trim(),
+            updatedAt: new Date().toISOString(),
+          },
+        }
+      );
+      savedEvaluation = await db.collection('evaluations').findOne({ _id: existingEvaluation._id });
     } else {
       // Create new evaluation
       const newEvaluation = {
         id: Date.now(),
-        reservationId: body.reservationId,
-        announcementId: body.announcementId,
-        userId: body.userId,
+        reservationId: Number(body.reservationId),
+        announcementId: Number(body.announcementId),
+        userId: Number(body.userId),
         rating: body.rating,
         comment: body.comment.trim(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      existing.push(newEvaluation);
+      await db.collection('evaluations').insertOne(newEvaluation);
       savedEvaluation = newEvaluation;
     }
 
-    const out = { evaluations: existing };
-    await fs.writeFile(filePath, JSON.stringify(out, null, 2), 'utf8');
-
     // Update reservation status to "completed" after evaluation is saved
     try {
-      const reservationsDir = path.join(process.cwd(), 'data');
-      const reservationsPath = path.join(reservationsDir, 'reservations.json');
-      
-      let reservations: any[] = [];
-      try {
-        const reservationsContent = await fs.readFile(reservationsPath, 'utf8');
-        const parsedReservations = JSON.parse(reservationsContent);
-        reservations = Array.isArray(parsedReservations?.reservations) 
-          ? parsedReservations.reservations 
-          : Array.isArray(parsedReservations) 
-          ? parsedReservations 
-          : [];
-      } catch (e) {
-        // If file doesn't exist or is invalid, we can't update the reservation
-        console.warn('Could not read reservations file to update status:', e);
-      }
-
-      // Find and update the reservation
-      const reservationIndex = reservations.findIndex(
-        (r: any) => String(r.id) === String(body.reservationId)
+      await db.collection('reservations').updateOne(
+        { id: Number(body.reservationId) },
+        {
+          $set: {
+            status: 'completed',
+            updatedAt: new Date().toISOString(),
+          },
+        }
       );
-
-      if (reservationIndex !== -1) {
-        reservations[reservationIndex] = {
-          ...reservations[reservationIndex],
-          status: 'completed',
-          updatedAt: new Date().toISOString(),
-        };
-
-        const reservationsOut = { reservations };
-        await fs.writeFile(reservationsPath, JSON.stringify(reservationsOut, null, 2), 'utf8');
-      } else {
-        console.warn(`Reservation ${body.reservationId} not found for status update`);
-      }
     } catch (err) {
       // Log error but don't fail the evaluation save
       console.error('Error updating reservation status after evaluation:', err);
@@ -133,34 +157,78 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET(req: Request) {
+/**
+ * @swagger
+ * /api/evaluations:
+ *   get:
+ *     tags:
+ *       - Evaluations
+ *     summary: Get evaluations
+ *     description: Retrieve evaluations with optional filters
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: reservationId
+ *         schema:
+ *           type: string
+ *         description: Filter by reservation ID
+ *       - in: query
+ *         name: announcementId
+ *         schema:
+ *           type: string
+ *         description: Filter by announcement ID
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         description: Filter by user ID
+ *     responses:
+ *       200:
+ *         description: List of evaluations
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 ok:
+ *                   type: boolean
+ *                 count:
+ *                   type: integer
+ *                 evaluations:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       500:
+ *         description: Server error
+ */
+export async function GET(req: NextRequest) {
   try {
+    const { user, error } = await requireAuth(req);
+
+    if (!user) {
+      return NextResponse.json(
+        { ok: false, error: error || 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const url = new URL(req.url);
     const reservationId = url.searchParams.get('reservationId');
     const announcementId = url.searchParams.get('announcementId');
     const userId = url.searchParams.get('userId');
 
-    const dataDir = path.join(process.cwd(), 'data');
-    const filePath = path.join(dataDir, 'evaluations.json');
+    const db = await getDb();
 
-    let existing: any[] = [];
-    try {
-      const content = await fs.readFile(filePath, 'utf8');
-      const parsed = JSON.parse(content);
-      existing = Array.isArray(parsed?.evaluations) ? parsed.evaluations : Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-      existing = [];
-    }
+    // Build query
+    const query: any = {};
+    if (reservationId) query.reservationId = Number(reservationId);
+    if (announcementId) query.announcementId = Number(announcementId);
+    if (userId) query.userId = Number(userId);
 
-    // Filter evaluations based on query parameters
-    const matches = existing.filter((e: any) => {
-      if (reservationId && String(e.reservationId) !== String(reservationId)) return false;
-      if (announcementId && String(e.announcementId) !== String(announcementId)) return false;
-      if (userId && String(e.userId) !== String(userId)) return false;
-      return true;
-    });
+    const evaluations = await db.collection('evaluations').find(query).toArray();
 
-    return NextResponse.json({ ok: true, count: matches.length, evaluations: matches });
+    return NextResponse.json({ ok: true, count: evaluations.length, evaluations });
   } catch (err) {
     console.error('Error reading evaluations', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

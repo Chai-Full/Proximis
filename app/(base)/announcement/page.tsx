@@ -2,10 +2,11 @@
 import React from 'react';
 import { useContent } from '../ContentContext';
 import AnnouncementCard from './AnnouncementCard';
-import announcements from '../../../data/announcements.json';
 import { useEffect, useState } from 'react';
+import { fetchWithAuth } from '../lib/auth';
 import dayjs from 'dayjs';
 import { Typography } from '@mui/material';
+import { SkeletonAnnouncementCard, SkeletonReservationCard } from '../components/Skeleton';
 
 export default function AnnouncementContent (){
   const { currentUserId } = useContent();
@@ -23,14 +24,18 @@ export default function AnnouncementContent (){
     (async () => {
       try {
         const params = new URLSearchParams({ userId: String(currentUserId) });
-        const res = await fetch('/api/reservations?' + params.toString());
+        const res = await fetchWithAuth('/api/reservations?' + params.toString());
         const json = await res.json();
+        console.log('Reservations API response:', { resOk: res.ok, json, reservationsCount: json?.reservations?.length });
         if (!mounted) return;
         if (res.ok && json?.reservations) {
+          console.log('Setting reservations:', json.reservations);
           setReservations(json.reservations || []);
         } else if (res.ok && Array.isArray(json)) {
+          console.log('Setting reservations (array format):', json);
           setReservations(json as any[]);
         } else {
+          console.log('No reservations found, setting empty array');
           setReservations([]);
         }
       } catch (e) {
@@ -47,14 +52,63 @@ export default function AnnouncementContent (){
     return <div style={{ padding: 16 }}><Typography variant="h6">Connectez-vous pour voir vos réservations</Typography></div>;
   }
 
-  if (loading) return <div style={{ padding: 16 }}><Typography>Chargement des réservations…</Typography></div>;
-  const announcementsList = Array.isArray(announcements) ? announcements : [];
+  if (loading) {
+    return (
+      <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <Skeleton variant="rectangular" width="50%" height={40} style={{ borderRadius: '25px' }} />
+          <Skeleton variant="rectangular" width="50%" height={40} style={{ borderRadius: '25px' }} />
+        </div>
+        <SkeletonReservationCard />
+        <SkeletonReservationCard />
+        <SkeletonReservationCard />
+      </div>
+    );
+  }
+  
+  // Load announcements from API
+  const [announcementsList, setAnnouncementsList] = useState<any[]>([]);
+  useEffect(() => {
+    if (!currentUserId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetchWithAuth('/api/annonces?page=1&limit=1000');
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.success && data?.data?.annonces) {
+            const transformed = data.data.annonces.map((a: any) => ({
+              id: a.idAnnonce,
+              title: a.nomAnnonce,
+              category: a.typeAnnonce,
+              scope: a.lieuAnnonce,
+              price: a.prixAnnonce,
+              description: a.descAnnonce,
+              userId: a.userCreateur?.idUser,
+              createdAt: a.datePublication,
+              photo: a.photos?.[0]?.urlPhoto,
+              slots: a.creneaux?.map((c: any) => ({
+                start: c.dateDebut,
+                end: c.dateFin,
+                estReserve: c.estReserve,
+              })) || [],
+            }));
+            if (!cancelled) setAnnouncementsList(transformed);
+          }
+        }
+      } catch (e) {
+        console.error('Error loading announcements', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [currentUserId]);
 
   // authored announcements by current user
   const authored = announcementsList.filter((a: any) => String(a.userId) === String(currentUserId));
 
+  
   const noReservations = !reservations || reservations.length === 0;
-  if (mode === 'reserved' && noReservations) return <div style={{ padding: 16 }}><Typography>Vous n'avez aucune réservation.</Typography></div>;
+  console.log('Render check:', { reservations, reservationsLength: reservations?.length, noReservations, mode, loading });
 
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -70,19 +124,23 @@ export default function AnnouncementContent (){
       {mode === 'reserved' && (
         <>
           <Typography variant="h6">Mes réservations</Typography>
-          {reservations!.map((r: any) => {
-            const ann = announcementsList.find((a: any) => String(a.id) === String(r.announcementId));
-            const slot = ann && Array.isArray(ann.slots) ? ann.slots[r.slotIndex] : null;
-            return (
-              <div key={r.id} style={{ borderRadius: 8, padding: 8, background: 'var(--card-bg, #fff)' }}>
-                <AnnouncementCard announcement={ann ?? { id: r.announcementId, title: 'Annonce supprimée' }} profilPage={false} />
-                <div style={{ marginTop: 8, display: 'flex', gap: 12, alignItems: 'center' }}>
-                  <div style={{ fontSize: 14 }}><strong>Date:</strong> {r.date ? dayjs(r.date).format('YYYY.MM.DD') : (r.createdAt ? dayjs(r.createdAt).format('YYYY.MM.DD') : '-') }</div>
-                  <div style={{ fontSize: 14 }}><strong>Créneau:</strong> {slot ? `${dayjs(slot.start).format('HH:mm')} - ${dayjs(slot.end).format('HH:mm')}` : '—'}</div>
+          {reservations && reservations.length > 0 ? (
+            reservations.map((r: any) => {
+              const ann = announcementsList.find((a: any) => String(a.id) === String(r.announcementId));
+              const slot = ann && Array.isArray(ann.slots) ? ann.slots[r.slotIndex] : null;
+              return (
+                <div key={r.id} style={{ borderRadius: 8, padding: 8, background: 'var(--card-bg, #fff)' }}>
+                  <AnnouncementCard announcement={ann ?? { id: r.announcementId, title: 'Annonce supprimée' }} profilPage={false} />
+                  <div style={{ marginTop: 8, display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <div style={{ fontSize: 14 }}><strong>Date:</strong> {r.date ? dayjs(r.date).format('YYYY.MM.DD') : (r.createdAt ? dayjs(r.createdAt).format('YYYY.MM.DD') : '-') }</div>
+                    <div style={{ fontSize: 14 }}><strong>Créneau:</strong> {slot ? `${dayjs(slot.start).format('HH:mm')} - ${dayjs(slot.end).format('HH:mm')}` : '—'}</div>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          ) : (
+            <div style={{ padding: 8 }}><Typography>Vous n'avez aucune réservation.</Typography></div>
+          )}
         </>
       )}
 

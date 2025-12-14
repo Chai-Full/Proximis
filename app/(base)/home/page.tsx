@@ -1,16 +1,16 @@
 "use client";
 
 import React from 'react';
-import { Button, CircularProgress } from '@mui/material';
+import { Button } from '@mui/material';
 import { useContent } from '../ContentContext';
 import { useRouter } from 'next/navigation';
 import { AddCircleOutlineOutlined, LightbulbCircleOutlined, Schedule, StarOutlineOutlined, Today } from '@mui/icons-material';
-import announcements from '../../../data/announcements.json';
-import usersData from '../../../data/users.json';
 import StarsOutlined from '@mui/icons-material/StarsOutlined';
 import AnnouncementCard from '../announcement/AnnouncementCard';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
+import { fetchWithAuth } from '../lib/auth';
+import { SkeletonNextRDV, SkeletonAnnouncementCard, SkeletonStats, Skeleton } from '../components/Skeleton';
 
 export default function HomeContent() {
     const { currentPage, setCurrentPage, currentUserId, clearHistory, history, setSelectedReservationId } = useContent();
@@ -38,11 +38,77 @@ export default function HomeContent() {
         relativeDate: string;
     } | null>(null);
     const [loadingNextReservation, setLoadingNextReservation] = React.useState<boolean>(true);
+    const [announcements, setAnnouncements] = React.useState<any[]>([]);
+    const [users, setUsers] = React.useState<any[]>([]);
 
     // Track when component is mounted
     React.useEffect(() => {
         setMounted(true);
     }, []);
+
+    // Load announcements and users from MongoDB
+    React.useEffect(() => {
+        if (!currentUserId) return;
+
+        let cancelled = false;
+
+        const loadData = async () => {
+            try {
+                // Load announcements
+                const announcementsRes = await fetchWithAuth('/api/annonces?page=1&limit=1000');
+                if (announcementsRes.ok) {
+                    const announcementsData = await announcementsRes.json();
+                    if (announcementsData?.success && announcementsData?.data?.annonces) {
+                        // Transform to match expected format
+                        const transformed = announcementsData.data.annonces.map((a: any) => ({
+                            id: a.idAnnonce,
+                            title: a.nomAnnonce,
+                            category: a.typeAnnonce,
+                            scope: a.lieuAnnonce,
+                            price: a.prixAnnonce,
+                            description: a.descAnnonce,
+                            userId: a.userCreateur?.idUser,
+                            createdAt: a.datePublication,
+                            photo: a.photos?.[0]?.urlPhoto,
+                            slots: a.creneaux?.map((c: any) => {
+                                // Extract day of week from dateDebut (1 = Monday, 7 = Sunday)
+                                // dayjs uses 0 = Sunday, so we need to convert: 0 -> 7, 1-6 -> 1-6
+                                const dayOfWeek = c.dateDebut ? (() => {
+                                    const date = dayjs(c.dateDebut);
+                                    const jsDay = date.day(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+                                    return jsDay === 0 ? 7 : jsDay; // Convert to 1 = Monday, 7 = Sunday
+                                })() : undefined;
+                                return {
+                                    day: dayOfWeek,
+                                    start: c.dateDebut,
+                                    end: c.dateFin,
+                                    estReserve: c.estReserve,
+                                };
+                            }).filter((c: any) => c.day != null && !c.estReserve) || [], // Only include non-reserved slots with valid day
+                        }));
+                        if (!cancelled) setAnnouncements(transformed);
+                    }
+                }
+
+                // Load users
+                const usersRes = await fetchWithAuth('/api/users');
+                if (usersRes.ok) {
+                    const usersData = await usersRes.json();
+                    if (usersData?.users && Array.isArray(usersData.users)) {
+                        if (!cancelled) setUsers(usersData.users);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading data', error);
+            }
+        };
+
+        loadData();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentUserId]);
 
     React.useEffect(() => {
         // Wait for component to mount and context to load before checking
@@ -52,10 +118,11 @@ export default function HomeContent() {
         const checkUserId = () => {
             if (currentUserId != null) return;
             
-            // Also check localStorage directly as fallback
+            // Also check localStorage directly as fallback (both userId and token)
             try {
-                const stored = localStorage.getItem('proximis_userId');
-                if (stored) return; // User is logged in, don't redirect
+                const storedUserId = localStorage.getItem('proximis_userId');
+                const storedToken = localStorage.getItem('proximis_token');
+                if (storedUserId && storedToken) return; // User is logged in, don't redirect
             } catch (e) {
                 // ignore
             }
@@ -96,16 +163,18 @@ export default function HomeContent() {
                 const reservationsParams = new URLSearchParams({
                     userId: String(currentUserId),
                 });
-                const reservationsRes = await fetch(`/api/reservations?${reservationsParams.toString()}`);
+                const reservationsRes = await fetchWithAuth(`/api/reservations?${reservationsParams.toString()}`);
                 const reservationsData = await reservationsRes.json();
                 const reservations = reservationsData?.reservations || (Array.isArray(reservationsData) ? reservationsData : []);
 
                 if (cancelled) return;
 
                 // Calculate services received (reservations where user is the client)
-                const servicesReceivedCount = reservations.filter((r: any) => 
-                    String(r.userId) === String(currentUserId)
-                ).length;
+                const currentUserIdNum = Number(currentUserId);
+                const servicesReceivedCount = reservations.filter((r: any) => {
+                    const rUserId = typeof r.userId === 'number' ? r.userId : Number(r.userId);
+                    return rUserId === currentUserIdNum;
+                }).length;
                 setServicesReceived(servicesReceivedCount);
 
                 // Calculate services rendered (reservations where user is the provider)
@@ -125,7 +194,7 @@ export default function HomeContent() {
                         const evalParams = new URLSearchParams({
                             announcementId: String(announcement.id),
                         });
-                        const evalRes = await fetch(`/api/evaluations?${evalParams.toString()}`);
+                        const evalRes = await fetchWithAuth(`/api/evaluations?${evalParams.toString()}`);
                         const evalData = await evalRes.json();
                         
                         if (evalRes.ok && evalData?.evaluations && Array.isArray(evalData.evaluations)) {
@@ -185,16 +254,18 @@ export default function HomeContent() {
                 const params = new URLSearchParams({
                     userId: String(currentUserId),
                 });
-                const res = await fetch(`/api/reservations?${params.toString()}`);
+                const res = await fetchWithAuth(`/api/reservations?${params.toString()}`);
                 const data = await res.json();
                 const reservations = data?.reservations || (Array.isArray(data) ? data : []);
 
                 if (cancelled) return;
 
                 // Filter reservations with status "to_evaluate"
-                const toEvaluate = reservations.filter((r: any) => 
-                    String(r.status) === 'to_evaluate' && String(r.userId) === String(currentUserId)
-                );
+                const currentUserIdNum = Number(currentUserId);
+                const toEvaluate = reservations.filter((r: any) => {
+                    const rUserId = typeof r.userId === 'number' ? r.userId : Number(r.userId);
+                    return r.status === 'to_evaluate' && rUserId === currentUserIdNum;
+                });
 
                 if (toEvaluate.length === 0) {
                     if (!cancelled) {
@@ -216,8 +287,12 @@ export default function HomeContent() {
 
                 // Load announcement data
                 const announcementsList = Array.isArray(announcements) ? announcements : [];
+                // Convert to numbers for comparison since MongoDB stores them as numbers
+                const oldestAnnouncementId = typeof oldestReservation.announcementId === 'number' 
+                    ? oldestReservation.announcementId 
+                    : Number(oldestReservation.announcementId);
                 const announcement = announcementsList.find(
-                    (a: any) => String(a.id) === String(oldestReservation.announcementId)
+                    (a: any) => Number(a.id) === oldestAnnouncementId
                 );
 
                 if (!announcement) {
@@ -228,8 +303,10 @@ export default function HomeContent() {
                 }
 
                 // Get provider name
-                const users = (usersData as any).users ?? [];
-                const provider = users.find((u: any) => String(u.id) === String(announcement.userId));
+                const evalAnnouncementUserId = typeof announcement.userId === 'number' 
+                    ? announcement.userId 
+                    : Number(announcement.userId);
+                const provider = users.find((u: any) => Number(u.id) === evalAnnouncementUserId);
                 let providerName = 'Prestataire';
                 if (provider) {
                     const prenom = provider.prenom || '';
@@ -276,7 +353,7 @@ export default function HomeContent() {
         return () => {
             cancelled = true;
         };
-    }, [currentUserId]);
+    }, [currentUserId, announcements, users]);
 
     // Load most recent favorite announcement
     React.useEffect(() => {
@@ -295,7 +372,7 @@ export default function HomeContent() {
                 const favoritesParams = new URLSearchParams({
                     userId: String(currentUserId),
                 });
-                const favoritesRes = await fetch(`/api/favorites?${favoritesParams.toString()}`);
+                const favoritesRes = await fetchWithAuth(`/api/favorites?${favoritesParams.toString()}`);
                 const favoritesData = await favoritesRes.json();
 
                 if (cancelled) return;
@@ -307,7 +384,9 @@ export default function HomeContent() {
                     return;
                 }
 
-                const favoriteIds = favoritesData.favorites.map((f: any) => f.announcementId);
+                const favoriteIds = favoritesData.favorites.map((f: any) => {
+                    return typeof f.announcementId === 'number' ? f.announcementId : Number(f.announcementId);
+                });
                 
                 if (favoriteIds.length === 0) {
                     if (!cancelled) {
@@ -319,7 +398,7 @@ export default function HomeContent() {
                 // Load announcements
                 const announcementsList = Array.isArray(announcements) ? announcements : [];
                 const favoriteAnnouncements = announcementsList.filter((a: any) =>
-                    favoriteIds.some((favId: number | string) => String(favId) === String(a.id))
+                    favoriteIds.some((favId: number) => Number(a.id) === favId)
                 );
 
                 if (favoriteAnnouncements.length === 0) {
@@ -360,13 +439,18 @@ export default function HomeContent() {
         return () => {
             cancelled = true;
         };
-    }, [currentUserId]);
+    }, [currentUserId, announcements]);
 
     // Load next reservation (closest upcoming)
     React.useEffect(() => {
-        if (!currentUserId) {
-            setNextReservation(null);
-            setLoadingNextReservation(false);
+        if (!currentUserId || announcements.length === 0) {
+            // Wait for announcements to be loaded before calculating next reservation
+            if (announcements.length === 0 && currentUserId) {
+                setLoadingNextReservation(true);
+            } else {
+                setNextReservation(null);
+                setLoadingNextReservation(false);
+            }
             return;
         }
 
@@ -378,7 +462,7 @@ export default function HomeContent() {
                 const params = new URLSearchParams({
                     userId: String(currentUserId),
                 });
-                const res = await fetch(`/api/reservations?${params.toString()}`);
+                const res = await fetchWithAuth(`/api/reservations?${params.toString()}`);
                 const data = await res.json();
                 const reservations = data?.reservations || (Array.isArray(data) ? data : []);
 
@@ -408,8 +492,10 @@ export default function HomeContent() {
                 
                 // Calculate full datetime for each reservation and sort
                 const reservationsWithDateTime = upcoming.map((r: any) => {
+                    // Convert to numbers for comparison since MongoDB stores them as numbers
+                    const rAnnouncementId = typeof r.announcementId === 'number' ? r.announcementId : Number(r.announcementId);
                     const announcement = announcementsList.find(
-                        (a: any) => String(a.id) === String(r.announcementId)
+                        (a: any) => Number(a.id) === rAnnouncementId
                     );
                     if (!announcement || !announcement.slots || !announcement.slots[r.slotIndex]) {
                         return null;
@@ -445,8 +531,10 @@ export default function HomeContent() {
                 const { reservation, announcement, fullDateTime } = closest;
 
                 // Get provider name
-                const users = (usersData as any).users ?? [];
-                const provider = users.find((u: any) => String(u.id) === String(announcement.userId));
+                const nextAnnouncementUserId = typeof announcement.userId === 'number' 
+                    ? announcement.userId 
+                    : Number(announcement.userId);
+                const provider = users.find((u: any) => Number(u.id) === nextAnnouncementUserId);
                 let providerName = 'Prestataire';
                 if (provider) {
                     const prenom = provider.prenom || '';
@@ -506,7 +594,7 @@ export default function HomeContent() {
         return () => {
             cancelled = true;
         };
-    }, [currentUserId]);
+    }, [currentUserId, announcements, users]);
 
     const stats = [
         { label: "Services rendus", value: String(servicesRendered) },
@@ -540,9 +628,7 @@ export default function HomeContent() {
                     Publier une annonce
                 </Button>
                 {loadingNextReservation ? (
-                    <div className='nextRDV' style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '120px' }}>
-                        <CircularProgress size={24} sx={{ color: "#1ea792" }} />
-                    </div>
+                    <SkeletonNextRDV />
                 ) : nextReservation ? (
                     <div className='nextRDV'>
                         <div className='nextRDVC1'>
@@ -564,8 +650,12 @@ export default function HomeContent() {
                     </div>
                 ) : null}
                 {loadingRecommended ? (
-                    <div className='announcementsPromoted' style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '200px' }}>
-                        <CircularProgress size={24} sx={{ color: "#ff9202" }} />
+                    <div className='announcementsPromoted'>
+                        <div className='announcementsPromotedHeader'>
+                            <LightbulbCircleOutlined sx={{ color: "#ff9202"}}/>
+                            <span className='T2'>Annonces recommandée</span>
+                        </div>
+                        <SkeletonAnnouncementCard />
                     </div>
                 ) : recommendedAnnouncement ? (
                     <div className='announcementsPromoted'>
@@ -577,8 +667,11 @@ export default function HomeContent() {
                     </div>
                 ) : null}
                 {loadingReservationToEvaluate ? (
-                    <div className='anouncementActionRequire' style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '120px' }}>
-                        <CircularProgress size={24} sx={{ color: "#ff9202" }} />
+                    <div className='anouncementActionRequire' style={{ padding: '16px' }}>
+                        <Skeleton variant="text" width="60%" height={20} style={{ marginBottom: '8px' }} />
+                        <Skeleton variant="text" width="80%" height={16} style={{ marginBottom: '8px' }} />
+                        <Skeleton variant="text" width="50%" height={14} style={{ marginBottom: '12px' }} />
+                        <Skeleton variant="rectangular" width="100%" height={40} style={{ borderRadius: '8px' }} />
                     </div>
                 ) : reservationToEvaluate ? (
                     <div className='anouncementActionRequire'>
@@ -613,9 +706,7 @@ export default function HomeContent() {
 
                     <div className='statsRecapContent'>
                         {loadingStats ? (
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', padding: '20px' }}>
-                                <CircularProgress size={24} sx={{ color: "#03A689" }} />
-                            </div>
+                            <SkeletonStats />
                         ) : (
                             stats.map(({ label, value }) => (
                                 <div key={label} className='statsRecapItem'>

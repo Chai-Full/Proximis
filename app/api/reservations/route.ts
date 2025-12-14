@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
+import { NextRequest, NextResponse } from 'next/server';
+import { getDb } from '@/app/lib/mongodb';
+import { requireAuth } from '@/app/lib/auth';
 
 type ReservationBody = {
   announcementId: string | number;
@@ -9,144 +9,99 @@ type ReservationBody = {
   date?: string | null; // ISO date or YYYY-MM-DD
 };
 
-export async function POST(req: Request) {
+/**
+ * @swagger
+ * /api/reservations:
+ *   get:
+ *     tags:
+ *       - Reservations
+ *     summary: Get reservations
+ *     description: Retrieve reservations with optional filters
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         description: Filter by user ID
+ *       - in: query
+ *         name: announcementId
+ *         schema:
+ *           type: string
+ *         description: Filter by announcement ID
+ *       - in: query
+ *         name: slotIndex
+ *         schema:
+ *           type: number
+ *         description: Filter by slot index
+ *       - in: query
+ *         name: date
+ *         schema:
+ *           type: string
+ *         description: Filter by date (YYYY-MM-DD)
+ *     responses:
+ *       200:
+ *         description: List of reservations
+ *       500:
+ *         description: Server error
+ */
+export async function GET(req: NextRequest) {
   try {
-    const body = (await req.json()) as ReservationBody;
-    if (!body || !body.announcementId || typeof body.slotIndex !== 'number' || !body.userId || !body.date) {
-      return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+    const { user, error } = await requireAuth(req);
+
+    if (!user) {
+      return NextResponse.json(
+        { ok: false, error: error || 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
-    // normalize date to YYYY-MM-DD
-    const incomingDate = String(body.date);
-    // basic ISO / YYYY-MM-DD validation
-    const dateMatch = incomingDate.match(/^\d{4}-\d{2}-\d{2}/);
-    if (!dateMatch) {
-      return NextResponse.json({ error: 'Invalid date format' }, { status: 400 });
-    }
-    const normalizedDate = dateMatch[0];
-    // don't allow past dates
-    const now = new Date();
-    const picked = new Date(normalizedDate + 'T00:00:00Z');
-    if (picked < new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))) {
-      return NextResponse.json({ error: 'Date cannot be in the past' }, { status: 400 });
-    }
-
-    const dataDir = path.join(process.cwd(), 'data');
-    const filePath = path.join(dataDir, 'reservations.json');
-
-    // Ensure data directory exists
-    try {
-      await fs.access(dataDir);
-    } catch (e) {
-      await fs.mkdir(dataDir, { recursive: true });
-    }
-
-    let existing: any[] = [];
-    try {
-      const content = await fs.readFile(filePath, 'utf8');
-      existing = JSON.parse(content)?.reservations ?? [];
-    } catch (e) {
-      existing = [];
-    }
-
-    // Prevent the author from reserving their own announcement (server-side check)
-    try {
-      const annPath = path.join(process.cwd(), 'data', 'announcements.json');
-      const annContent = await fs.readFile(annPath, 'utf8');
-      const anns = JSON.parse(annContent) as any[];
-      const found = anns.find(a => String(a.id) === String(body.announcementId));
-      if (found && String(found.userId) === String(body.userId)) {
-        return NextResponse.json({ error: 'Cannot reserve your own announcement' }, { status: 403 });
-      }
-    } catch (e) {
-      // ignore announce read errors; proceed — duplicate check still enforces safety
-    }
-
-    // Prevent the same user reserving the same announcement slot twice
-    const already = existing.find((r: any) => String(r.announcementId) === String(body.announcementId) && Number(r.slotIndex) === Number(body.slotIndex) && String(r.userId) === String(body.userId) && String(r.date) === String(normalizedDate));
-    if (already) {
-      return NextResponse.json({ error: 'Duplicate reservation' }, { status: 409 });
-    }
-
-    // Prevent reserving a slot that is already taken (any status) by any user for the same date and slotIndex
-    // A slot is considered unavailable if it's already reserved for the same announcement, same slotIndex, and same date
-    const alreadyTaken = existing.find((r: any) => 
-      String(r.announcementId) === String(body.announcementId) && 
-      Number(r.slotIndex) === Number(body.slotIndex) && 
-      String(r.date) === String(normalizedDate)
-    );
-    if (alreadyTaken) {
-      return NextResponse.json({ error: 'This slot is already taken for this date' }, { status: 409 });
-    }
-
-    const id = Date.now();
-    const newRes = {
-      id,
-      announcementId: body.announcementId,
-      slotIndex: body.slotIndex,
-      userId: body.userId,
-      date: normalizedDate,
-      status: "to_pay" as const,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    existing.push(newRes);
-
-    const out = { reservations: existing };
-    await fs.writeFile(filePath, JSON.stringify(out, null, 2), 'utf8');
-
-    return NextResponse.json({ ok: true, reservation: newRes });
-  } catch (err) {
-    console.error('Error saving reservation', err);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
-  }
-}
-
-export async function GET(req: Request) {
-  try {
+    const db = await getDb();
     const url = new URL(req.url);
     const announcementId = url.searchParams.get('announcementId');
     const slotIndexParam = url.searchParams.get('slotIndex');
     const userId = url.searchParams.get('userId');
     const dateParam = url.searchParams.get('date');
 
-    const dataDir = path.join(process.cwd(), 'data');
-    const filePath = path.join(dataDir, 'reservations.json');
-    let existing: any[] = [];
-    try {
-      const content = await fs.readFile(filePath, 'utf8');
-      existing = JSON.parse(content)?.reservations ?? [];
-    } catch (e) {
-      existing = [];
+    // Build query filter
+    const filter: any = {};
+
+    if (announcementId) {
+      filter.announcementId = Number(announcementId);
+    }
+    if (slotIndexParam) {
+      filter.slotIndex = Number(slotIndexParam);
+    }
+    if (userId) {
+      filter.userId = Number(userId);
+    }
+    if (dateParam) {
+      const normalizedDate = String(dateParam).match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+      if (normalizedDate) {
+        filter.date = normalizedDate;
+      }
     }
 
+    // Get all reservations matching the filter
+    let reservations = await db.collection('reservations').find(filter).toArray();
+
+    console.log("reservations", reservations);
+
     // Check and update reservations with status "reserved" that are past their date and time
-    let hasUpdates = false;
     const now = new Date();
-    
+    let hasUpdates = false;
+
     try {
       // Load announcements to get slot information
-      const annPath = path.join(dataDir, 'announcements.json');
-      let announcements: any[] = [];
-      try {
-        const annContent = await fs.readFile(annPath, 'utf8');
-        const parsedAnn = JSON.parse(annContent);
-        announcements = Array.isArray(parsedAnn?.announcements) 
-          ? parsedAnn.announcements 
-          : Array.isArray(parsedAnn) 
-          ? parsedAnn 
-          : [];
-      } catch (e) {
-        // If we can't load announcements, we'll skip the time check and only check dates
-      }
+      const announcements = await db.collection('announcements').find({}).toArray();
 
-      for (let i = 0; i < existing.length; i++) {
-        const reservation = existing[i];
-        
+      for (let i = 0; i < reservations.length; i++) {
+        const reservation = reservations[i];
+
         // Only check reservations with status "reserved"
         if (reservation.status !== 'reserved') continue;
-        
+
         if (!reservation.date) continue;
 
         // Parse reservation date (YYYY-MM-DD)
@@ -165,11 +120,17 @@ export async function GET(req: Request) {
         // Check if reservation date is in the past
         if (reservationDateOnly < todayDateOnly) {
           // Date is in the past, update status to "to_evaluate"
-          existing[i] = {
-            ...reservation,
-            status: 'to_evaluate',
-            updatedAt: new Date().toISOString(),
-          };
+          await db.collection('reservations').updateOne(
+            { id: reservation.id },
+            {
+              $set: {
+                status: 'to_evaluate',
+                updatedAt: new Date().toISOString(),
+              },
+            }
+          );
+          reservations[i].status = 'to_evaluate';
+          reservations[i].updatedAt = new Date().toISOString();
           hasUpdates = true;
         } else if (reservationDateOnly.getTime() === todayDateOnly.getTime()) {
           // Same date, check if the slot end time has passed
@@ -177,10 +138,10 @@ export async function GET(req: Request) {
             const announcement = announcements.find(
               (a: any) => String(a.id) === String(reservation.announcementId)
             );
-            
+
             if (announcement && announcement.slots && Array.isArray(announcement.slots)) {
               const slot = announcement.slots[reservation.slotIndex];
-              
+
               if (slot && slot.end) {
                 // Parse slot end time
                 let slotEndTime: Date;
@@ -209,91 +170,252 @@ export async function GET(req: Request) {
                       minutes || 0
                     ));
                   }
-                  
+
                   // Check if slot end time has passed
                   if (slotEndTime < now) {
-                    existing[i] = {
-                      ...reservation,
-                      status: 'to_evaluate',
-                      updatedAt: new Date().toISOString(),
-                    };
+                    await db.collection('reservations').updateOne(
+                      { id: reservation.id },
+                      {
+                        $set: {
+                          status: 'to_evaluate',
+                          updatedAt: new Date().toISOString(),
+                        },
+                      }
+                    );
+                    reservations[i].status = 'to_evaluate';
+                    reservations[i].updatedAt = new Date().toISOString();
                     hasUpdates = true;
                   }
                 }
               }
             }
           } catch (e) {
-            // If we can't parse the slot time, just check the date
-            // (already handled above)
             console.warn('Error parsing slot time for reservation', reservation.id, e);
           }
         }
       }
-
-      // Save updates if any were made
-      if (hasUpdates) {
-        const out = { reservations: existing };
-        await fs.writeFile(filePath, JSON.stringify(out, null, 2), 'utf8');
-      }
     } catch (err) {
-      // Log error but don't fail the request
       console.error('Error updating reservation statuses:', err);
     }
 
-    // normalize date if provided
-    const normalizedDate = dateParam ? String(dateParam).match(/^\d{4}-\d{2}-\d{2}/)?.[0] : null;
+    // Remove MongoDB _id from each reservation
+    const reservationsWithoutId = reservations.map(({ _id, ...reservation }) => reservation);
 
-    const slotIndex = slotIndexParam ? Number(slotIndexParam) : undefined;
-
-    const matches = existing.filter((r: any) => {
-      if (announcementId && String(r.announcementId) !== String(announcementId)) return false;
-      if (typeof slotIndex !== 'undefined' && Number(r.slotIndex) !== Number(slotIndex)) return false;
-      if (userId && String(r.userId) !== String(userId)) return false;
-      if (normalizedDate && String(r.date) !== String(normalizedDate)) return false;
-      return true;
+    return NextResponse.json({
+      ok: true,
+      count: reservationsWithoutId.length,
+      reservations: reservationsWithoutId,
+      exists: reservationsWithoutId.length > 0,
     });
-
-    return NextResponse.json({ ok: true, count: matches.length, reservations: matches, exists: matches.length > 0 });
   } catch (err) {
     console.error('Error reading reservations', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
 
-export async function PUT(req: Request) {
+/**
+ * @swagger
+ * /api/reservations:
+ *   post:
+ *     tags:
+ *       - Reservations
+ *     summary: Create a new reservation
+ *     description: Create a new reservation for an announcement
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - announcementId
+ *               - slotIndex
+ *               - userId
+ *               - date
+ *             properties:
+ *               announcementId:
+ *                 type: number
+ *               slotIndex:
+ *                 type: number
+ *               userId:
+ *                 type: number
+ *               date:
+ *                 type: string
+ *                 format: date
+ *     responses:
+ *       200:
+ *         description: Reservation created successfully
+ *       400:
+ *         description: Invalid payload
+ *       500:
+ *         description: Server error
+ */
+export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as { id: number | string; status: "to_pay" | "reserved" | "to_evaluate" | "completed" };
+    const { user, error } = await requireAuth(req);
+
+    if (!user) {
+      return NextResponse.json(
+        { ok: false, error: error || 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const body = (await req.json()) as ReservationBody;
+    if (!body || !body.announcementId || typeof body.slotIndex !== 'number' || !body.userId || !body.date) {
+      return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+    }
+
+    const db = await getDb();
+
+    // Normalize date to YYYY-MM-DD
+    const incomingDate = String(body.date);
+    const dateMatch = incomingDate.match(/^\d{4}-\d{2}-\d{2}/);
+    if (!dateMatch) {
+      return NextResponse.json({ error: 'Invalid date format' }, { status: 400 });
+    }
+    const normalizedDate = dateMatch[0];
+
+    // Don't allow past dates
+    const now = new Date();
+    const picked = new Date(normalizedDate + 'T00:00:00Z');
+    if (picked < new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))) {
+      return NextResponse.json({ error: 'Date cannot be in the past' }, { status: 400 });
+    }
+
+    // Prevent the author from reserving their own announcement
+    const announcement = await db.collection('announcements').findOne({
+      id: Number(body.announcementId),
+    });
+
+    if (announcement && Number(announcement.userId) === Number(body.userId)) {
+      return NextResponse.json({ error: 'Cannot reserve your own announcement' }, { status: 403 });
+    }
+
+    // Check for duplicate reservation
+    const existingDuplicate = await db.collection('reservations').findOne({
+      announcementId: Number(body.announcementId),
+      slotIndex: Number(body.slotIndex),
+      userId: Number(body.userId),
+      date: normalizedDate,
+    });
+
+    if (existingDuplicate) {
+      return NextResponse.json({ error: 'Duplicate reservation' }, { status: 409 });
+    }
+
+    // Check if slot is already taken
+    const alreadyTaken = await db.collection('reservations').findOne({
+      announcementId: Number(body.announcementId),
+      slotIndex: Number(body.slotIndex),
+      date: normalizedDate,
+    });
+
+    if (alreadyTaken) {
+      return NextResponse.json({ error: 'This slot is already taken for this date' }, { status: 409 });
+    }
+
+    // Create new reservation
+    const newReservation = {
+      id: Date.now(),
+      announcementId: Number(body.announcementId),
+      slotIndex: Number(body.slotIndex),
+      userId: Number(body.userId),
+      date: normalizedDate,
+      status: 'to_pay' as const,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await db.collection('reservations').insertOne(newReservation);
+
+    return NextResponse.json({ ok: true, reservation: newReservation });
+  } catch (err) {
+    console.error('Error saving reservation', err);
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
+}
+
+/**
+ * @swagger
+ * /api/reservations:
+ *   put:
+ *     tags:
+ *       - Reservations
+ *     summary: Update reservation status
+ *     description: Update the status of a reservation
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - id
+ *               - status
+ *             properties:
+ *               id:
+ *                 type: number
+ *               status:
+ *                 type: string
+ *                 enum: [to_pay, reserved, to_evaluate, completed]
+ *     responses:
+ *       200:
+ *         description: Reservation updated successfully
+ *       400:
+ *         description: Invalid payload
+ *       404:
+ *         description: Reservation not found
+ *       500:
+ *         description: Server error
+ */
+export async function PUT(req: NextRequest) {
+  try {
+    const { user, error } = await requireAuth(req);
+
+    if (!user) {
+      return NextResponse.json(
+        { ok: false, error: error || 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const body = (await req.json()) as {
+      id: number | string;
+      status: 'to_pay' | 'reserved' | 'to_evaluate' | 'completed';
+    };
+
     if (!body || !body.id || !body.status) {
       return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
     }
 
-    const dataDir = path.join(process.cwd(), 'data');
-    const filePath = path.join(dataDir, 'reservations.json');
+    const db = await getDb();
 
-    let existing: any[] = [];
-    try {
-      const content = await fs.readFile(filePath, 'utf8');
-      existing = JSON.parse(content)?.reservations ?? [];
-    } catch (e) {
-      return NextResponse.json({ error: 'Reservations file not found' }, { status: 404 });
-    }
+    const reservation = await db.collection('reservations').findOne({ id: Number(body.id) });
 
-    const index = existing.findIndex((r: any) => String(r.id) === String(body.id));
-    if (index === -1) {
+    if (!reservation) {
       return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });
     }
 
     // Update reservation status
-    existing[index] = {
-      ...existing[index],
-      status: body.status,
-      updatedAt: new Date().toISOString(),
-    };
+    await db.collection('reservations').updateOne(
+      { id: Number(body.id) },
+      {
+        $set: {
+          status: body.status,
+          updatedAt: new Date().toISOString(),
+        },
+      }
+    );
 
-    const out = { reservations: existing };
-    await fs.writeFile(filePath, JSON.stringify(out, null, 2), 'utf8');
+    const updatedReservation = await db.collection('reservations').findOne({ id: Number(body.id) });
+    const { _id, ...reservationWithoutId } = updatedReservation!;
 
-    return NextResponse.json({ ok: true, reservation: existing[index] });
+    return NextResponse.json({ ok: true, reservation: reservationWithoutId });
   } catch (err) {
     console.error('Error updating reservation', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

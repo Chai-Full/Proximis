@@ -5,8 +5,8 @@ import { useContent } from '../ContentContext';
 import './index.css';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
-import usersData from '../../../data/users.json';
-import announcementsData from '../../../data/announcements.json';
+import { fetchWithAuth } from '../lib/auth';
+import { Skeleton } from '../components/Skeleton';
 
 dayjs.locale('fr');
 
@@ -59,9 +59,10 @@ function MessageListItem({ item }: MessageListItemProps) {
 
 export default function MessageContent() {
   const { setHeaderTitle, setCurrentPage, setSelectedConversationId, history, currentUserId } = useContent();
-  const [activeTab, setActiveTab] = React.useState<'all' | 'in_progress'>('all');
   const [conversations, setConversations] = React.useState<MessageListItem[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [users, setUsers] = React.useState<any[]>([]);
+  const [announcements, setAnnouncements] = React.useState<any[]>([]);
 
   React.useEffect(() => {
     setHeaderTitle && setHeaderTitle('Messages');
@@ -82,6 +83,59 @@ export default function MessageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
 
+  // Load users and announcements from MongoDB
+  React.useEffect(() => {
+    if (!currentUserId) return;
+
+    let cancelled = false;
+
+    const loadData = async () => {
+      try {
+        // Load users
+        const usersRes = await fetchWithAuth('/api/users');
+        if (usersRes.ok) {
+          const usersData = await usersRes.json();
+          if (usersData?.users && Array.isArray(usersData.users)) {
+            if (!cancelled) setUsers(usersData.users);
+          }
+        }
+
+        // Load announcements
+        const announcementsRes = await fetchWithAuth('/api/annonces?page=1&limit=1000');
+        if (announcementsRes.ok) {
+          const announcementsData = await announcementsRes.json();
+          if (announcementsData?.success && announcementsData?.data?.annonces) {
+            const transformed = announcementsData.data.annonces.map((a: any) => ({
+              id: a.idAnnonce,
+              title: a.nomAnnonce,
+              category: a.typeAnnonce,
+              scope: a.lieuAnnonce,
+              price: a.prixAnnonce,
+              description: a.descAnnonce,
+              userId: a.userCreateur?.idUser,
+              createdAt: a.datePublication,
+              photo: a.photos?.[0]?.urlPhoto,
+              slots: a.creneaux?.map((c: any) => ({
+                start: c.dateDebut,
+                end: c.dateFin,
+                estReserve: c.estReserve,
+              })) || [],
+            }));
+            if (!cancelled) setAnnouncements(transformed);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading data', error);
+      }
+    };
+
+    loadData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserId]);
+
   // Load conversations from API
   React.useEffect(() => {
     if (!currentUserId) {
@@ -94,7 +148,7 @@ export default function MessageContent() {
         const params = new URLSearchParams({
           userId: String(currentUserId),
         });
-        const res = await fetch(`/api/messages?${params.toString()}`);
+        const res = await fetchWithAuth(`/api/conversations?${params.toString()}`);
         const data = await res.json();
 
         console.log('Messages API Response:', { 
@@ -112,16 +166,19 @@ export default function MessageContent() {
           && Array.isArray(data.messages);
 
         if (hasValidData) {
-          const users = (usersData as any).users ?? [];
-          const announcements = Array.isArray(announcementsData) ? announcementsData : [];
 
           // Transform conversations to MessageListItem format
           const transformedConversations: MessageListItem[] = data.conversations.map((conv: any) => {
             // Find the other user (not the current user)
-            const otherUserId = String(conv.fromUserId) === String(currentUserId) 
-              ? conv.toUserId 
-              : conv.fromUserId;
-            const otherUser = users.find((u: any) => String(u.id) === String(otherUserId));
+            // Convert to numbers for comparison since MongoDB stores them as numbers
+            const convFromUserId = typeof conv.fromUserId === 'number' ? conv.fromUserId : Number(conv.fromUserId);
+            const convToUserId = typeof conv.toUserId === 'number' ? conv.toUserId : Number(conv.toUserId);
+            const currentUserIdNum = Number(currentUserId);
+            
+            const otherUserId = convFromUserId === currentUserIdNum 
+              ? convToUserId 
+              : convFromUserId;
+            const otherUser = users.find((u: any) => Number(u.id) === Number(otherUserId));
 
             // Get user name and avatar
             const userName = otherUser 
@@ -130,7 +187,9 @@ export default function MessageContent() {
             const userAvatar = otherUser?.photo || '/photo1.svg';
 
             // Get announcement title for subtitle
-            const announcement = announcements.find((a: any) => String(a.id) === String(conv.announcementId));
+            // Convert to numbers for comparison since MongoDB stores them as numbers
+            const convAnnouncementId = typeof conv.announcementId === 'number' ? conv.announcementId : Number(conv.announcementId);
+            const announcement = announcements.find((a: any) => Number(a.id) === convAnnouncementId);
             const announcementTitle = announcement?.title || 'Annonce';
 
             // Get last message
@@ -160,9 +219,10 @@ export default function MessageContent() {
             }
 
             // Count unread messages (messages not read and from other user)
-            const unreadCount = conversationMessages.filter((m: any) => 
-              !m.read && String(m.fromUserId) !== String(currentUserId)
-            ).length;
+            const unreadCount = conversationMessages.filter((m: any) => {
+              const mFromUserId = typeof m.fromUserId === 'number' ? m.fromUserId : Number(m.fromUserId);
+              return !m.read && mFromUserId !== currentUserIdNum;
+            }).length;
 
             // Determine status based on reservation if exists
             // For now, we'll use 'in_progress' if there are unread messages, 'done' otherwise
@@ -209,40 +269,31 @@ export default function MessageContent() {
     };
 
     loadConversations();
-  }, [currentUserId]);
-
-  const filteredMessages = React.useMemo(
-    () => (activeTab === 'in_progress' ? conversations.filter((m) => m.status === 'in_progress') : conversations),
-    [activeTab, conversations],
-  );
+  }, [currentUserId, users, announcements]);
 
   return (
     <div className="messagePage">
-      <div className="messageTabs">
-        
-        <button
-          className={`messageTab ${activeTab === 'all' ? 'active' : ''}`}
-          type="button"
-          onClick={() => setActiveTab('all')}
-        >
-          Tous
-        </button>
-        <button
-          className={`messageTab ${activeTab === 'in_progress' ? 'active' : ''}`}
-          type="button"
-          onClick={() => setActiveTab('in_progress')}
-        >
-          En cours
-        </button>
-      </div>
-
       <div className="messageList">
         {loading ? (
-          <div style={{ padding: 16, textAlign: "center" }}>Chargement...</div>
-        ) : filteredMessages.length === 0 ? (
+          <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} style={{ display: 'flex', gap: '12px', padding: '12px', borderRadius: '8px' }}>
+                <Skeleton variant="circular" width={50} height={50} />
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Skeleton variant="text" width="40%" height={18} />
+                    <Skeleton variant="text" width={60} height={14} />
+                  </div>
+                  <Skeleton variant="text" width="70%" height={14} />
+                  <Skeleton variant="text" width="90%" height={14} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : conversations.length === 0 ? (
           <div style={{ padding: 16, textAlign: "center" }}>Aucune conversation</div>
         ) : (
-          filteredMessages.map((item) => (
+          conversations.map((item) => (
             <div
               key={item.id}
               role="button"

@@ -6,9 +6,7 @@ import { TextField, Button } from '@mui/material';
 import StarIcon from '@mui/icons-material/Star';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import Notification from '../components/Notification';
-import announcementsData from '../../../data/announcements.json';
-import usersData from '../../../data/users.json';
-import reservationsData from '../../../data/reservations.json';
+import { fetchWithAuth } from '../lib/auth';
 import './index.css';
 
 export default function EvaluateContent() {
@@ -157,7 +155,7 @@ export default function EvaluateContent() {
 
     try {
       // Submit evaluation
-      const response = await fetch('/api/evaluations', {
+      const response = await fetchWithAuth('/api/evaluations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

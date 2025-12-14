@@ -5,45 +5,52 @@ import React, { useState } from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { Inputs } from "./types/Input";
 import Link from "next/link";
-// Firebase sign-in removed — use local users.json lookup instead
-import usersData from '../data/users.json';
 import "./index.css";
 import Image from "next/image";
-// Backdrop/CircularProgress removed (not used)
-
 
 export default function Home() {
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors },
   } = useForm<Inputs>();
   const [loading, setLoading] = useState(false);
-  const onSubmit: SubmitHandler<Inputs> = async (data) => {
-    setLoading(true);
-    // Rendre `onSubmit` async si ce n'est pas déjà le cas
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    const users = (usersData as any).users ?? [];
-    const found = users.find((u: any) => typeof u.email === 'string' && u.email.toLowerCase() === (data.email || '').toLowerCase());
-    if (found) {
-      try {
-        localStorage.setItem('proximis_userId', String(found.id));
-      } catch (e) {
-        // ignore
-      }
-      // navigate to home (or any landing page)
-      window.location.href = '/home';
-    } else {
-      setMessage('Compte introuvable');
-    }
-    setLoading(false);
-  };
-  console.log(watch("email"))
-
   const [message, setMessage] = useState("");
 
-  // Firebase magic-link removed — login is handled by checking data/users.json
+  const onSubmit: SubmitHandler<Inputs> = async (data) => {
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: data.email }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.ok && result.user && result.token) {
+        try {
+          localStorage.setItem('proximis_userId', String(result.user.id));
+          localStorage.setItem('proximis_token', result.token);
+        } catch (e) {
+          // ignore
+        }
+        // Navigate to home
+        window.location.href = '/home';
+      } else {
+        setMessage(result.error || 'Compte introuvable');
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setMessage('Erreur de connexion');
+    } finally {
+      setLoading(false);
+    }
+  };
   
   return (
     <div className="connexionContainer">
@@ -56,6 +63,17 @@ export default function Home() {
             <TextField size="medium" fullWidth variant="filled"  type="email" {...register("email", {required: true})} error={!!errors.email} helperText={errors.email ? "Ce champ est obligatoire" : ""} sx={{ mb: 2 }} />
           </div>
           
+          {message && (
+            <div style={{ 
+              color: '#d32f2f', 
+              fontSize: '14px', 
+              marginBottom: '16px',
+              textAlign: 'center'
+            }}>
+              {message}
+            </div>
+          )}
+
           <Button fullWidth variant="contained" type="submit" sx={{
             height: "56px",
             textTransform: "none",
@@ -64,14 +82,7 @@ export default function Home() {
             borderRadius: "12px",
           }}
           disabled={loading}
-          >Connexion</Button>
-
-          {/* <Backdrop
-            sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
-            open={loading}
-          >
-            <CircularProgress color="inherit" />
-          </Backdrop> */}
+          >{loading ? 'Connexion...' : 'Connexion'}</Button>
           
           <Link href="/register" style={{ display: 'block', marginTop: '16px', textAlign: 'center', color: '#1976d2', textDecoration: 'none', }}>
             Pas encore de compte ?
