@@ -62,42 +62,54 @@ export default function EvaluateContent() {
 
         setReservation(foundReservation);
 
-        // Find announcement
-        const announcements = Array.isArray(announcementsData) ? announcementsData : [];
-        const foundAnnouncement = announcements.find(
-          (a: any) => String(a.id) === String(foundReservation.announcementId)
-        );
+        // Find announcement from API
+        try {
+          const announcementsRes = await fetchWithAuth(`/api/annonces?page=1&limit=1000`);
+          if (announcementsRes.ok) {
+            const announcementsData = await announcementsRes.json();
+            const announcements = announcementsData?.data?.annonces || announcementsData?.annonces || [];
+            const foundAnnouncement = announcements.find(
+              (a: any) => String(a.id) === String(foundReservation.announcementId)
+            );
 
-        if (!foundAnnouncement) {
-          setNotification({
-            open: true,
-            message: 'Annonce introuvable',
-            severity: 'error'
-          });
-          return;
-        }
+            if (!foundAnnouncement) {
+              setNotification({
+                open: true,
+                message: 'Annonce introuvable',
+                severity: 'error'
+              });
+              return;
+            }
 
-        setAnnouncement(foundAnnouncement);
+            setAnnouncement(foundAnnouncement);
 
-        // Get provider name (owner of the announcement)
-        const users = (usersData as any).users ?? [];
-        const provider = users.find((u: any) => String(u.id) === String(foundAnnouncement.userId));
-        
-        if (provider) {
-          const prenom = provider.prenom || '';
-          const nom = provider.nom || '';
-          const name = `${prenom} ${nom}`.trim() || provider.name || 'Prestataire';
-          setProviderName(name);
-          
-          // Set header title with provider name
-          if (setHeaderTitle) {
-            setHeaderTitle(`Evaluer ${name.split(' ')[0] || name}`);
+            // Get provider name (owner of the announcement)
+            const usersRes = await fetchWithAuth('/api/users');
+            if (usersRes.ok) {
+              const usersData = await usersRes.json();
+              const users = usersData?.users || [];
+              const provider = users.find((u: any) => String(u.id) === String(foundAnnouncement.userId));
+              
+              if (provider) {
+                const prenom = provider.prenom || '';
+                const nom = provider.nom || '';
+                const name = `${prenom} ${nom}`.trim() || provider.name || 'Prestataire';
+                setProviderName(name);
+                
+                // Set header title with provider name
+                if (setHeaderTitle) {
+                  setHeaderTitle(`Evaluer ${name.split(' ')[0] || name}`);
+                }
+              } else {
+                setProviderName('Prestataire');
+                if (setHeaderTitle) {
+                  setHeaderTitle('Evaluer');
+                }
+              }
+            }
           }
-        } else {
-          setProviderName('Prestataire');
-          if (setHeaderTitle) {
-            setHeaderTitle('Evaluer');
-          }
+        } catch (error) {
+          console.error('Error loading announcements:', error);
         }
       } catch (error) {
         console.error('Error loading reservation data:', error);

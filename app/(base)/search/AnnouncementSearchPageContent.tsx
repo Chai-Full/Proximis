@@ -9,7 +9,7 @@ import Paper from '@mui/material/Paper';
 import InputBase from '@mui/material/InputBase';
 import IconButton from '@mui/material/IconButton';
 import announcements from '../../../data/announcements.json';
-import AnnouncementCard from '../announcement/AnnouncementCard';
+import AnnouncementCard from '../announcement/announcementCard';
 import MapOutlined from '@mui/icons-material/MapOutlined';
 
 

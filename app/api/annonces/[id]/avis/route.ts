@@ -67,15 +67,15 @@ export async function GET(
 
     // Enrich with user data
     const avis = await Promise.all(
-      evaluations.map(async (eval: any) => {
-        const evalUser = await db.collection('users').findOne({ id: Number(eval.userId) });
-        const { _id: evalUserId, ...evalUserData } = evalUser || {};
+      evaluations.map(async (evaluation: any) => {
+        const evalUser = await db.collection('users').findOne({ id: Number(evaluation.userId) });
+        const evalUserData: any = evalUser ? { ...evalUser } : null;
         return {
-          idAvis: eval.id,
-          noteAvis: eval.rating,
-          commentaire: eval.comment,
-          dateAvis: eval.createdAt,
-          user: evalUser
+          idAvis: evaluation.id,
+          noteAvis: evaluation.rating,
+          commentaire: evaluation.comment,
+          dateAvis: evaluation.createdAt,
+          user: evalUserData
             ? {
                 idUser: evalUserData.id,
                 nomUser: evalUserData.nom,
@@ -246,14 +246,14 @@ export async function POST(
 
     // Get user data for response
     const userDoc = await db.collection('users').findOne({ id: user.userId });
-    const { _id: userId, ...userData } = userDoc || {};
+    const userData: any = userDoc ? { ...userDoc } : null;
 
     const avis = {
       idAvis: newEvaluation.id,
       noteAvis: newEvaluation.rating,
       commentaire: newEvaluation.comment,
       dateAvis: newEvaluation.createdAt,
-      user: userDoc
+      user: userData
         ? {
             idUser: userData.id,
             nomUser: userData.nom,
