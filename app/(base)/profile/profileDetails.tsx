@@ -46,18 +46,23 @@ export default function ProfileDetails() {
 
     const loadData = async () => {
       try {
-        // Load users
-        const usersRes = await fetchWithAuth('/api/users');
-        if (usersRes.ok) {
+        // Launch in parallel to reduce total wait time
+        const usersPromise = fetchWithAuth('/api/users');
+        const announcementsPromise = fetchWithAuth('/api/annonces?page=1&limit=1000');
+        const reservationsPromise = currentUserId
+          ? fetchWithAuth(`/api/reservations?userId=${currentUserId}`)
+          : Promise.resolve(null as Response | null);
+
+        const [usersRes, announcementsRes, reservationsRes] = await Promise.all([usersPromise, announcementsPromise, reservationsPromise]);
+
+        if (usersRes && usersRes.ok) {
           const usersData = await usersRes.json();
           if (usersData?.users && Array.isArray(usersData.users)) {
             if (!cancelled) setUsers(usersData.users);
           }
         }
 
-        // Load announcements
-        const announcementsRes = await fetchWithAuth('/api/annonces?page=1&limit=1000');
-        if (announcementsRes.ok) {
+        if (announcementsRes && announcementsRes.ok) {
           const announcementsData = await announcementsRes.json();
           if (announcementsData?.success && announcementsData?.data?.annonces) {
             const transformed = announcementsData.data.annonces.map((a: any) => ({
@@ -81,14 +86,10 @@ export default function ProfileDetails() {
           }
         }
 
-        // Load reservations
-        if (currentUserId) {
-          const reservationsRes = await fetchWithAuth(`/api/reservations?userId=${currentUserId}`);
-          if (reservationsRes.ok) {
-            const reservationsData = await reservationsRes.json();
-            if (reservationsData?.reservations && Array.isArray(reservationsData.reservations)) {
-              if (!cancelled) setReservations(reservationsData.reservations);
-            }
+        if (reservationsRes && reservationsRes.ok) {
+          const reservationsData = await reservationsRes.json();
+          if (reservationsData?.reservations && Array.isArray(reservationsData.reservations)) {
+            if (!cancelled) setReservations(reservationsData.reservations);
           }
         }
       } catch (error) {
@@ -187,23 +188,25 @@ export default function ProfileDetails() {
     const loadReviewsStats = async () => {
       try {
         // Load evaluations for all user's announcements
-        const allEvaluations: any[] = [];
-        
-        for (const announcement of userAnnouncements) {
-          try {
-            const params = new URLSearchParams({
-              announcementId: String(announcement.id),
-            });
-            const res = await fetchWithAuth(`/api/evaluations?${params.toString()}`);
-            const data = await res.json();
-            
-            if (res.ok && data?.evaluations && Array.isArray(data.evaluations)) {
-              allEvaluations.push(...data.evaluations);
+        const evalResults = await Promise.all(
+          userAnnouncements.map(async (announcement) => {
+            try {
+              const params = new URLSearchParams({
+                announcementId: String(announcement.id),
+              });
+              const res = await fetchWithAuth(`/api/evaluations?${params.toString()}`);
+              const data = await res.json();
+              if (res.ok && data?.evaluations && Array.isArray(data.evaluations)) {
+                return data.evaluations;
+              }
+            } catch (e) {
+              console.error(`Error loading evaluations for announcement ${announcement.id}`, e);
             }
-          } catch (e) {
-            console.error(`Error loading evaluations for announcement ${announcement.id}`, e);
-          }
-        }
+            return [] as any[];
+          })
+        );
+
+        const allEvaluations: any[] = evalResults.flat();
 
         if (cancelled) return;
 
