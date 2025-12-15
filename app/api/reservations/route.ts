@@ -59,6 +59,7 @@ export async function GET(req: NextRequest) {
 
     const db = await getDb();
     const url = new URL(req.url);
+    const idParam = url.searchParams.get('id');
     const announcementId = url.searchParams.get('announcementId');
     const slotIndexParam = url.searchParams.get('slotIndex');
     const userId = url.searchParams.get('userId');
@@ -67,6 +68,9 @@ export async function GET(req: NextRequest) {
     // Build query filter
     const filter: any = {};
 
+    if (idParam) {
+      filter.id = Number(idParam);
+    }
     if (announcementId) {
       filter.announcementId = Number(announcementId);
     }

@@ -6,8 +6,7 @@ import StarIcon from '@mui/icons-material/Star';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import usersData from '../../../data/users.json';
-import announcementsData from '../../../data/announcements.json';
+import { fetchWithAuth } from '../lib/auth';
 import './index.css';
 
 dayjs.locale('fr');
@@ -36,6 +35,7 @@ export default function ReviewsContent() {
   const [loading, setLoading] = useState(true);
   const [providerName, setProviderName] = useState<string>('');
   const [announcementCategory, setAnnouncementCategory] = useState<string>('');
+  const [usersData, setUsersData] = useState<any>({ users: [] });
 
   useEffect(() => {
     if (!selectedAnnouncementId) {
@@ -47,11 +47,11 @@ export default function ReviewsContent() {
       try {
         setLoading(true);
         
-        // Load evaluations for this announcement
+        // Load evaluations for this announcement (authenticated)
         const params = new URLSearchParams({
           announcementId: String(selectedAnnouncementId),
         });
-        const res = await fetch(`/api/evaluations?${params.toString()}`);
+        const res = await fetchWithAuth(`/api/evaluations?${params.toString()}`);
         const data = await res.json();
 
         if (res.ok && data?.evaluations && Array.isArray(data.evaluations)) {
@@ -61,21 +61,31 @@ export default function ReviewsContent() {
           );
           setEvaluations(sorted);
 
-          // Get provider name from announcement
-          const announcements = Array.isArray(announcementsData) ? announcementsData : [];
-          
-          const announcement = announcements.find(
-            (a: any) => String(a.id) === String(selectedAnnouncementId)
-          );
+          // Get provider name and category from API announcements
+          const annRes = await fetchWithAuth('/api/annonces?page=1&limit=1000');
+          let announcement: any = null;
+          let announcements: any[] = [];
+          if (annRes.ok) {
+            const annData = await annRes.json();
+            announcements = annData?.data?.annonces || annData?.annonces || [];
+            // Try multiple field names for ID
+            announcement = announcements.find(
+              (a: any) => String(a.id) === String(selectedAnnouncementId)
+                || String(a.idAnnonce) === String(selectedAnnouncementId)
+                || String(a._id) === String(selectedAnnouncementId)
+            );
+          }
           
           if (announcement) {
             // Set announcement category
             setAnnouncementCategory(announcement.category || '');
             
-            const users = (usersData as any).users ?? [];
-            const provider = users.find(
-              (u: any) => String(u.id) === String(announcement.userId)
-            );
+            // Load users from API to resolve provider name
+            const usersRes = await fetchWithAuth('/api/users');
+            const usersJson = usersRes.ok ? await usersRes.json() : { users: [] };
+            const users = usersJson?.users || [];
+            setUsersData(usersJson); // Store users data for getUsername function
+            const provider = users.find((u: any) => String(u.id) === String(announcement.userId));
             
             if (provider) {
               const prenom = provider.prenom || '';

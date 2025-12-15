@@ -8,68 +8,131 @@ import Notification from '../components/Notification';
 import './index.css';
 
 function Reservation() {
-  const { reservationDraft, setReservationDraft, setCurrentPage, setHeaderTitle, currentUserId, goBack, setSelectedConversationId, history, selectedAnnouncementId, setSelectedAnnouncementId } = useContent();
-  const [announcements, setAnnouncements] = React.useState<any[]>([]);
+  const { selectedReservationId, setSelectedReservationId, setCurrentPage, setHeaderTitle, currentUserId, goBack, setSelectedConversationId, history } = useContent();
+  const [reservation, setReservation] = React.useState<any>(null);
+  const [announcement, setAnnouncement] = React.useState<any>(null);
+  const [author, setAuthor] = React.useState<any>(null);
   const [users, setUsers] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState<boolean>(true);
 
   React.useEffect(() => {
     setHeaderTitle && setHeaderTitle('Paiement');
-    console.log("connected user id : ", currentUserId);
-    
-    // Ensure we have history - if coming from announce_details, add it to history if not present
-    // Only fix history once on mount to avoid infinite loops
-    if (history.length === 0 && selectedAnnouncementId) {
-      // If no history but we have a selected announcement, ensure we can go back
-      setCurrentPage && setCurrentPage('reservation', ['announce_details']);
-    }
-    
     return () => setHeaderTitle && setHeaderTitle(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
 
-  // Load announcements and users from MongoDB
+  // Load reservation and related data from MongoDB
   React.useEffect(() => {
-    if (!currentUserId) return;
+    console.log('Reservation page - selectedReservationId:', selectedReservationId);
+    console.log('Reservation page - currentUserId:', currentUserId);
+    
+    if (!selectedReservationId || !currentUserId) {
+      setLoading(false);
+      return;
+    }
 
     let cancelled = false;
+    setLoading(true);
 
     const loadData = async () => {
       try {
-        // Load announcements
-        const announcementsRes = await fetchWithAuth('/api/annonces?page=1&limit=1000');
-        if (announcementsRes.ok) {
-          const announcementsData = await announcementsRes.json();
-          if (announcementsData?.success && announcementsData?.data?.annonces) {
-            const transformed = announcementsData.data.annonces.map((a: any) => ({
-              id: a.idAnnonce,
-              title: a.nomAnnonce,
-              category: a.typeAnnonce,
-              scope: a.lieuAnnonce,
-              price: a.prixAnnonce,
-              description: a.descAnnonce,
-              userId: a.userCreateur?.idUser,
-              createdAt: a.datePublication,
-              photo: a.photos?.[0]?.urlPhoto,
-              slots: a.creneaux?.map((c: any) => ({
-                start: c.dateDebut,
-                end: c.dateFin,
-                estReserve: c.estReserve,
-              })) || [],
-            }));
-            if (!cancelled) setAnnouncements(transformed);
+        // Load the reservation directly by ID (more reliable than filtering all reservations)
+        // Retry logic in case the reservation was just created and isn't immediately available
+        let foundReservation = null;
+        let attempts = 0;
+        const maxAttempts = 3;
+        
+        while (!foundReservation && attempts < maxAttempts && !cancelled) {
+          // Don't filter by userId when searching by id - id should be unique
+          // We'll verify ownership after fetching
+          console.log(`Attempt ${attempts + 1} to load reservation ${selectedReservationId}`);
+          const reservationRes = await fetchWithAuth(`/api/reservations?id=${selectedReservationId}`);
+          console.log('Reservation API response status:', reservationRes.status);
+          if (reservationRes.ok) {
+            const reservationData = await reservationRes.json();
+            console.log('Reservation API data:', reservationData);
+            if (reservationData?.reservations && Array.isArray(reservationData.reservations)) {
+              // Should only return one reservation when filtering by id
+              foundReservation = reservationData.reservations.find(
+                (r: any) => String(r.id) === String(selectedReservationId)
+              ) || reservationData.reservations[0];
+              
+              // Security check: verify that the current user owns this reservation
+              if (foundReservation && currentUserId && String(foundReservation.userId) !== String(currentUserId)) {
+                console.warn('User does not own this reservation');
+                foundReservation = null;
+              }
+            }
           }
+          
+          if (!foundReservation && attempts < maxAttempts - 1) {
+            // Wait a bit before retrying (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, 200 * (attempts + 1)));
+          }
+          attempts++;
         }
+        
+        if (!cancelled && foundReservation) {
+          setReservation(foundReservation);
 
-        // Load users
-        const usersRes = await fetchWithAuth('/api/users');
-        if (usersRes.ok) {
-          const usersData = await usersRes.json();
-          if (usersData?.users && Array.isArray(usersData.users)) {
-            if (!cancelled) setUsers(usersData.users);
+          // Load announcement and users in parallel for better performance
+          const [announcementRes, usersRes] = await Promise.all([
+            fetchWithAuth(`/api/annonces/${foundReservation.announcementId}`),
+            fetchWithAuth('/api/users')
+          ]);
+
+          // Process announcement data
+          if (announcementRes.ok) {
+            const announcementData = await announcementRes.json();
+            console.log('Announcement API response:', announcementData);
+            if (announcementData?.success && announcementData?.data) {
+              const a = announcementData.data;
+              console.log('Announcement userCreateur:', a.userCreateur);
+              const transformed = {
+                id: a.idAnnonce,
+                title: a.nomAnnonce,
+                category: a.typeAnnonce,
+                scope: a.lieuAnnonce,
+                price: a.prixAnnonce,
+                description: a.descAnnonce,
+                userId: a.userCreateur?.idUser,
+                createdAt: a.datePublication,
+                photo: a.photos?.[0]?.urlPhoto,
+                slots: a.creneaux?.map((c: any) => ({
+                  start: c.dateDebut,
+                  end: c.dateFin,
+                  estReserve: c.estReserve,
+                })) || [],
+              };
+              console.log('Transformed announcement userId:', transformed.userId);
+              if (!cancelled) setAnnouncement(transformed);
+
+              // Process users data and find author
+              if (usersRes.ok) {
+                const usersData = await usersRes.json();
+                console.log('Users data count:', usersData?.users?.length);
+                if (usersData?.users && Array.isArray(usersData.users)) {
+                  if (!cancelled) {
+                    setUsers(usersData.users);
+                    const foundAuthor = usersData.users.find((u: any) => Number(u.id) === Number(transformed.userId));
+                    console.log('Looking for author with userId:', transformed.userId, 'Found:', foundAuthor);
+                    if (foundAuthor) {
+                      setAuthor(foundAuthor);
+                    } else {
+                      console.warn('Author not found for userId:', transformed.userId);
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       } catch (error) {
-        console.error('Error loading data', error);
+        console.error('Error loading reservation data', error);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
@@ -78,32 +141,43 @@ function Reservation() {
     return () => {
       cancelled = true;
     };
-  }, [currentUserId]);
+  }, [selectedReservationId, currentUserId]);
 
+  // Redirect to home if no reservation selected
   React.useEffect(() => {
-    console.log('Reservation page - reservationDraft:', reservationDraft);
-    console.log('Reservation page - announcementsList length:', announcements.length);
-  }, [reservationDraft, announcements.length]);
+    if (!selectedReservationId && setCurrentPage) {
+      console.warn('No reservation selected, redirecting to home');
+      setCurrentPage('home');
+    }
+  }, [selectedReservationId, setCurrentPage]);
 
-  if (!reservationDraft) {
-    return <div style={{ padding: 16 }}>Aucune réservation en cours. Retournez à la recherche.</div>;
+  if (loading) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '50vh',
+        padding: 16 
+      }}>
+        Chargement...
+      </div>
+    );
   }
 
-  const announcement = announcements.find((a: any) => String(a.id) === String(reservationDraft.announcementId));
-  const slot = announcement && Array.isArray(announcement.slots) ? announcement.slots[reservationDraft.slotIndex] : null;
-  const author = announcement ? users.find((u: any) => Number(u.id) === Number(announcement.userId)) : null;
+  if (!selectedReservationId || !reservation) {
+    return <div style={{ padding: 16 }}>Aucune réservation trouvée. Retournez à la recherche.</div>;
+  }
+
+  if (!announcement) {
+    return <div style={{ padding: 16 }}>Annonce introuvable.</div>;
+  }
+
+  const slot = announcement.slots && Array.isArray(announcement.slots) && reservation.slotIndex !== undefined 
+    ? announcement.slots[reservation.slotIndex] 
+    : null;
   
-  React.useEffect(() => {
-    console.log('Reservation page - announcement found:', !!announcement);
-    console.log('Reservation page - author found:', !!author);
-  }, [announcement, author]);
-
-  function formatTime(iso?: string | null) {
-    if (!iso) return '--:--';
-    try { return dayjs(iso).format('HH:mm'); } catch { return String(iso); }
-  }
-
-  const formattedDate = slot ? (reservationDraft?.date ? dayjs(reservationDraft.date).format('YYYY.MM.DD') : '--/--/----') : '--/--/----';
+  const formattedDate = reservation?.date ? dayjs(reservation.date).format('YYYY.MM.DD') : '--/--/----';
   
 
   return (
@@ -184,10 +258,9 @@ function Reservation() {
 
       <div style={{ display: 'flex', gap: 8, marginTop: 16, flexDirection: 'column', justifyContent: 'center' }}>
         <PaymentButton
+          reservation={reservation}
           announcement={announcement}
-          reservationDraft={reservationDraft}
-          setReservationDraft={setReservationDraft}
-          goBack={goBack}
+          setSelectedReservationId={setSelectedReservationId}
           currentUserId={currentUserId}
           author={author}
           users={users}
@@ -204,7 +277,7 @@ function Reservation() {
   )
 }
 
-function PaymentButton({ announcement, reservationDraft, setReservationDraft, goBack, currentUserId, author, users, formattedDate, setCurrentPage, setSelectedConversationId }: any) {
+function PaymentButton({ reservation, announcement, setSelectedReservationId, currentUserId, author, users, formattedDate, setCurrentPage, setSelectedConversationId }: any) {
   const [loading, setLoading] = React.useState(false);
   // Use function to initialize state to avoid hydration issues
   const [open, setOpen] = React.useState(() => false);
@@ -212,24 +285,13 @@ function PaymentButton({ announcement, reservationDraft, setReservationDraft, go
   const [severity, setSeverity] = React.useState<'success'|'warning'|'error'|'info'>('info');
 
   async function handlePay() {
-    console.log('test de reser idUser ',  currentUserId);
-    console.log('reservationDraft:', reservationDraft);
-    console.log('announcement:', announcement);
-    console.log('author:', author);
-    
-    if (!reservationDraft || !announcement) {
+    if (!reservation || !announcement) {
       setSeverity('warning');
       setMessage('Aucune réservation à enregistrer.');
       setOpen(true);
       return;
     }
     
-    if (!reservationDraft.date) {
-      setSeverity('warning');
-      setMessage('Date de réservation manquante. Veuillez retourner à la page précédente et sélectionner une date.');
-      setOpen(true);
-      return;
-    }
     if (!currentUserId) {
       setSeverity('warning');
       setMessage('Vous devez être connecté pour effectuer une réservation.');
@@ -239,22 +301,19 @@ function PaymentButton({ announcement, reservationDraft, setReservationDraft, go
 
     setLoading(true);
     try {
-      // First, create the reservation with status "to_pay" (A régler)
-      const res = await fetchWithAuth('/api/reservations', {
-        method: 'POST',
+      // Update reservation status from "to_pay" to "reserved"
+      const updateRes = await fetchWithAuth('/api/reservations', {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ announcementId: reservationDraft.announcementId, slotIndex: reservationDraft.slotIndex, userId: currentUserId, date: reservationDraft.date }),
+        body: JSON.stringify({ id: reservation.id, status: 'reserved' }),
       });
-      const data = await res.json();
-      if (res.ok && data?.ok && data?.reservation) {
-        // After successful creation, update status to "reserved" (payment validated)
-        const updateRes = await fetchWithAuth('/api/reservations', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: data.reservation.id, status: 'reserved' }),
-        });
-        
-        if (updateRes.ok && announcement && author) {
+      
+      const updateData = await updateRes.json();
+      console.log('Update reservation response:', { status: updateRes.status, ok: updateRes.ok, data: updateData });
+      
+      if (updateRes.ok) {
+        // Payment update successful
+        if (announcement) {
           // Get current user name
           const currentUser = users.find((u: any) => String(u.id) === String(currentUserId));
           const currentUserName = currentUser 
@@ -262,18 +321,8 @@ function PaymentButton({ announcement, reservationDraft, setReservationDraft, go
             : "Utilisateur";
           
           // Create message to the announcement owner
-          const authorName = author.prenom || author.nom || "Prestataire";
-          // Format date properly for the message
-          const messageDate = reservationDraft?.date ? dayjs(reservationDraft.date).format('DD/MM/YYYY') : formattedDate;
-          const messageText = `Bonjour ${authorName}, j'ai réservé et payé votre service "${announcement.title}" pour le ${messageDate}.`;
-          
-          console.log('Creating message with:', {
-            fromUserId: currentUserId,
-            toUserId: announcement.userId,
-            announcementId: announcement.id,
-            reservationId: data.reservation.id,
-            initialMessage: messageText,
-          });
+          const authorName = author ? (author.prenom || author.nom || "Prestataire") : "Prestataire";
+          const messageText = `Bonjour ${authorName}, j'ai réservé et payé votre service "${announcement.title}" pour le ${formattedDate}.`;
           
           const messageRes = await fetchWithAuth('/api/conversations', {
             method: 'POST',
@@ -282,80 +331,67 @@ function PaymentButton({ announcement, reservationDraft, setReservationDraft, go
               fromUserId: currentUserId,
               toUserId: announcement.userId,
               announcementId: announcement.id,
-              reservationId: data.reservation.id,
+              reservationId: reservation.id,
               initialMessage: messageText,
             }),
           });
           
           const messageData = await messageRes.json();
-          console.log('Message API response:', { resOk: messageRes.ok, messageData });
+          console.log('Message creation response:', { status: messageRes.status, ok: messageRes.ok, data: messageData });
           
-          if (messageRes.ok && messageData?.ok && messageData?.conversation) {
-            console.log('Message created successfully, conversation ID:', messageData.conversation.id);
-            
-            // Clear reservation draft
-            setReservationDraft && setReservationDraft(null);
-            
-            // Set the conversation ID first
-            setSelectedConversationId && setSelectedConversationId(messageData.conversation.id);
-            
-            // Store in localStorage as fallback
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('proximis_selectedConversationId', messageData.conversation.id);
-            }
+          if (messageRes.ok && messageData?.ok) {
+            // Clear reservation ID
+            setSelectedReservationId && setSelectedReservationId(null);
             
             // Show success message
             setSeverity('success');
-            setMessage('Réservation enregistrée et payée. Redirection vers la conversation...');
+            setMessage('Paiement validé ! Redirection vers vos réservations...');
             setOpen(true);
             
-            // Navigate to chat directly with history [home, messages] so back goes to messages, then home
-            // Use a slightly longer timeout to ensure state updates are complete
+            // Navigate to my_announcements with reservations view, clear history
             setTimeout(() => {
-              console.log('Navigating to chat page with conversation ID:', messageData.conversation.id);
+              if (typeof window !== "undefined") {
+                localStorage.setItem("proximis_myAnnouncements_view", "reservations");
+              }
               if (setCurrentPage) {
-                setCurrentPage('message_chat', ['home', 'messages']);
+                setCurrentPage('my_announcements');
               }
             }, 1500);
           } else {
-            // Message creation failed but reservation is ok
+            // Message creation failed but payment is ok
             console.error('Message creation failed:', messageData);
             setSeverity('warning');
-            setMessage(`Réservation enregistrée et payée. ${messageData?.error ? `Erreur lors de l'envoi du message: ${messageData.error}` : 'Impossible d\'envoyer le message automatique.'}`);
+            setMessage(`Paiement validé. ${messageData?.error ? `Erreur lors de l'envoi du message: ${messageData.error}` : 'Impossible d\'envoyer le message automatique.'}`);
             setOpen(true);
-            setReservationDraft && setReservationDraft(null);
+            setSelectedReservationId && setSelectedReservationId(null);
             setTimeout(() => {
-              goBack && goBack();
+              if (typeof window !== "undefined") {
+                localStorage.setItem("proximis_myAnnouncements_view", "reservations");
+              }
+              if (setCurrentPage) {
+                setCurrentPage('my_announcements');
+              }
             }, 2000);
           }
-        } else if (updateRes.ok) {
-          // Status updated but couldn't create message (missing data)
-          setSeverity('success');
-          setMessage('Réservation enregistrée et payée.');
-          setOpen(true);
-          setReservationDraft && setReservationDraft(null);
-          setTimeout(() => {
-            goBack && goBack();
-          }, 700);
         } else {
-          // Reservation created but status update failed
-          setSeverity('warning');
-          setMessage('Réservation enregistrée mais erreur lors de la mise à jour du statut.');
+          // No announcement data, but payment succeeded
+          setSeverity('success');
+          setMessage('Paiement validé !');
           setOpen(true);
-          setReservationDraft && setReservationDraft(null);
+          setSelectedReservationId && setSelectedReservationId(null);
           setTimeout(() => {
-            goBack && goBack();
-          }, 700);
+            if (typeof window !== "undefined") {
+              localStorage.setItem("proximis_myAnnouncements_view", "reservations");
+            }
+            if (setCurrentPage) {
+              setCurrentPage('my_announcements');
+            }
+          }, 1500);
         }
-      } else if (res.status === 409) {
-        // duplicate reservation
-        setSeverity('warning');
-        setMessage('Vous avez déjà réservé ce créneau.');
-        setOpen(true);
       } else {
-        console.error('Save reservation failed', data);
+        // Payment update failed
         setSeverity('error');
-        setMessage('Impossible d\'enregistrer la réservation. Réessayez.');
+        setMessage('Erreur lors de la mise à jour du statut de paiement.');
         setOpen(true);
       }
     } catch (err) {

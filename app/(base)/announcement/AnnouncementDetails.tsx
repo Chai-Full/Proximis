@@ -5,6 +5,8 @@ import { ChatBubbleOutlineOutlined, CheckBoxOutlined, FmdGoodOutlined, ModeOutli
 import Radio from '@mui/material/Radio';
 import { getDayLabelById } from '@/lib/daylabel';
 import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import 'dayjs/locale/fr';
 import { Button, CircularProgress } from '@mui/material';
 import Notification from '../components/Notification';
 import Star from '@mui/icons-material/Star';
@@ -14,8 +16,12 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { fetchWithAuth } from '../lib/auth';
 import { SkeletonProfile } from '../components/Skeleton';
 
+// Initialize dayjs plugins and locale
+dayjs.extend(relativeTime);
+dayjs.locale('fr');
+
 export default function AnnounceDetails() {
-  const { selectedAnnouncementId, setHeaderTitle, setSelectedProfileId, setCurrentPage, setReservationDraft, currentUserId } = useContent();
+  const { selectedAnnouncementId, setHeaderTitle, setSelectedProfileId, setCurrentPage, currentUserId, setSelectedReservationId } = useContent();
   const [announcement, setAnnouncement] = useState<any>(null);
   const [author, setAuthor] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -329,7 +335,7 @@ export default function AnnounceDetails() {
         </div>
         <div className='publicationTime'>
             <span className='T6'>
-              Publiée il y a 5 min...
+              Publiée {announcement?.createdAt ? dayjs(announcement.createdAt).fromNow() : 'il y a peu de temps'}
             </span>
           </div>
       </div>
@@ -488,10 +494,35 @@ export default function AnnounceDetails() {
                 return;
               }
 
-              // store reservation draft (include ISO date) and navigate to reservation page
-              setReservationDraft && setReservationDraft({ announcementId: announcement.id, slotIndex: idx, date: dayjs(selectedDate).toISOString() });
-              setIsChecking(false);
-              setCurrentPage && setCurrentPage('reservation');
+              // Create reservation directly with status "to_pay"
+              try {
+                const createRes = await fetchWithAuth('/api/reservations', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    announcementId: announcement.id,
+                    slotIndex: idx,
+                    userId: currentUserId,
+                    date: normalizedDate,
+                  }),
+                });
+                const createData = await createRes.json();
+                if (createRes.ok && createData?.ok && createData?.reservation) {
+                  // Store reservation ID and navigate to payment page
+                  if (setSelectedReservationId) {
+                    setSelectedReservationId(createData.reservation.id);
+                  }
+                  setIsChecking(false);
+                  setCurrentPage && setCurrentPage('reservation');
+                } else {
+                  setNotification({ open: true, message: createData?.error || 'Erreur lors de la création de la réservation.', severity: 'error' });
+                  setIsChecking(false);
+                }
+              } catch (err) {
+                console.error('Error creating reservation', err);
+                setNotification({ open: true, message: 'Erreur serveur lors de la création de la réservation.', severity: 'error' });
+                setIsChecking(false);
+              }
             }}
           >
             {isChecking ? 'Vérification...' : 'Réserver'}
