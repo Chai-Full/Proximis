@@ -24,6 +24,8 @@ export default function AnnounceDetails() {
   const { selectedAnnouncementId, setHeaderTitle, setSelectedProfileId, setCurrentPage, currentUserId, setSelectedReservationId } = useContent();
   const [announcement, setAnnouncement] = useState<any>(null);
   const [author, setAuthor] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<any>(dayjs());
@@ -101,16 +103,17 @@ export default function AnnounceDetails() {
               setAnnouncement(transformedAnnouncement);
               
               // Load author user
-              if (ann.userId) {
-                const usersRes = await fetchWithAuth('/api/users');
-                if (usersRes.ok) {
-                  const usersData = await usersRes.json();
-                  if (usersData?.users && Array.isArray(usersData.users)) {
-                    const annUserId = typeof ann.userId === 'number' ? ann.userId : Number(ann.userId);
-                    const foundAuthor = usersData.users.find((u: any) => Number(u.id) === annUserId);
-                    if (!cancelled) {
-                      setAuthor(foundAuthor || null);
-                    }
+              // Load users to resolve author and current user
+              const usersRes = await fetchWithAuth('/api/users');
+              if (usersRes.ok) {
+                const usersData = await usersRes.json();
+                if (usersData?.users && Array.isArray(usersData.users)) {
+                  const annUserId = typeof ann.userId === 'number' ? ann.userId : Number(ann.userId);
+                  const foundAuthor = usersData.users.find((u: any) => Number(u.id) === annUserId) || null;
+                  const foundCurrent = currentUserId != null ? usersData.users.find((u: any) => Number(u.id) === Number(currentUserId)) || null : null;
+                  if (!cancelled) {
+                    setAuthor(foundAuthor);
+                    setCurrentUser(foundCurrent);
                   }
                 }
               }
@@ -217,6 +220,36 @@ export default function AnnounceDetails() {
     loadEvaluations();
   }, [announcement]);
 
+  // Compute distance between current user and announcement author (geocoding fallback)
+  useEffect(() => {
+    let cancelled = false;
+    const computeDistance = async () => {
+      setDistanceKm(null);
+      if (!author || !currentUser) return;
+      const directAuthor = getUserCoords(author);
+      const directCurrent = getUserCoords(currentUser);
+      let a = directAuthor;
+      let c = directCurrent;
+      if (!a) {
+        const addrA = buildAddress(author);
+        a = await geocodeAddress(addrA, author?.pays);
+      }
+      if (!c) {
+        const addrC = buildAddress(currentUser);
+        c = await geocodeAddress(addrC, currentUser?.pays);
+      }
+      if (!cancelled) {
+        if (a && c) {
+          setDistanceKm(haversineDistanceKm(c, a));
+        } else {
+          setDistanceKm(null);
+        }
+      }
+    };
+    computeDistance();
+    return () => { cancelled = true; };
+  }, [author, currentUser]);
+
   const toggleFavorite = async () => {
     if (!announcement || !currentUserId || isTogglingFavorite) return;
     
@@ -293,6 +326,70 @@ export default function AnnounceDetails() {
     }
   }
 
+  function haversineDistanceKm(a: {lat: number, lng: number}, b: {lat: number, lng: number}) {
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+    const R = 6371; // km
+    const dLat = toRad(b.lat - a.lat);
+    const dLng = toRad(b.lng - a.lng);
+    const lat1 = toRad(a.lat);
+    const lat2 = toRad(b.lat);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
+
+  function getUserCoords(u: any): {lat: number, lng: number} | null {
+    if (!u) return null;
+    const lat = u.latitude ?? u.lat ?? (u.position?.lat);
+    const lng = u.longitude ?? u.lng ?? (u.position?.lng);
+    if (typeof lat === 'number' && typeof lng === 'number') {
+      return { lat, lng };
+    }
+    return null;
+  }
+
+  function buildAddress(u: any): string {
+    if (!u) return '';
+    const parts = [u.adresse, u.codePostal, u.ville, u.pays].filter(Boolean);
+    return parts.join(' ');
+  }
+
+  async function geocodeAddress(address: string, country?: string): Promise<{lat: number, lng: number} | null> {
+    try {
+      if (!address || typeof window === 'undefined') return null;
+      const query = (address + (country ? ' ' + country : '')).trim();
+      const cacheKey = 'proximis_geocode_' + encodeURIComponent(query.toLowerCase());
+      const ttlMs = 30 * 24 * 60 * 60 * 1000; // 30 days
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const obj = JSON.parse(cached);
+          if (obj && obj.lat != null && obj.lng != null && obj.ts && (Date.now() - obj.ts) < ttlMs) {
+            return { lat: Number(obj.lat), lng: Number(obj.lng) };
+          }
+        }
+      } catch {}
+
+      const countryParam = country && /france|^fr$/i.test(country) ? '&countrycodes=fr' : '';
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=0${countryParam}&q=${encodeURIComponent(query)}`;
+      const resp = await fetch(url, {
+        headers: {
+          'Accept-Language': 'fr',
+        },
+      });
+      if (!resp.ok) return null;
+      const arr = await resp.json();
+      if (Array.isArray(arr) && arr.length > 0 && arr[0]?.lat && arr[0]?.lon) {
+        const lat = parseFloat(arr[0].lat);
+        const lng = parseFloat(arr[0].lon);
+        try { localStorage.setItem(cacheKey, JSON.stringify({ lat, lng, ts: Date.now() })); } catch {}
+        return { lat, lng };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   return (
     <>
     <div className='announceDEtails'>
@@ -366,8 +463,11 @@ export default function AnnounceDetails() {
         </div>
         <div className='announceScope'>
           <FmdGoodOutlined sx={{ color: "#8c8c8c"}}/>
-          <span className='T6' style={{ color: "#8c8c8c"}}>à {announcement.scope}km</span>
-
+          {distanceKm != null ? (
+            <span className='T6' style={{ color: "#8c8c8c"}}>à {distanceKm.toFixed(1)} km</span>
+          ) : (
+            <span className='T6' style={{ color: "#8c8c8c"}}>- km</span>
+          )}
         </div>
         <div className='announcementDescription'>
           <span className='T4'>
