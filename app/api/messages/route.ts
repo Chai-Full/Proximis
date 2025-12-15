@@ -93,6 +93,27 @@ export async function POST(req: NextRequest) {
       { $set: { updatedAt: new Date().toISOString() } }
     );
 
+    // Notify any SSE subscribers for this conversation
+    try {
+      // eslint-disable-next-line no-undef
+      // @ts-ignore
+      const streams = globalThis.__message_streams as Record<string, any[]> | undefined;
+      if (streams && streams[body.conversationId]) {
+        const encoder = new TextEncoder();
+        const clients = streams[body.conversationId];
+        const payload = JSON.stringify({ type: 'message', message });
+        clients.forEach((c: any) => {
+          try {
+            c.controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
+          } catch (e) {
+            // ignore enqueue errors
+          }
+        });
+      }
+    } catch (e) {
+      console.error('Error notifying message streams', e);
+    }
+
     return NextResponse.json({ ok: true, message });
   } catch (err) {
     console.error('Error creating message', err);
@@ -162,6 +183,96 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, messages, count: messages.length });
   } catch (err) {
     console.error('Error reading messages', err);
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
+}
+
+/**
+ * @swagger
+ * /api/messages:
+ *   put:
+ *     tags:
+ *       - Messages
+ *     summary: Mark messages as read
+ *     description: Mark all unread messages in a conversation as read for a specific user
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - conversationId
+ *               - userId
+ *             properties:
+ *               conversationId:
+ *                 type: string
+ *               userId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Messages marked as read successfully
+ *       400:
+ *         description: Invalid payload
+ *       500:
+ *         description: Server error
+ */
+export async function PUT(req: NextRequest) {
+  try {
+    const { user, error } = await requireAuth(req);
+
+    if (!user) {
+      return NextResponse.json(
+        { ok: false, error: error || 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const body = (await req.json()) as {
+      conversationId: string;
+      userId: number | string;
+    };
+
+    if (!body || !body.conversationId || !body.userId) {
+      return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+    }
+
+    const db = await getDb();
+
+    // Verify conversation exists
+    const conversation = await db.collection('conversations').findOne({
+      id: body.conversationId,
+    });
+
+    if (!conversation) {
+      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+    }
+
+    const userIdNum = Number(body.userId);
+
+    // Mark all unread messages sent to this user as read
+    const result = await db.collection('messages').updateMany(
+      {
+        conversationId: body.conversationId,
+        toUserId: userIdNum,
+        read: false,
+      },
+      {
+        $set: {
+          read: true,
+          readAt: new Date().toISOString(),
+        },
+      }
+    );
+
+    return NextResponse.json({ 
+      ok: true, 
+      updatedCount: result.modifiedCount 
+    });
+  } catch (err) {
+    console.error('Error marking messages as read', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

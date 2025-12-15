@@ -41,6 +41,17 @@ export async function GET(req: NextRequest) {
     }
 
     const db = await getDb();
+    const url = new URL(req.url);
+    const userIdParam = url.searchParams.get('userId');
+
+    if (userIdParam) {
+      const userIdNum = Number(userIdParam);
+      const found = await db.collection('users').findOne({ id: userIdNum });
+      if (!found) return NextResponse.json({ ok: false, error: 'User not found' }, { status: 404 });
+      const { _id, ...userData } = found;
+      return NextResponse.json({ ok: true, user: userData });
+    }
+
     const users = await db.collection('users').find({}).toArray();
     // Remove MongoDB _id from each user
     const usersWithoutId = users.map(({ _id, ...user }) => user);

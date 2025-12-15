@@ -21,7 +21,7 @@ dayjs.extend(relativeTime);
 dayjs.locale('fr');
 
 export default function AnnounceDetails() {
-  const { selectedAnnouncementId, setHeaderTitle, setSelectedProfileId, setCurrentPage, currentUserId, setSelectedReservationId } = useContent();
+  const { selectedAnnouncementId, setHeaderTitle, setSelectedProfileId, setCurrentPage, currentUserId, setSelectedReservationId, setSelectedConversationId } = useContent();
   const [announcement, setAnnouncement] = useState<any>(null);
   const [author, setAuthor] = useState<any>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -35,6 +35,7 @@ export default function AnnounceDetails() {
   const [isTogglingFavorite, setIsTogglingFavorite] = useState<boolean>(false);
   const [averageRating, setAverageRating] = useState<number | null>(null);
   const [reviewsCount, setReviewsCount] = useState<number>(0);
+  const [isContacting, setIsContacting] = useState<boolean>(false);
 
   // Load announcement and user data from MongoDB
   useEffect(() => {
@@ -521,8 +522,89 @@ export default function AnnounceDetails() {
             startIcon={
               <ChatBubbleOutlineOutlined />
             }
+            disabled={isContacting || !currentUserId || !announcement || !author}
+            onClick={async () => {
+              if (!currentUserId || !announcement || !author) {
+                setNotification({ open: true, message: 'Impossible de contacter le propriétaire.', severity: 'error' });
+                return;
+              }
+              
+              // Prevent contacting yourself
+              if (Number(currentUserId) === Number(announcement.userId)) {
+                setNotification({ open: true, message: 'Vous ne pouvez pas vous contacter vous-même.', severity: 'warning' });
+                return;
+              }
+
+              setIsContacting(true);
+              try {
+                // Check if conversation already exists
+                const conversationId = `conv_${currentUserId}_${announcement.userId}_${announcement.id}`;
+                
+                // Try to get existing conversation
+                const checkRes = await fetchWithAuth(`/api/conversations?conversationId=${encodeURIComponent(conversationId)}`);
+                const checkData = await checkRes.json();
+                
+                if (checkRes.ok && checkData.conversation) {
+                  // Conversation exists, navigate to it
+                  if (setSelectedConversationId) {
+                    setSelectedConversationId(conversationId);
+                  }
+                  if (setCurrentPage) {
+                    setCurrentPage('message_chat', ['home', 'messages']);
+                  }
+                } else {
+                  // Create new conversation with initial message
+                  const currentUserRes = await fetchWithAuth('/api/users');
+                  const currentUserData = currentUserRes.ok ? await currentUserRes.json() : { users: [] };
+                  const currentUser = currentUserData?.users?.find((u: any) => Number(u.id) === Number(currentUserId));
+                  const currentUserName = currentUser 
+                    ? `${currentUser.prenom || ""} ${currentUser.nom || ""}`.trim() || currentUser.name || "Utilisateur"
+                    : "Utilisateur";
+                  
+                  const initialMessage = `Bonjour ${author.prenom || author.nom || "Prestataire"}, je suis intéressé(e) par votre annonce "${announcement.title}".`;
+                  
+                  const createRes = await fetchWithAuth('/api/conversations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      fromUserId: currentUserId,
+                      toUserId: announcement.userId,
+                      announcementId: announcement.id,
+                      initialMessage: initialMessage,
+                    }),
+                  });
+                  
+                  const createData = await createRes.json();
+                  
+                  if (createRes.ok && createData?.ok && createData?.conversation) {
+                    // Navigate to the new conversation
+                    if (setSelectedConversationId) {
+                      setSelectedConversationId(createData.conversation.id);
+                    }
+                    if (setCurrentPage) {
+                      setCurrentPage('message_chat', ['home', 'messages']);
+                    }
+                  } else {
+                    setNotification({ 
+                      open: true, 
+                      message: createData?.error || 'Erreur lors de la création de la conversation.', 
+                      severity: 'error' 
+                    });
+                  }
+                }
+              } catch (error) {
+                console.error('Error contacting owner:', error);
+                setNotification({ 
+                  open: true, 
+                  message: 'Erreur lors de la création de la conversation.', 
+                  severity: 'error' 
+                });
+              } finally {
+                setIsContacting(false);
+              }
+            }}
             >
-            Contacter
+            {isContacting ? 'Connexion...' : 'Contacter'}
           </Button>
           <Button
             variant="contained"

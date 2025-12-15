@@ -7,43 +7,39 @@ type EvaluationBody = {
   announcementId: number | string;
   rating: number;
   comment: string;
-  userId: number | string | null;
+  userId?: number | string | null;
 };
 
 /**
- * @swagger
- * /api/evaluations:
- *   post:
- *     tags:
- *       - Evaluations
- *     summary: Create or update an evaluation
- *     description: Submit an evaluation for a completed reservation. Updates reservation status to "completed".
- *     security:
- *       - BearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - reservationId
- *               - announcementId
- *               - rating
- *               - comment
- *               - userId
- *             properties:
- *               reservationId:
- *                 type: string
- *                 description: ID of the reservation being evaluated
- *               announcementId:
- *                 type: string
- *                 description: ID of the announcement
- *               rating:
- *                 type: integer
- *                 minimum: 1
- *                 maximum: 5
- *                 description: Rating from 1 to 5
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - reservationId
+              - announcementId
+              - rating
+              - comment
+            properties:
+              reservationId:
+                type: string
+                description: ID of the reservation being evaluated
+              announcementId:
+                type: string
+                description: ID of the announcement
+              rating:
+                type: integer
+                minimum: 1
+                maximum: 5
+                description: Rating from 1 to 5
+              comment:
+                type: string
+                description: Textual comment (required, cannot be empty)
+              userId:
+                type: string
+                description: (optional) ID of the user submitting the evaluation — ignored by the server; reviewer is taken from the authenticated token
  *               comment:
  *                 type: string
  *                 description: Textual comment (required, cannot be empty)
@@ -79,8 +75,8 @@ export async function POST(req: NextRequest) {
     }
 
     const body = (await req.json()) as EvaluationBody;
-    
-    if (!body || !body.reservationId || !body.announcementId || !body.rating || !body.comment || !body.userId) {
+
+    if (!body || !body.reservationId || !body.announcementId || !body.rating || !body.comment) {
       return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
     }
 
@@ -95,6 +91,14 @@ export async function POST(req: NextRequest) {
     }
 
     const db = await getDb();
+
+    // Determine which user should receive the evaluation: the owner of the announcement
+    const announcementDoc = await db.collection('announcements').findOne({ id: Number(body.announcementId) });
+    if (!announcementDoc) {
+      return NextResponse.json({ error: 'Announcement not found' }, { status: 400 });
+    }
+    const evaluatedUserId = Number(announcementDoc.userId);
+    const reviewerId = user.userId;
 
     // Check if evaluation already exists for this reservation
     const existingEvaluation = await db.collection('evaluations').findOne({
@@ -121,7 +125,10 @@ export async function POST(req: NextRequest) {
         id: Date.now(),
         reservationId: Number(body.reservationId),
         announcementId: Number(body.announcementId),
-        userId: Number(body.userId),
+        // `userId` is the user receiving the evaluation (announcement owner)
+        userId: evaluatedUserId,
+        // store who made the evaluation
+        reviewerId: reviewerId,
         rating: body.rating,
         comment: body.comment.trim(),
         createdAt: new Date().toISOString(),
