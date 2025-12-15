@@ -196,16 +196,32 @@ export default function EvaluateContent() {
     setLoading(true);
 
     try {
+      // Prepare robust payload: support various announcement id fields and fallback to localStorage for userId
+      const announcementId = announcement?.id ?? announcement?.idAnnonce ?? announcement?._id ?? null;
+      const storedUserId = typeof window !== 'undefined' ? window.localStorage.getItem('proximis_userId') : null;
+      const userIdToSend = currentUserId ?? (storedUserId ? Number(storedUserId) : null);
+
+      if (!announcementId) {
+        setNotification({ open: true, message: 'Identifiant de l\'annonce manquant', severity: 'error' });
+        setLoading(false);
+        return;
+      }
+      if (!userIdToSend) {
+        setNotification({ open: true, message: 'Utilisateur non authentifié', severity: 'error' });
+        setLoading(false);
+        return;
+      }
+
       // Submit evaluation
       const response = await fetchWithAuth('/api/evaluations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           reservationId: selectedReservationId,
-          announcementId: announcement.id,
-          rating,
+          announcementId,
+          rating: Number(rating),
           comment: comment.trim(),
-          userId: currentUserId,
+          userId: userIdToSend,
         }),
       });
 
