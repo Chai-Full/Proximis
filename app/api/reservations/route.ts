@@ -341,13 +341,13 @@ export async function POST(req: NextRequest) {
         const conversationId = `conv_${body.userId}_${announcement.userId}_${body.announcementId}`;
         
         // Check if conversation already exists
-        let conversation = await db.collection('conversations').findOne({
+        let conversation: any = await db.collection('conversations').findOne({
           id: conversationId,
         });
 
         if (!conversation) {
           // Create new conversation
-          conversation = {
+          const newConversation = {
             id: conversationId,
             fromUserId: Number(body.userId),
             toUserId: Number(announcement.userId),
@@ -356,7 +356,8 @@ export async function POST(req: NextRequest) {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };
-          await db.collection('conversations').insertOne(conversation as any);
+          await db.collection('conversations').insertOne(newConversation as any);
+          conversation = newConversation;
         } else {
           // Update existing conversation with reservation ID
           await db.collection('conversations').updateOne(

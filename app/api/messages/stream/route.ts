@@ -1,6 +1,12 @@
 import { NextRequest } from 'next/server';
 import { requireAuth } from '@/app/lib/auth';
 
+// Augment globalThis to hold SSE clients per conversation in a typed way
+declare global {
+  // eslint-disable-next-line no-var
+  var __message_streams: Record<string, Array<{ controller: ReadableStreamDefaultController<any>; _keepAlive?: NodeJS.Timeout; close?: () => void }>> | undefined;
+}
+
 const encoder = new TextEncoder();
 
 export async function GET(req: NextRequest) {
@@ -17,12 +23,10 @@ export async function GET(req: NextRequest) {
     }
 
     if (!globalThis.__message_streams) {
-      // eslint-disable-next-line no-undef
-      // @ts-ignore
       globalThis.__message_streams = {};
     }
 
-    const streams = globalThis.__message_streams as Record<string, any[]>;
+    const streams = globalThis.__message_streams as NonNullable<typeof globalThis.__message_streams>;
     let clients = streams[conversationId];
     if (!clients) {
       clients = [];
