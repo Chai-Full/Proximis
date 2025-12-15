@@ -211,15 +211,8 @@ export async function POST(req: NextRequest) {
  */
 export async function GET(req: NextRequest) {
   try {
-    const { user, error } = await requireAuth(req);
-
-    if (!user) {
-      return NextResponse.json(
-        { ok: false, error: error || 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
+    // Allow public read access to evaluations (no auth required for GET)
+    // This enables showing ratings on announcement cards without login
     const url = new URL(req.url);
     const reservationId = url.searchParams.get('reservationId');
     const announcementId = url.searchParams.get('announcementId');
