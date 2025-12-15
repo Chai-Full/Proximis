@@ -40,6 +40,52 @@ export async function GET(req: NextRequest) {
 
     const db = await getDb();
     const { searchParams } = new URL(req.url);
+    const announcementIdParam = searchParams.get('announcementId');
+    if (announcementIdParam) {
+      // Return a single enriched announcement
+      const announcement = await db.collection('announcements').findOne({ id: Number(announcementIdParam) });
+      if (!announcement) {
+        return NextResponse.json({ success: false, error: 'Annonce introuvable' }, { status: 404 });
+      }
+
+      const { _id, ...announcementWithoutId } = announcement as any;
+      let userCreateur = null;
+      if (announcement.userId) {
+        const user = await db.collection('users').findOne({ id: Number(announcement.userId) });
+        if (user) {
+          const { _id: userId, ...userData } = user;
+          userCreateur = {
+            idUser: userData.id,
+            nomUser: userData.nom,
+            prenomUser: userData.prenom,
+            photoUser: userData.photo,
+          };
+        }
+      }
+
+      const reservationsCount = await db.collection('reservations').countDocuments({ announcementId: announcement.id });
+      const evaluationsCount = await db.collection('evaluations').countDocuments({ announcementId: announcement.id });
+      const favoritesCount = await db.collection('favorites').countDocuments({ announcementId: announcement.id });
+
+      const photos = announcement.photo ? [{ urlPhoto: announcement.photo }] : [];
+      const creneaux = (announcement.slots || []).map((slot: any) => ({ dateDebut: slot.start ? new Date(slot.start) : new Date(), dateFin: slot.end ? new Date(slot.end) : new Date(), estReserve: false }));
+
+      const enriched = {
+        idAnnonce: announcement.id,
+        nomAnnonce: announcement.title,
+        typeAnnonce: announcement.category,
+        lieuAnnonce: announcement.scope || '',
+        prixAnnonce: announcement.price,
+        descAnnonce: announcement.description,
+        datePublication: announcement.createdAt,
+        userCreateur,
+        photos,
+        creneaux,
+        _count: { reservations: reservationsCount, avis: evaluationsCount, favorites: favoritesCount },
+      };
+
+      return NextResponse.json({ success: true, data: { annonces: [enriched] } });
+    }
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const skip = (page - 1) * limit;

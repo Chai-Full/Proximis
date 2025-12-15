@@ -335,6 +335,82 @@ export async function POST(req: NextRequest) {
 
     await db.collection('reservations').insertOne(newReservation);
 
+    // Automatically create a conversation for this reservation
+    try {
+      if (announcement && announcement.userId) {
+        const conversationId = `conv_${body.userId}_${announcement.userId}_${body.announcementId}`;
+        
+        // Check if conversation already exists
+        let conversation = await db.collection('conversations').findOne({
+          id: conversationId,
+        });
+
+        if (!conversation) {
+          // Create new conversation
+          conversation = {
+            id: conversationId,
+            fromUserId: Number(body.userId),
+            toUserId: Number(announcement.userId),
+            announcementId: Number(body.announcementId),
+            reservationId: newReservation.id,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          await db.collection('conversations').insertOne(conversation as any);
+        } else {
+          // Update existing conversation with reservation ID
+          await db.collection('conversations').updateOne(
+            { id: conversationId },
+            {
+              $set: {
+                reservationId: newReservation.id,
+                updatedAt: new Date().toISOString(),
+              },
+            }
+          );
+          conversation = await db.collection('conversations').findOne({ id: conversationId }) as any;
+        }
+
+        // Create initial message if conversation is new or has no messages
+        const existingMessages = await db.collection('messages').find({
+          conversationId: conversationId,
+        }).toArray();
+
+        if (existingMessages.length === 0) {
+          // Get user info for the message
+          const user = await db.collection('users').findOne({ id: Number(body.userId) });
+          const userName = user 
+            ? `${user.prenom || ""} ${user.nom || ""}`.trim() || user.name || "Utilisateur"
+            : "Utilisateur";
+          
+          const announcementTitle = announcement.title || announcement.nomAnnonce || "votre service";
+          const formattedDate = new Date(normalizedDate + 'T00:00:00Z').toLocaleDateString('fr-FR', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          });
+          
+          const initialMessage = `Bonjour, j'ai réservé votre service "${announcementTitle}" pour le ${formattedDate}.`;
+          
+          const message = {
+            id: `msg_${Date.now()}`,
+            conversationId: conversationId,
+            fromUserId: Number(body.userId),
+            toUserId: Number(announcement.userId),
+            text: initialMessage,
+            createdAt: new Date().toISOString(),
+            read: false,
+          };
+
+          await db.collection('messages').insertOne(message);
+        }
+      }
+    } catch (convErr) {
+      // Log error but don't fail the reservation creation
+      console.error('Error creating conversation for reservation:', convErr);
+    }
+
     return NextResponse.json({ ok: true, reservation: newReservation });
   } catch (err) {
     console.error('Error saving reservation', err);

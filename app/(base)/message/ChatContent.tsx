@@ -32,6 +32,10 @@ export default function ChatContent() {
 
   const [conversationData, setConversationData] = React.useState<any>(null);
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
+  const [inputValue, setInputValue] = React.useState<string>('');
+  const eventSourceRef = React.useRef<EventSource | null>(null);
+  const reconnectTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const reconnectAttemptsRef = React.useRef<number>(0);
   const [loading, setLoading] = React.useState(true);
   const [otherUserName, setOtherUserName] = React.useState<string>('Utilisateur');
   const [otherUserAvatar, setOtherUserAvatar] = React.useState<string>('/photo1.svg');
@@ -44,58 +48,8 @@ export default function ChatContent() {
   const [users, setUsers] = React.useState<any[]>([]);
   const [announcements, setAnnouncements] = React.useState<any[]>([]);
 
-  // Load users and announcements from MongoDB
-  React.useEffect(() => {
-    if (!currentUserId) return;
-
-    let cancelled = false;
-
-    const loadData = async () => {
-      try {
-        // Load users
-        const usersRes = await fetchWithAuth('/api/users');
-        if (usersRes.ok) {
-          const usersData = await usersRes.json();
-          if (usersData?.users && Array.isArray(usersData.users)) {
-            if (!cancelled) setUsers(usersData.users);
-          }
-        }
-
-        // Load announcements
-        const announcementsRes = await fetchWithAuth('/api/annonces?page=1&limit=1000');
-        if (announcementsRes.ok) {
-          const announcementsData = await announcementsRes.json();
-          if (announcementsData?.success && announcementsData?.data?.annonces) {
-            const transformed = announcementsData.data.annonces.map((a: any) => ({
-              id: a.idAnnonce,
-              title: a.nomAnnonce,
-              category: a.typeAnnonce,
-              scope: a.lieuAnnonce,
-              price: a.prixAnnonce,
-              description: a.descAnnonce,
-              userId: a.userCreateur?.idUser,
-              createdAt: a.datePublication,
-              photo: a.photos?.[0]?.urlPhoto,
-              slots: a.creneaux?.map((c: any) => ({
-                start: c.dateDebut,
-                end: c.dateFin,
-                estReserve: c.estReserve,
-              })) || [],
-            }));
-            if (!cancelled) setAnnouncements(transformed);
-          }
-        }
-      } catch (error) {
-        console.error('Error loading data', error);
-      }
-    };
-
-    loadData();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentUserId]);
+  // Note: we avoid loading all users/announcements here to speed up conversation load.
+  // ChatContent will fetch only the specific user and announcement needed for the opened conversation.
 
   // Load conversation data from API
   React.useEffect(() => {
@@ -136,35 +90,41 @@ export default function ChatContent() {
 
           // Get other user info
           // Convert to numbers for comparison since MongoDB stores them as numbers
-          const convFromUserId = typeof data.conversation.fromUserId === 'number' 
-            ? data.conversation.fromUserId 
-            : Number(data.conversation.fromUserId);
-          const convToUserId = typeof data.conversation.toUserId === 'number' 
-            ? data.conversation.toUserId 
-            : Number(data.conversation.toUserId);
-          const currentUserIdNum = Number(currentUserId);
-          
-          const otherUserId = convFromUserId === currentUserIdNum
-            ? convToUserId
-            : convFromUserId;
-          const otherUser = users.find((u: any) => Number(u.id) === Number(otherUserId));
-          
-          if (otherUser) {
-            const name = `${otherUser.prenom || ''} ${otherUser.nom || ''}`.trim() || otherUser.email || 'Utilisateur';
-            setOtherUserName(name);
-            setOtherUserAvatar(otherUser.photo || '/photo1.svg');
-          }
+            const convFromUserId = typeof data.conversation.fromUserId === 'number' ? data.conversation.fromUserId : Number(data.conversation.fromUserId);
+            const convToUserId = typeof data.conversation.toUserId === 'number' ? data.conversation.toUserId : Number(data.conversation.toUserId);
+            const currentUserIdNum = Number(currentUserId);
 
-          // Get announcement info
-          // Convert to numbers for comparison since MongoDB stores them as numbers
-          const convAnnouncementId = typeof data.conversation.announcementId === 'number' 
-            ? data.conversation.announcementId 
-            : Number(data.conversation.announcementId);
-          const announcement = announcements.find((a: any) => Number(a.id) === convAnnouncementId);
-          if (announcement) {
-            setAnnouncementTitle(announcement.title || 'Annonce');
-            setReservationLocation(announcement.scope ? `${announcement.scope} km` : '');
-          }
+            const otherUserId = convFromUserId === currentUserIdNum ? convToUserId : convFromUserId;
+
+            // Fetch only the other user and the announcement in parallel to speed up load
+            try {
+              const userPromise = fetchWithAuth(`/api/users?userId=${encodeURIComponent(String(otherUserId))}`);
+              const annId = data.conversation.announcementId;
+              const annPromise = annId ? fetchWithAuth(`/api/annonces?announcementId=${encodeURIComponent(String(annId))}`) : Promise.resolve({ ok: false } as Response);
+
+              const [userRes, annRes] = await Promise.all([userPromise, annPromise]);
+
+              if (userRes.ok) {
+                const userData = await userRes.json();
+                const u = userData.user || null;
+                if (u) {
+                  const name = `${u.prenom || ''} ${u.nom || ''}`.trim() || u.email || 'Utilisateur';
+                  setOtherUserName(name);
+                  setOtherUserAvatar(u.photo || '/photo1.svg');
+                }
+              }
+
+              if (annRes.ok) {
+                const annData = await annRes.json();
+                const ann = (annData?.data?.annonces && annData.data.annonces[0]) || null;
+                if (ann) {
+                  setAnnouncementTitle(ann.nomAnnonce || ann.nomAnnonce || 'Annonce');
+                  setReservationLocation(ann.lieuAnnonce ? `${ann.lieuAnnonce} km` : '');
+                }
+              }
+            } catch (e) {
+              console.error('Error fetching user/announcement for conversation', e);
+            }
 
           // Get reservation info if exists
           if (data.conversation.reservationId) {
@@ -251,6 +211,131 @@ export default function ChatContent() {
 
           console.log('Transformed messages:', transformedMessages);
           setMessages(transformedMessages);
+
+          // Mark all unread messages as read when conversation is opened
+          try {
+            const markReadRes = await fetchWithAuth('/api/messages', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                conversationId: conversationId,
+                userId: currentUserId,
+              }),
+            });
+            
+            if (markReadRes.ok) {
+              const markReadData = await markReadRes.json();
+              console.log('Messages marked as read:', markReadData.updatedCount);
+              // Notify other parts of the UI that messages were marked as read
+              try {
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('messagesRead', {
+                    detail: {
+                      conversationId: conversationId,
+                      userId: currentUserId,
+                      updatedCount: Number(markReadData.updatedCount || 0),
+                    }
+                  }));
+                }
+              } catch (e) {
+                // ignore
+              }
+            } else {
+              console.warn('Failed to mark messages as read');
+            }
+          } catch (error) {
+            console.error('Error marking messages as read:', error);
+          }
+
+          // Subscribe to SSE for real-time messages
+          const connectSSE = () => {
+            if (typeof window === 'undefined' || !conversationId) return;
+            
+            // Close existing connection
+            if (eventSourceRef.current) {
+              try { 
+                eventSourceRef.current.close(); 
+              } catch (e) {}
+              eventSourceRef.current = null;
+            }
+            
+            // Clear any pending reconnect
+            if (reconnectTimeoutRef.current) {
+              clearTimeout(reconnectTimeoutRef.current);
+              reconnectTimeoutRef.current = null;
+            }
+            
+            try {
+              const es = new EventSource(`/api/messages/stream?conversationId=${encodeURIComponent(conversationId)}`);
+              
+              es.onopen = () => {
+                console.log('SSE connection opened');
+                reconnectAttemptsRef.current = 0; // Reset reconnect attempts on successful connection
+              };
+              
+              es.onmessage = (ev) => {
+                try {
+                  // Skip keep-alive comments
+                  if (ev.data.trim() === ':keep-alive' || ev.data.startsWith(':')) {
+                    return;
+                  }
+                  
+                  const parsed = JSON.parse(ev.data);
+                  
+                  if (parsed && parsed.type === 'message' && parsed.message) {
+                    const msg = parsed.message;
+                    const now = dayjs(msg.createdAt);
+                    const timeStr = now.format('HH:mm');
+                    const isMe = Number(msg.fromUserId) === Number(currentUserId);
+                    
+                    // Check if message already exists to avoid duplicates
+                    setMessages((prev) => {
+                      const exists = prev.some(m => m.id === msg.id);
+                      if (exists) return prev;
+                      return [...prev, { id: msg.id, author: isMe ? 'me' : 'other', text: msg.text, time: timeStr }];
+                    });
+                  } else if (parsed && parsed.type === 'connected') {
+                    console.log('SSE connected to conversation:', conversationId);
+                  }
+                } catch (e) {
+                  console.warn('Error parsing SSE message:', e);
+                }
+              };
+              
+              es.onerror = (err) => {
+                console.warn('SSE error, attempting reconnect...', err);
+                
+                // Close the connection
+                try {
+                  es.close();
+                } catch (e) {}
+                
+                // Reconnect with exponential backoff (max 30 seconds)
+                const maxAttempts = 10;
+                if (reconnectAttemptsRef.current < maxAttempts) {
+                  reconnectAttemptsRef.current += 1;
+                  const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current - 1), 30000);
+                  
+                  reconnectTimeoutRef.current = setTimeout(() => {
+                    console.log(`Reconnecting SSE (attempt ${reconnectAttemptsRef.current})...`);
+                    connectSSE();
+                  }, delay);
+                } else {
+                  console.error('Max SSE reconnect attempts reached');
+                }
+              };
+              
+              eventSourceRef.current = es;
+            } catch (e) {
+              console.error('Error creating SSE connection:', e);
+              // Retry after a delay
+              reconnectTimeoutRef.current = setTimeout(() => {
+                connectSSE();
+              }, 5000);
+            }
+          };
+          
+          connectSSE();
         } else {
           console.log('No conversation or messages found:', { resOk: res.ok, hasConversation: !!data.conversation, hasMessages: !!data.messages, data });
           setMessages([]);
@@ -270,6 +355,23 @@ export default function ChatContent() {
     setHeaderTitle && setHeaderTitle(otherUserName);
     return () => setHeaderTitle && setHeaderTitle(null);
   }, [otherUserName, setHeaderTitle]);
+
+  // Cleanup EventSource on unmount
+  React.useEffect(() => {
+    return () => {
+      if (eventSourceRef.current) {
+        try { 
+          eventSourceRef.current.close(); 
+        } catch (e) {}
+        eventSourceRef.current = null;
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      reconnectAttemptsRef.current = 0;
+    };
+  }, []);
 
   // Ensure the selected conversation stays consistent when we navigate back
   React.useEffect(() => {
@@ -362,12 +464,49 @@ export default function ChatContent() {
           type="text"
           placeholder="Ecrire un message"
           aria-label="Ecrire un message"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleSendMessage();
+            }
+          }}
         />
-        <button className="chatSendButton" aria-label="envoyer">
+        <button className="chatSendButton" aria-label="envoyer" onClick={() => handleSendMessage()}>
           <SendRounded sx={{ color: "#ffffff" }} />
         </button>
       </div>
     </div>
   );
+
+  async function handleSendMessage() {
+    if (!inputValue || inputValue.trim() === '') return;
+    if (!conversationData) return;
+    try {
+      const payload = {
+        conversationId: conversationData.id,
+        fromUserId: Number(currentUserId),
+        toUserId: Number(conversationData.fromUserId === Number(currentUserId) ? conversationData.toUserId : conversationData.fromUserId),
+        text: inputValue.trim(),
+      };
+      const res = await fetchWithAuth('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const msg = data.message;
+        const now = dayjs(msg.createdAt).format('HH:mm');
+        setMessages((prev) => [...prev, { id: msg.id, author: 'me', text: msg.text, time: now }]);
+        setInputValue('');
+      } else {
+        console.error('Error sending message', await res.text());
+      }
+    } catch (e) {
+      console.error('Error sending message', e);
+    }
+  }
 }
 

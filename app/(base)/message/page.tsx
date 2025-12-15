@@ -58,7 +58,7 @@ function MessageListItem({ item }: MessageListItemProps) {
 }
 
 export default function MessageContent() {
-  const { setHeaderTitle, setCurrentPage, setSelectedConversationId, history, currentUserId } = useContent();
+  const { setHeaderTitle, setCurrentPage, setSelectedConversationId, history, currentUserId, currentPage } = useContent();
   const [conversations, setConversations] = React.useState<MessageListItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [users, setUsers] = React.useState<any[]>([]);
@@ -270,6 +270,140 @@ export default function MessageContent() {
 
     loadConversations();
   }, [currentUserId, users, announcements]);
+
+  // Reload conversations when returning to messages page from chat
+  React.useEffect(() => {
+    if (currentPage === 'messages' && currentUserId && users.length > 0 && announcements.length > 0) {
+      const loadConversations = async () => {
+        try {
+          const params = new URLSearchParams({
+            userId: String(currentUserId),
+          });
+          const res = await fetchWithAuth(`/api/conversations?${params.toString()}`);
+          const data = await res.json();
+
+          if (res.ok && data.conversations && Array.isArray(data.conversations) && data.messages && Array.isArray(data.messages)) {
+            // Transform conversations to MessageListItem format
+            const transformedConversations: MessageListItem[] = data.conversations.map((conv: any) => {
+              const convFromUserId = typeof conv.fromUserId === 'number' ? conv.fromUserId : Number(conv.fromUserId);
+              const convToUserId = typeof conv.toUserId === 'number' ? conv.toUserId : Number(conv.toUserId);
+              const currentUserIdNum = Number(currentUserId);
+              
+              const otherUserId = convFromUserId === currentUserIdNum 
+                ? convToUserId
+                : convFromUserId;
+              const otherUser = users.find((u: any) => Number(u.id) === Number(otherUserId));
+
+              const userName = otherUser 
+                ? `${otherUser.prenom || ''} ${otherUser.nom || ''}`.trim() || otherUser.email || 'Utilisateur'
+                : 'Utilisateur';
+              const userAvatar = otherUser?.photo || '/photo1.svg';
+
+              const convAnnouncementId = typeof conv.announcementId === 'number' ? conv.announcementId : Number(conv.announcementId);
+              const announcement = announcements.find((a: any) => Number(a.id) === convAnnouncementId);
+              const announcementTitle = announcement?.title || 'Annonce';
+
+              const conversationMessages = data.messages.filter((m: any) => m.conversationId === conv.id);
+              const sortedMessages = conversationMessages.sort((a: any, b: any) => 
+                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+              );
+              const lastMessage = sortedMessages[0];
+              const lastMessageText = lastMessage?.text || '';
+              
+              let lastMessageTime = '';
+              if (lastMessage?.createdAt) {
+                const messageDate = dayjs(lastMessage.createdAt);
+                const now = dayjs();
+                const diffDays = now.diff(messageDate, 'day');
+                
+                if (diffDays === 0) {
+                  lastMessageTime = messageDate.format('HH:mm');
+                } else if (diffDays === 1) {
+                  lastMessageTime = 'Hier';
+                } else if (diffDays < 7) {
+                  lastMessageTime = messageDate.format('ddd');
+                } else {
+                  lastMessageTime = messageDate.format('D MMM');
+                }
+              }
+
+              // Count unread messages (messages not read and from other user)
+              const unreadCount = conversationMessages.filter((m: any) => {
+                const mFromUserId = typeof m.fromUserId === 'number' ? m.fromUserId : Number(m.fromUserId);
+                return !m.read && mFromUserId !== currentUserIdNum;
+              }).length;
+
+              const status: 'in_progress' | 'done' = unreadCount > 0 ? 'in_progress' : 'done';
+
+              return {
+                id: conv.id,
+                name: userName,
+                subtitle: `de l'annonce ${announcementTitle}`,
+                lastMessage: lastMessageText,
+                time: lastMessageTime,
+                unreadCount: unreadCount > 0 ? unreadCount : undefined,
+                avatar: userAvatar,
+                status,
+              };
+            });
+
+            // Sort by last message time
+            const messages = data.messages;
+            transformedConversations.sort((a, b) => {
+              const messagesA = messages.filter((m: any) => m.conversationId === a.id);
+              const messagesB = messages.filter((m: any) => m.conversationId === b.id);
+              const lastA = messagesA.sort((x: any, y: any) => new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime())[0];
+              const lastB = messagesB.sort((x: any, y: any) => new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime())[0];
+              const timeA = lastA?.createdAt ? new Date(lastA.createdAt).getTime() : 0;
+              const timeB = lastB?.createdAt ? new Date(lastB.createdAt).getTime() : 0;
+              return timeB - timeA;
+            });
+
+            setConversations(transformedConversations);
+          }
+        } catch (error) {
+          console.error('Error reloading conversations', error);
+        }
+      };
+
+      // Small delay to ensure we're back on the page
+      const timer = setTimeout(() => {
+        loadConversations();
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [currentPage, currentUserId, users, announcements]);
+
+  // Listen for read events from chat to update unread counters live
+  React.useEffect(() => {
+    const onMessagesRead = (ev: any) => {
+      try {
+        const detail = ev.detail || {};
+        const convId = detail.conversationId;
+        const updatedCount = Number(detail.updatedCount || 0);
+        if (!convId || updatedCount <= 0) return;
+        setConversations((prev) => prev.map((c) => {
+          if (c.id !== convId) return c;
+          const current = c.unreadCount ?? 0;
+          const next = Math.max(0, current - updatedCount);
+          return { ...c, unreadCount: next > 0 ? next : undefined };
+        }));
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('messagesRead', onMessagesRead as EventListener);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('messagesRead', onMessagesRead as EventListener);
+      }
+    };
+  }, []);
 
   return (
     <div className="messagePage">
