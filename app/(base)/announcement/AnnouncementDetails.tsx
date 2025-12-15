@@ -5,6 +5,8 @@ import { ChatBubbleOutlineOutlined, CheckBoxOutlined, FmdGoodOutlined, ModeOutli
 import Radio from '@mui/material/Radio';
 import { getDayLabelById } from '@/lib/daylabel';
 import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import 'dayjs/locale/fr';
 import { Button, CircularProgress } from '@mui/material';
 import Notification from '../components/Notification';
 import Star from '@mui/icons-material/Star';
@@ -13,6 +15,10 @@ import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { fetchWithAuth } from '../lib/auth';
 import { SkeletonProfile } from '../components/Skeleton';
+
+// Initialize dayjs plugins and locale
+dayjs.extend(relativeTime);
+dayjs.locale('fr');
 
 export default function AnnounceDetails() {
   const { selectedAnnouncementId, setHeaderTitle, setSelectedProfileId, setCurrentPage, currentUserId, setSelectedReservationId } = useContent();
@@ -329,7 +335,7 @@ export default function AnnounceDetails() {
         </div>
         <div className='publicationTime'>
             <span className='T6'>
-              Publiée il y a 5 min...
+              Publiée {announcement?.createdAt ? dayjs(announcement.createdAt).fromNow() : 'il y a peu de temps'}
             </span>
           </div>
       </div>

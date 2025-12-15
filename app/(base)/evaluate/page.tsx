@@ -42,13 +42,27 @@ export default function EvaluateContent() {
 
     const loadData = async () => {
       try {
+        console.log('Loading reservation data for ID:', selectedReservationId);
+        
         // Load reservation from API or data
         const params = new URLSearchParams({ userId: String(currentUserId || '') });
-        const res = await fetch(`/api/reservations?${params.toString()}`);
+        console.log('Fetching reservations with params:', params.toString());
+        
+        const res = await fetchWithAuth(`/api/reservations?${params.toString()}`);
+        console.log('Reservations response status:', res.status);
+        
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        
         const data = await res.json();
+        console.log('Reservations data:', data);
         
         const reservations = data?.reservations || data || [];
+        console.log('Parsed reservations array:', reservations);
+        
         const foundReservation = reservations.find((r: any) => String(r.id) === String(selectedReservationId));
+        console.log('Found reservation:', foundReservation);
         
         if (!foundReservation) {
           setNotification({
@@ -64,13 +78,28 @@ export default function EvaluateContent() {
 
         // Find announcement from API
         try {
+          console.log('Loading announcement for announcement ID:', foundReservation.announcementId);
           const announcementsRes = await fetchWithAuth(`/api/annonces?page=1&limit=1000`);
+          
           if (announcementsRes.ok) {
             const announcementsData = await announcementsRes.json();
+            console.log('Announcements data:', announcementsData);
+            
             const announcements = announcementsData?.data?.annonces || announcementsData?.annonces || [];
+            console.log('Parsed announcements array:', announcements);
+            console.log('Looking for announcementId:', foundReservation.announcementId);
+            console.log('First announcement sample:', announcements[0]);
+            
+            // Try different field names for announcement ID
             const foundAnnouncement = announcements.find(
-              (a: any) => String(a.id) === String(foundReservation.announcementId)
+              (a: any) => {
+                console.log('Comparing: a.id=', a.id, 'vs announcementId=', foundReservation.announcementId);
+                return String(a.id) === String(foundReservation.announcementId) || 
+                       String(a.idAnnonce) === String(foundReservation.announcementId) ||
+                       String(a._id) === String(foundReservation.announcementId);
+              }
             );
+            console.log('Found announcement:', foundAnnouncement);
 
             if (!foundAnnouncement) {
               setNotification({
@@ -83,28 +112,29 @@ export default function EvaluateContent() {
 
             setAnnouncement(foundAnnouncement);
 
+            // Set header title with announcement title
+            const announcementTitle = foundAnnouncement.title || foundAnnouncement.nomAnnonce || 'Évaluation';
+            if (setHeaderTitle) {
+              setHeaderTitle(announcementTitle);
+            }
+
             // Get provider name (owner of the announcement)
             const usersRes = await fetchWithAuth('/api/users');
             if (usersRes.ok) {
               const usersData = await usersRes.json();
               const users = usersData?.users || [];
+              console.log('Users data:', users);
+              
               const provider = users.find((u: any) => String(u.id) === String(foundAnnouncement.userId));
+              console.log('Found provider:', provider);
               
               if (provider) {
                 const prenom = provider.prenom || '';
                 const nom = provider.nom || '';
                 const name = `${prenom} ${nom}`.trim() || provider.name || 'Prestataire';
                 setProviderName(name);
-                
-                // Set header title with provider name
-                if (setHeaderTitle) {
-                  setHeaderTitle(`Evaluer ${name.split(' ')[0] || name}`);
-                }
               } else {
                 setProviderName('Prestataire');
-                if (setHeaderTitle) {
-                  setHeaderTitle('Evaluer');
-                }
               }
             }
           }
@@ -115,7 +145,7 @@ export default function EvaluateContent() {
         console.error('Error loading reservation data:', error);
         setNotification({
           open: true,
-          message: 'Erreur lors du chargement des données',
+          message: 'Erreur lors du chargement des données: ' + String(error),
           severity: 'error'
         });
       }
