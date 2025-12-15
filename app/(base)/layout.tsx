@@ -62,7 +62,6 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
     const router = useRouter();
     const currentNav = navItems.find(item => item.id === currentPage);
     const CurrentContent = (contentComponents as Record<string, React.ComponentType>)[currentPage] || HomeContent;
-    const hideBottomNav = currentPage === "messages" || currentPage === "message_chat" || currentPage === "annonces" || currentPage === "profil" || currentPage === "profil_edit" || currentPage === "my_announcements" || currentPage === "announce_details" || currentPage === "evaluate" || currentPage === "reviews" || currentPage === "publish";
     const {
         register,
         handleSubmit,
@@ -157,11 +156,10 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
                     </button>
                 )}
             </div>
-                <main className="mainContent" style={{ marginBottom: hideBottomNav ? 0 : undefined }}>
+                <main className="mainContent">
                     <CurrentContent />
                 </main>
-                {!hideBottomNav && (
-                    <nav className="bottomBar">
+                <nav className="bottomBar">
                     {navItems.map(({ id, label, icon: Icon, href }) => (
                         <div
                             key={id}
@@ -204,7 +202,6 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
                         </div>
                     ))}
                     </nav>
-                )}
         </div>
     );
 }

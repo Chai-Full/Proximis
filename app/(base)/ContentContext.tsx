@@ -83,6 +83,13 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [selectedReservationId, setSelectedReservationId] = useState<number | string | null>(null);
 
   const setCurrentPage = useCallback((p: PageKey, replaceHistory?: PageKey[]) => {
+    // Navigating to home always clears the history to remove the back option
+    if (p === 'home') {
+      setHistory([]);
+      setCurrentPageState('home');
+      return;
+    }
+
     if (replaceHistory !== undefined) {
       // Replace history with the provided array
       setHistory(replaceHistory);
