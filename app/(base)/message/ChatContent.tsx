@@ -40,6 +40,7 @@ export default function ChatContent() {
   const [otherUserName, setOtherUserName] = React.useState<string>('Utilisateur');
   const [otherUserAvatar, setOtherUserAvatar] = React.useState<string>('/photo1.svg');
   const [announcementTitle, setAnnouncementTitle] = React.useState<string>('Annonce');
+  const [conversationAnnouncement, setConversationAnnouncement] = React.useState<any>(null);
   const [reservationDate, setReservationDate] = React.useState<string>('');
   const [reservationTime, setReservationTime] = React.useState<string>('');
   const [reservationLocation, setReservationLocation] = React.useState<string>('');
@@ -120,6 +121,7 @@ export default function ChatContent() {
                 if (ann) {
                   setAnnouncementTitle(ann.nomAnnonce || ann.nomAnnonce || 'Annonce');
                   setReservationLocation(ann.lieuAnnonce ? `${ann.lieuAnnonce} km` : '');
+                  setConversationAnnouncement(ann);
                 }
               }
             } catch (e) {
@@ -142,9 +144,9 @@ export default function ChatContent() {
                   const resDate = dayjs(reservation.date);
                   setReservationDate(resDate.format('D MMMM YYYY'));
                   
-                  // Get slot time from announcement
-                  if (announcement && announcement.slots && announcement.slots[reservation.slotIndex]) {
-                    const slot = announcement.slots[reservation.slotIndex];
+                  // Get slot time from conversation announcement
+                  if (conversationAnnouncement && conversationAnnouncement.slots && conversationAnnouncement.slots[reservation.slotIndex]) {
+                    const slot = conversationAnnouncement.slots[reservation.slotIndex];
                     const start = slot.start ? dayjs(slot.start).format('HH:mm') : '';
                     const end = slot.end ? dayjs(slot.end).format('HH:mm') : '';
                     setReservationTime(start && end ? `${start} - ${end}` : '');
