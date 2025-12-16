@@ -16,6 +16,9 @@ export default function HomeContent() {
     const { currentPage, setCurrentPage, currentUserId, clearHistory, history, setSelectedReservationId } = useContent();
     const router = useRouter();
     const [mounted, setMounted] = React.useState(false);
+    
+    // SUPPRESSION DU STATE "initialDataLoaded" qui causait le blocage
+
     const [servicesRendered, setServicesRendered] = React.useState<number>(0);
     const [servicesReceived, setServicesReceived] = React.useState<number>(0);
     const [averageRating, setAverageRating] = React.useState<number>(0);
@@ -71,12 +74,10 @@ export default function HomeContent() {
                             createdAt: a.datePublication,
                             photo: a.photos?.[0]?.urlPhoto,
                             slots: a.creneaux?.map((c: any) => {
-                                // Extract day of week from dateDebut (1 = Monday, 7 = Sunday)
-                                // dayjs uses 0 = Sunday, so we need to convert: 0 -> 7, 1-6 -> 1-6
                                 const dayOfWeek = c.dateDebut ? (() => {
                                     const date = dayjs(c.dateDebut);
-                                    const jsDay = date.day(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-                                    return jsDay === 0 ? 7 : jsDay; // Convert to 1 = Monday, 7 = Sunday
+                                    const jsDay = date.day(); 
+                                    return jsDay === 0 ? 7 : jsDay;
                                 })() : undefined;
                                 return {
                                     day: dayOfWeek,
@@ -84,7 +85,7 @@ export default function HomeContent() {
                                     end: c.dateFin,
                                     estReserve: c.estReserve,
                                 };
-                            }).filter((c: any) => c.day != null && !c.estReserve) || [], // Only include non-reserved slots with valid day
+                            }).filter((c: any) => c.day != null && !c.estReserve) || [],
                         }));
                         if (!cancelled) setAnnouncements(transformed);
                     }
@@ -101,6 +102,7 @@ export default function HomeContent() {
             } catch (error) {
                 console.error('Error loading data', error);
             }
+            // PLUS DE FINALLY BLOQUANT ICI
         };
 
         loadData();
@@ -111,33 +113,26 @@ export default function HomeContent() {
     }, [currentUserId]);
 
     React.useEffect(() => {
-        // Wait for component to mount and context to load before checking
         if (!mounted) return;
         
-        // Check both context and localStorage to avoid premature redirect
         const checkUserId = () => {
             if (currentUserId != null) return;
             
-            // Also check localStorage directly as fallback (both userId and token)
             try {
                 const storedUserId = localStorage.getItem('proximis_userId');
                 const storedToken = localStorage.getItem('proximis_token');
-                if (storedUserId && storedToken) return; // User is logged in, don't redirect
+                if (storedUserId && storedToken) return;
             } catch (e) {
                 // ignore
             }
             
-            // Only redirect if truly no user is logged in
             router.push('/');
         };
         
-        // Small delay to allow context to load
         const timer = setTimeout(checkUserId, 100);
         return () => clearTimeout(timer);
     }, [currentUserId, router, mounted]);
 
-    // Clear history when arriving on home page, but only if we're not coming from a navigation with history
-    // This prevents clearing history when navigating back from message_chat
     React.useEffect(() => {
         if (currentPage === 'home' && history.length === 0) {
             clearHistory && clearHistory();
@@ -159,7 +154,6 @@ export default function HomeContent() {
 
         const loadStats = async () => {
             try {
-                // Load reservations
                 const reservationsParams = new URLSearchParams({
                     userId: String(currentUserId),
                 });
@@ -169,7 +163,6 @@ export default function HomeContent() {
 
                 if (cancelled) return;
 
-                // Calculate services received (reservations where user is the client)
                 const currentUserIdNum = Number(currentUserId);
                 const servicesReceivedCount = reservations.filter((r: any) => {
                     const rUserId = typeof r.userId === 'number' ? r.userId : Number(r.userId);
@@ -177,7 +170,6 @@ export default function HomeContent() {
                 }).length;
                 setServicesReceived(servicesReceivedCount);
 
-                // Calculate services rendered (reservations where user is the provider)
                 const userAnnouncements = Array.isArray(announcements) 
                     ? announcements.filter((a: any) => String(a.userId) === String(currentUserId))
                     : [];
@@ -187,7 +179,6 @@ export default function HomeContent() {
                 ).length;
                 setServicesRendered(servicesRenderedCount);
 
-                // Calculate average rating from all user's announcements
                 const allEvaluations: any[] = [];
                 for (const announcement of userAnnouncements) {
                     try {
@@ -207,7 +198,6 @@ export default function HomeContent() {
 
                 if (cancelled) return;
 
-                // Calculate average rating
                 let avgRating = 0;
                 if (allEvaluations.length > 0) {
                     const sum = allEvaluations.reduce((acc, evaluation) => {
@@ -236,7 +226,7 @@ export default function HomeContent() {
         return () => {
             cancelled = true;
         };
-    }, [currentUserId]);
+    }, [currentUserId, announcements]); // Ajout de announcements pour recalculer si elles arrivent tardivement
 
     // Load oldest reservation to evaluate
     React.useEffect(() => {
@@ -260,7 +250,6 @@ export default function HomeContent() {
 
                 if (cancelled) return;
 
-                // Filter reservations with status "to_evaluate"
                 const currentUserIdNum = Number(currentUserId);
                 const toEvaluate = reservations.filter((r: any) => {
                     const rUserId = typeof r.userId === 'number' ? r.userId : Number(r.userId);
@@ -268,26 +257,18 @@ export default function HomeContent() {
                 });
 
                 if (toEvaluate.length === 0) {
-                    if (!cancelled) {
-                        setReservationToEvaluate(null);
-                    }
+                    if (!cancelled) setReservationToEvaluate(null);
                     return;
                 }
 
-                // Sort by date (oldest first) - use reservation date, then updatedAt, then createdAt
                 toEvaluate.sort((a: any, b: any) => {
                     const dateA = a.date || a.updatedAt || a.createdAt || '';
                     const dateB = b.date || b.updatedAt || b.createdAt || '';
-                    // Sort ascending (oldest first)
                     return dateA.localeCompare(dateB);
                 });
 
-                // Get the oldest one (first in sorted array)
                 const oldestReservation = toEvaluate[0];
-
-                // Load announcement data
                 const announcementsList = Array.isArray(announcements) ? announcements : [];
-                // Convert to numbers for comparison since MongoDB stores them as numbers
                 const oldestAnnouncementId = typeof oldestReservation.announcementId === 'number' 
                     ? oldestReservation.announcementId 
                     : Number(oldestReservation.announcementId);
@@ -296,13 +277,12 @@ export default function HomeContent() {
                 );
 
                 if (!announcement) {
-                    if (!cancelled) {
-                        setReservationToEvaluate(null);
-                    }
+                    // Si on ne trouve pas l'annonce (peut-être pas encore chargée), on met null
+                    // Mais le chargement est fini pour cette requête
+                    if (!cancelled) setReservationToEvaluate(null);
                     return;
                 }
 
-                // Get provider name
                 const evalAnnouncementUserId = typeof announcement.userId === 'number' 
                     ? announcement.userId 
                     : Number(announcement.userId);
@@ -322,7 +302,6 @@ export default function HomeContent() {
                     }
                 }
 
-                // Format completed date
                 const completedDate = oldestReservation.updatedAt || oldestReservation.createdAt || '';
                 const formattedDate = completedDate 
                     ? dayjs(completedDate).locale('fr').format('D MMM YYYY')
@@ -338,13 +317,9 @@ export default function HomeContent() {
                 }
             } catch (error) {
                 console.error("Error loading reservation to evaluate", error);
-                if (!cancelled) {
-                    setReservationToEvaluate(null);
-                }
+                if (!cancelled) setReservationToEvaluate(null);
             } finally {
-                if (!cancelled) {
-                    setLoadingReservationToEvaluate(false);
-                }
+                if (!cancelled) setLoadingReservationToEvaluate(false);
             }
         };
 
@@ -368,7 +343,6 @@ export default function HomeContent() {
 
         const loadRecommendedAnnouncement = async () => {
             try {
-                // Load favorites
                 const favoritesParams = new URLSearchParams({
                     userId: String(currentUserId),
                 });
@@ -378,9 +352,7 @@ export default function HomeContent() {
                 if (cancelled) return;
 
                 if (!favoritesRes.ok || !favoritesData.favorites || !Array.isArray(favoritesData.favorites)) {
-                    if (!cancelled) {
-                        setRecommendedAnnouncement(null);
-                    }
+                    if (!cancelled) setRecommendedAnnouncement(null);
                     return;
                 }
 
@@ -389,34 +361,26 @@ export default function HomeContent() {
                 });
                 
                 if (favoriteIds.length === 0) {
-                    if (!cancelled) {
-                        setRecommendedAnnouncement(null);
-                    }
+                    if (!cancelled) setRecommendedAnnouncement(null);
                     return;
                 }
 
-                // Load announcements
                 const announcementsList = Array.isArray(announcements) ? announcements : [];
                 const favoriteAnnouncements = announcementsList.filter((a: any) =>
                     favoriteIds.some((favId: number) => Number(a.id) === favId)
                 );
 
                 if (favoriteAnnouncements.length === 0) {
-                    if (!cancelled) {
-                        setRecommendedAnnouncement(null);
-                    }
+                    if (!cancelled) setRecommendedAnnouncement(null);
                     return;
                 }
 
-                // Sort by createdAt (most recent first)
                 favoriteAnnouncements.sort((a: any, b: any) => {
                     const dateA = a.createdAt || '';
                     const dateB = b.createdAt || '';
-                    // Sort descending (most recent first)
                     return dateB.localeCompare(dateA);
                 });
 
-                // Get the most recent one (first in sorted array)
                 const mostRecent = favoriteAnnouncements[0];
 
                 if (!cancelled) {
@@ -424,13 +388,9 @@ export default function HomeContent() {
                 }
             } catch (error) {
                 console.error("Error loading recommended announcement", error);
-                if (!cancelled) {
-                    setRecommendedAnnouncement(null);
-                }
+                if (!cancelled) setRecommendedAnnouncement(null);
             } finally {
-                if (!cancelled) {
-                    setLoadingRecommended(false);
-                }
+                if (!cancelled) setLoadingRecommended(false);
             }
         };
 
@@ -443,16 +403,15 @@ export default function HomeContent() {
 
     // Load next reservation (closest upcoming)
     React.useEffect(() => {
-        if (!currentUserId || announcements.length === 0) {
-            // Wait for announcements to be loaded before calculating next reservation
-            if (announcements.length === 0 && currentUserId) {
-                setLoadingNextReservation(true);
-            } else {
-                setNextReservation(null);
-                setLoadingNextReservation(false);
-            }
+        if (!currentUserId) {
+            setNextReservation(null);
+            setLoadingNextReservation(false);
             return;
         }
+
+        // SUPPRESSION DE LA CONDITION DE BLOCAGE
+        // On lance le chargement immédiatement, quitte à ne rien trouver si les annonces ne sont pas encore là.
+        // Quand "announcements" changera (chargement terminé), ce useEffect se relancera automatiquement.
 
         let cancelled = false;
         setLoadingNextReservation(true);
@@ -468,31 +427,26 @@ export default function HomeContent() {
 
                 if (cancelled) return;
 
-                // Filter reservations that are upcoming (status: "reserved" or "to_pay")
                 const now = dayjs();
                 const upcoming = reservations.filter((r: any) => {
                     const status = r.status || 'to_pay';
-                    // Only show "reserved" or "to_pay" status
                     if (status !== 'reserved' && status !== 'to_pay') return false;
-                    // Check if date is in the future
                     if (!r.date) return false;
                     const reservationDate = dayjs(r.date);
                     return reservationDate.isAfter(now) || reservationDate.isSame(now, 'day');
                 });
 
                 if (upcoming.length === 0) {
-                    if (!cancelled) {
-                        setNextReservation(null);
-                    }
+                    if (!cancelled) setNextReservation(null);
                     return;
                 }
 
-                // Load announcements to get slot information
                 const announcementsList = Array.isArray(announcements) ? announcements : [];
                 
-                // Calculate full datetime for each reservation and sort
+                // Si les annonces sont vides (pas encore chargées), cette liste sera vide.
+                // Ce n'est pas grave, on affichera "rien" (loading = false) temporairement.
+                // Dès que les annonces arriveront, le useEffect rejouera et remplira la liste.
                 const reservationsWithDateTime = upcoming.map((r: any) => {
-                    // Convert to numbers for comparison since MongoDB stores them as numbers
                     const rAnnouncementId = typeof r.announcementId === 'number' ? r.announcementId : Number(r.announcementId);
                     const announcement = announcementsList.find(
                         (a: any) => Number(a.id) === rAnnouncementId
@@ -515,22 +469,17 @@ export default function HomeContent() {
                 }).filter((item: any) => item !== null);
 
                 if (reservationsWithDateTime.length === 0) {
-                    if (!cancelled) {
-                        setNextReservation(null);
-                    }
+                    if (!cancelled) setNextReservation(null);
                     return;
                 }
 
-                // Sort by fullDateTime (closest first)
                 reservationsWithDateTime.sort((a: any, b: any) => {
                     return a.fullDateTime.valueOf() - b.fullDateTime.valueOf();
                 });
 
-                // Get the closest one (first in sorted array)
                 const closest = reservationsWithDateTime[0];
                 const { reservation, announcement, fullDateTime } = closest;
 
-                // Get provider name
                 const nextAnnouncementUserId = typeof announcement.userId === 'number' 
                     ? announcement.userId 
                     : Number(announcement.userId);
@@ -550,11 +499,9 @@ export default function HomeContent() {
                     }
                 }
 
-                // Format date and time
                 const formattedDate = fullDateTime.locale('fr').format('D MMM YYYY');
                 const formattedTime = fullDateTime.format('HH:mm');
                 
-                // Calculate relative date (aujourd'hui, demain, dans x jours)
                 const today = dayjs().startOf('day');
                 const reservationDay = fullDateTime.startOf('day');
                 const diffDays = reservationDay.diff(today, 'day');
@@ -579,13 +526,10 @@ export default function HomeContent() {
                 }
             } catch (error) {
                 console.error("Error loading next reservation", error);
-                if (!cancelled) {
-                    setNextReservation(null);
-                }
+                if (!cancelled) setNextReservation(null);
             } finally {
-                if (!cancelled) {
-                    setLoadingNextReservation(false);
-                }
+                // On s'assure que le loading passe toujours à false, quoi qu'il arrive
+                if (!cancelled) setLoadingNextReservation(false);
             }
         };
 
@@ -594,7 +538,7 @@ export default function HomeContent() {
         return () => {
             cancelled = true;
         };
-    }, [currentUserId, announcements, users]);
+    }, [currentUserId, announcements, users]); // Dépendances importantes : si announcements change, on recharge.
 
     const stats = [
         { label: "Services rendus", value: String(servicesRendered) },
@@ -603,18 +547,7 @@ export default function HomeContent() {
     ]
     return (
         <>
-           <div className="homeContainer">
-            {/* {
-                (Array.isArray(navItems) ? navItems : []).map(({ id, label, icon: Icon }) => (
-                    <div
-                    key={id}
-                    className="homeRedirectItem"
-                    >
-                        <Icon style={{ color: '#ff9202', fontSize: 40 }} />
-                        <span>{label}</span>
-                    </div>
-                ))
-            } */}
+            <div className="homeContainer">
                 <Button 
                     fullWidth 
                     variant="contained"
@@ -716,8 +649,8 @@ export default function HomeContent() {
                             ))
                         )}
                     </div>
+                </div>
             </div>
-        </div>
         </>
     );
 }
