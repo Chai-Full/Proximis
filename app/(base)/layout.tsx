@@ -163,7 +163,7 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
                     {navItems.map(({ id, label, icon: Icon, href }) => (
                         <div
                             key={id}
-                            className={`navItem ${currentPage === id ? "active" : ""}`}
+                            className={`navItem ${(id === 'annonces' ? currentPage === 'my_announcements' : currentPage === id) ? "active" : ""}`}
                                onClick={() => {
                                    if (id === 'profil') {
                                        // when user clicks the navbar profile, show the connected user's profile (by id)
@@ -195,8 +195,8 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
                                }}
                             >
                             <Icon 
-                                color={currentPage !== id ? "primary" : "secondary"}
-                                fontSize={currentPage === id ? "large" : "medium"} 
+                                color={(id === 'annonces' ? currentPage === 'my_announcements' : currentPage === id) ? "secondary" : "primary"}
+                                fontSize={(id === 'annonces' ? currentPage === 'my_announcements' : currentPage === id) ? "large" : "medium"} 
                             />
                             <Link href="#" className="navLink">{label}</Link>
                         </div>

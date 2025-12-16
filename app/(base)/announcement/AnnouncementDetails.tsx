@@ -21,7 +21,7 @@ dayjs.extend(relativeTime);
 dayjs.locale('fr');
 
 export default function AnnounceDetails() {
-  const { selectedAnnouncementId, setHeaderTitle, setSelectedProfileId, setCurrentPage, currentUserId, setSelectedReservationId, setSelectedConversationId } = useContent();
+  const { selectedAnnouncementId, setHeaderTitle, setSelectedProfileId, setCurrentPage, currentUserId, setSelectedReservationId, setSelectedConversationId, announcementUpdated, setAnnouncementUpdated } = useContent();
   const [announcement, setAnnouncement] = useState<any>(null);
   const [author, setAuthor] = useState<any>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -46,6 +46,11 @@ export default function AnnounceDetails() {
 
     let cancelled = false;
     setLoading(true);
+
+    // Clear update flag after triggering reload
+    if (announcementUpdated && setAnnouncementUpdated) {
+      setAnnouncementUpdated(false);
+    }
 
     const loadData = async () => {
       try {
@@ -146,7 +151,7 @@ export default function AnnounceDetails() {
     return () => {
       cancelled = true;
     };
-  }, [selectedAnnouncementId]);
+  }, [selectedAnnouncementId, announcementUpdated]);
 
   // set header title to announcement title while on this page
   useEffect(() => {
