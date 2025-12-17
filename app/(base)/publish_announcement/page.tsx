@@ -128,6 +128,7 @@ function Step2({
         { id: 7, label: 'dimanche', selected: false },]);
     // local state for start/end hours (so setAvailableHours is defined)
     const [availableHours, setAvailableHours] = useState<(Dayjs | null)[]>([null, null]);
+    const [notification, setNotification] = useState<{ open: boolean; message: string; severity: 'success'|'warning'|'error'|'info' }>({ open: false, message: '', severity: 'info' });
     
     const addSlot = () => {
         const selectedDaysValue = getValues('availableDays') as number[] | undefined;
@@ -158,6 +159,63 @@ function Step2({
         if (nonDuplicateDays.length === 0) {
             setError('availableDays', { type: 'duplicate', message: 'Ces créneaux existent déjà' });
             return;
+        }
+
+        // Check for overlaps and gaps less than 30 minutes on the same day
+        let hasWarning = false;
+        for (const day of nonDuplicateDays) {
+            const existingSlotsForDay = selectedSlots.filter(s => s.day === day && s.start && s.end);
+            
+            for (const existingSlot of existingSlotsForDay) {
+                if (!existingSlot.start || !existingSlot.end || !start || !end) continue;
+                
+                // Check for overlap: new slot overlaps with existing slot
+                const newStart = start;
+                const newEnd = end;
+                const existingStart = existingSlot.start;
+                const existingEnd = existingSlot.end;
+                
+                // Check if there's an overlap (one starts before the other ends)
+                const overlaps = (
+                    (newStart.isBefore(existingEnd) && newEnd.isAfter(existingStart)) ||
+                    (existingStart.isBefore(newEnd) && existingEnd.isAfter(newStart))
+                );
+                
+                if (overlaps) {
+                    hasWarning = true;
+                    break;
+                }
+                
+                // Check for gap less than 30 minutes
+                // Case 1: New slot starts before existing slot ends
+                if (newEnd.isBefore(existingStart)) {
+                    const gapMinutes = existingStart.diff(newEnd, 'minute');
+                    if (gapMinutes < 30) {
+                        hasWarning = true;
+                        break;
+                    }
+                }
+                
+                // Case 2: Existing slot ends before new slot starts
+                if (existingEnd.isBefore(newStart)) {
+                    const gapMinutes = newStart.diff(existingEnd, 'minute');
+                    if (gapMinutes < 30) {
+                        hasWarning = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (hasWarning) break;
+        }
+
+        // Show warning if needed but allow to continue
+        if (hasWarning) {
+            setNotification({
+                open: true,
+                message: 'Le créneau est considéré comme du temps d\'activité. Pensez donc à prévoir un temps de battement entre chaque RDV, pour rejoindre votre prochain demandeur par exemple...',
+                severity: 'warning'
+            });
         }
 
         // add mapping entries: one per selected day so each can be removed independently
@@ -302,6 +360,12 @@ function Step2({
                     </div>
                 </div>
             </div>
+            <Notification 
+                open={notification.open} 
+                onClose={() => setNotification(prev => ({ ...prev, open: false }))} 
+                severity={notification.severity} 
+                message={notification.message} 
+            />
         </div>
     );
 }

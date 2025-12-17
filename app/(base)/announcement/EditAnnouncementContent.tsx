@@ -115,9 +115,11 @@ function Step1() {
 function Step2({
     selectedSlots,
     setSelectedSlots,
+    setNotification,
 }: {
     selectedSlots: { id: number; day: number; start: Dayjs | null; end: Dayjs | null }[];
     setSelectedSlots: React.Dispatch<React.SetStateAction<{ id: number; day: number; start: Dayjs | null; end: Dayjs | null }[]>>;
+    setNotification: React.Dispatch<React.SetStateAction<{ open: boolean; message: string; severity: 'success' | 'warning' | 'error' | 'info' }>>;
 }) {
     type AvailableDay = { id: number; label: string; selected: boolean };
 
@@ -171,6 +173,45 @@ function Step2({
             return;
         }
 
+        // Check for overlaps and insufficient gaps (non-blocking warnings)
+        let hasOverlap = false;
+        let hasInsufficientGap = false;
+        
+        for (const day of nonDuplicateDays) {
+            const existingSlotsForDay = selectedSlots.filter(s => s.day === day);
+            for (const existingSlot of existingSlotsForDay) {
+                if (existingSlot.start && existingSlot.end && start && end) {
+                    const newStartMinutes = start.hour() * 60 + start.minute();
+                    const newEndMinutes = end.hour() * 60 + end.minute();
+                    const existingStartMinutes = existingSlot.start.hour() * 60 + existingSlot.start.minute();
+                    const existingEndMinutes = existingSlot.end.hour() * 60 + existingSlot.end.minute();
+                    
+                    // Check for overlap: new slot starts before existing ends AND new slot ends after existing starts
+                    const hasOverlapWithThis = (
+                        (newStartMinutes < existingEndMinutes && newEndMinutes > existingStartMinutes)
+                    );
+                    
+                    if (hasOverlapWithThis) {
+                        hasOverlap = true;
+                        break;
+                    }
+                    
+                    // Check for insufficient gap (only if no overlap)
+                    // Gap between end of existing and start of new
+                    const gapAfterExisting = newStartMinutes - existingEndMinutes;
+                    // Gap between end of new and start of existing
+                    const gapBeforeExisting = existingStartMinutes - newEndMinutes;
+                    
+                    // If either gap exists and is less than 30 minutes (but not overlapping)
+                    if ((gapAfterExisting > 0 && gapAfterExisting < 30) || 
+                        (gapBeforeExisting > 0 && gapBeforeExisting < 30)) {
+                        hasInsufficientGap = true;
+                    }
+                }
+            }
+            if (hasOverlap) break;
+        }
+
         const base = Date.now();
         const newSlots = nonDuplicateDays.map((d, i) => ({
             id: base + i,
@@ -181,6 +222,21 @@ function Step2({
 
         setSelectedSlots((prev) => [...prev, ...newSlots]);
         clearErrors(["availableDays", "availableHours"]);
+        
+        // Show appropriate warning
+        if (hasOverlap) {
+            setNotification({
+                open: true,
+                message: "Ce créneau chevauche un créneau existant. Vérifiez que vos horaires sont corrects.",
+                severity: "warning",
+            });
+        } else if (hasInsufficientGap) {
+            setNotification({
+                open: true,
+                message: "Le Créneau est considéré comme du temps d'activité. Pensez donc à prévoir un temps de battement entre chaque RDV, pour rejoindre votre prochain demandeur par exemple...",
+                severity: "warning",
+            });
+        }
     };
 
     return (
@@ -607,7 +663,7 @@ export default function EditAnnouncementContent() {
                     className="formSection"
                 >
                     {step === 1 && <Step1 />}
-                    {step === 2 && <Step2 selectedSlots={selectedSlots} setSelectedSlots={setSelectedSlots} />}
+                    {step === 2 && <Step2 selectedSlots={selectedSlots} setSelectedSlots={setSelectedSlots} setNotification={setNotification} />}
                     {step === 3 && <Step3 />}
 
                     <Notification open={notification.open} onClose={closeNotif} severity={notification.severity} message={notification.message} />
