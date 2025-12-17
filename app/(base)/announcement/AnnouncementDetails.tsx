@@ -36,6 +36,8 @@ export default function AnnounceDetails() {
   const [averageRating, setAverageRating] = useState<number | null>(null);
   const [reviewsCount, setReviewsCount] = useState<number>(0);
   const [isContacting, setIsContacting] = useState<boolean>(false);
+  const [hasActiveReservations, setHasActiveReservations] = useState<boolean>(false);
+  const [isClosing, setIsClosing] = useState<boolean>(false);
 
   // Load announcement and user data from MongoDB
   useEffect(() => {
@@ -147,6 +149,28 @@ export default function AnnounceDetails() {
       cancelled = true;
     };
   }, [selectedAnnouncementId]);
+
+  // Load active reservations for this announcement (owner cannot close if any active)
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      try {
+        if (!announcement?.id) { setHasActiveReservations(false); return; }
+        const res = await fetchWithAuth(`/api/reservations?announcementId=${encodeURIComponent(String(announcement.id))}`);
+        const data = await res.json();
+        if (!cancelled && res.ok && data?.reservations && Array.isArray(data.reservations)) {
+          const active = data.reservations.some((r: any) => r && (r.status === 'reserved' || r.status === 'to_pay'));
+          setHasActiveReservations(Boolean(active));
+        } else if (!cancelled) {
+          setHasActiveReservations(false);
+        }
+      } catch {
+        if (!cancelled) setHasActiveReservations(false);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [announcement?.id]);
 
   // set header title to announcement title while on this page
   useEffect(() => {
@@ -475,7 +499,7 @@ export default function AnnounceDetails() {
       </div>
       <div className='announceDEtailsContent'>
         <span className='T6 announcementStatus' style={{ textAlign: "right"}}>
-          Disponible
+          {announcement?.isAvailable === false ? 'Clôturée' : 'Disponible'}
         </span>
         <div style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}>
           <div
@@ -625,19 +649,72 @@ export default function AnnounceDetails() {
           </div>
         </div>
         <div className='actionSection'>
-          <Button 
-            variant="outlined"
-            fullWidth
-            sx={{
-              textTransform: "capitalize",
-              fontWeight: 600,
-              boxShadow: "0px 4px 4px rgba(0, 0, 0, 0.25)",
-            }}
-            startIcon={
-              <ChatBubbleOutlineOutlined />
-            }
-            disabled={isContacting || !currentUserId || !announcement || !author}
-            onClick={async () => {
+          {currentUserId != null && announcement && String(currentUserId) === String(announcement.userId) ? (
+            // Owner view
+            hasActiveReservations ? (
+              <div
+                className='T6'
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  borderRadius: 12,
+                  backgroundColor: '#FFF3CD',
+                  color: '#8A6D3B',
+                  border: '1px solid #FFEEBA',
+                  marginBottom: 12,
+                  textAlign: 'center',
+                }}
+              >
+                Vous ne pouvez pas clôturer un Service ayant des Réservations actives.
+              </div>
+            ) : (
+              <Button
+                variant="contained"
+                color="secondary"
+                fullWidth
+                disabled={isClosing}
+                sx={{ textTransform: 'capitalize', fontWeight: 600 }}
+                onClick={async () => {
+                  if (!announcement) return;
+                  const ok = typeof window !== 'undefined' ? window.confirm("Êtes-vous sûr de vouloir clôturer cette annonce ?") : false;
+                  if (!ok) return;
+                  try {
+                    setIsClosing(true);
+                    const res = await fetchWithAuth(`/api/announcements/${announcement.id}`, {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ id: announcement.id, isAvailable: false }),
+                    });
+                    const json = await res.json();
+                    if (res.ok && json?.ok) {
+                      setAnnouncement((prev: any) => prev ? { ...prev, isAvailable: false } : prev);
+                      setNotification({ open: true, message: 'Annonce clôturée', severity: 'success' });
+                    } else {
+                      setNotification({ open: true, message: json?.error || 'Erreur lors de la clôture.', severity: 'error' });
+                    }
+                  } catch {
+                    setNotification({ open: true, message: 'Erreur réseau lors de la clôture.', severity: 'error' });
+                  } finally {
+                    setIsClosing(false);
+                  }
+                }}
+              >
+                {isClosing ? 'Clôture…' : 'Clôturer'}
+              </Button>
+            )
+          ) : (
+            <>
+              <Button 
+                variant="outlined"
+                fullWidth
+                sx={{
+                  textTransform: "capitalize",
+                  fontWeight: 600,
+                  boxShadow: "0px 4px 4px rgba(0, 0, 0, 0.25)",
+                }}
+                startIcon={<ChatBubbleOutlineOutlined />}
+                disabled={isContacting || !currentUserId || !announcement || !author || announcement?.isAvailable === false}
+                onClick={async () => {
               if (!currentUserId || !announcement || !author) {
                 setNotification({ open: true, message: 'Impossible de contacter le propriétaire.', severity: 'error' });
                 return;
@@ -718,15 +795,15 @@ export default function AnnounceDetails() {
               }
             }}
             >
-            {isContacting ? 'Connexion...' : 'Contacter'}
-          </Button>
-          <Button
-            variant="contained"
-            fullWidth
-            sx={{ textTransform: 'capitalize', fontWeight: 600 }}
-            disabled={isChecking}
-            startIcon={isChecking ? <CircularProgress size={18} color="inherit" /> : <CheckBoxOutlined />}
-            onClick={async () => {
+                {isContacting ? 'Connexion...' : 'Contacter'}
+              </Button>
+              <Button
+                variant="contained"
+                fullWidth
+                sx={{ textTransform: 'capitalize', fontWeight: 600 }}
+                disabled={isChecking || announcement?.isAvailable === false}
+                startIcon={isChecking ? <CircularProgress size={18} color="inherit" /> : <CheckBoxOutlined />}
+                onClick={async () => {
               if (selectedSlot === null) {
                 setNotification({ open: true, message: 'Veuillez sélectionner un créneau avant de réserver.', severity: 'warning' });
                 return;
@@ -735,6 +812,10 @@ export default function AnnounceDetails() {
                 setNotification({ open: true, message: 'Veuillez sélectionner une date.', severity: 'warning' });
                 return;
               }
+                  if (announcement?.isAvailable === false) {
+                    setNotification({ open: true, message: 'Cette annonce est clôturée et ne peut plus être réservée.', severity: 'warning' });
+                    return;
+                  }
               // ensure selected date is not before today
               if (!dayjs(selectedDate).isValid() || dayjs(selectedDate).startOf('day').isBefore(dayjs().startOf('day'))) {
                 setNotification({ open: true, message: 'La date sélectionnée ne peut pas être antérieure à aujourd\'hui.', severity: 'error' });
@@ -821,8 +902,10 @@ export default function AnnounceDetails() {
               }
             }}
           >
-            {isChecking ? 'Vérification...' : 'Réserver'}
-          </Button>
+                {isChecking ? 'Vérification...' : 'Réserver'}
+              </Button>
+            </>
+          )}
           <div 
             style={{ display: 'flex', alignItems: 'center', flex: '0 0 auto' }}
             onClick={() => {
