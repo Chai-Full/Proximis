@@ -176,8 +176,22 @@ function Reservation() {
   const slot = announcement.slots && Array.isArray(announcement.slots) && reservation.slotIndex !== undefined 
     ? announcement.slots[reservation.slotIndex] 
     : null;
-  
-  const formattedDate = reservation?.date ? dayjs(reservation.date).format('YYYY.MM.DD') : '--/--/----';
+
+  const formattedDate = reservation?.date ? dayjs(reservation.date).format('DD.MM.YY') : '--/--/----';
+
+  // Compute total to pay: hourly price * duration (rounded to nearest 0.5 hour)
+  const totalToPay = React.useMemo(() => {
+    const hourly = Number(announcement?.price ?? 0) || 0;
+    if (!slot || !slot.start || !slot.end) return hourly;
+    const start = dayjs(slot.start);
+    const end = dayjs(slot.end);
+    if (!start.isValid() || !end.isValid()) return hourly;
+    const minutes = Math.max(0, end.diff(start, 'minute'));
+    const hours = minutes / 60;
+    const roundedHalf = Math.round(hours * 2) / 2; // nearest 0.5h
+    const effectiveHours = roundedHalf > 0 ? roundedHalf : (hours > 0 ? 0.5 : 0);
+    return Math.max(0, effectiveHours * hourly);
+  }, [announcement?.price, slot]);
   
 
   return (
@@ -198,8 +212,8 @@ function Reservation() {
             </div>
             <div className='separator'></div>
             <div style={{display: "flex", justifyContent: "space-between"}}>
-                <span className='T2 TSemibold'>Récapitulatif</span>
-                <span className='T2 ' style={{color: "var(--primary)"}}>{announcement ? announcement.price : 'N/A'} €</span>
+                <span className='T2 TSemibold'>Total</span>
+              <span className='T2 ' style={{color: "var(--primary)"}}>{Number.isFinite(totalToPay) ? totalToPay : 'N/A'} €</span>
             </div>
         </div>
         <div className='paymentInfo'>
@@ -407,7 +421,23 @@ function PaymentButton({ reservation, announcement, setSelectedReservationId, cu
   return (
     <>
       <Button fullWidth variant="contained" sx={{ textTransform: 'none' }} onClick={handlePay} disabled={loading}>
-        Payer {announcement ? announcement.price : 'N/A'} €
+        {(() => {
+          const hourly = Number(announcement?.price ?? 0) || 0;
+          const s = announcement?.slots && reservation?.slotIndex !== undefined ? announcement.slots[reservation.slotIndex] : null;
+          let total = hourly;
+          if (s && s.start && s.end) {
+            const start = dayjs(s.start);
+            const end = dayjs(s.end);
+            if (start.isValid() && end.isValid()) {
+              const minutes = Math.max(0, end.diff(start, 'minute'));
+              const hours = minutes / 60;
+              const roundedHalf = Math.round(hours * 2) / 2;
+              const effectiveHours = roundedHalf > 0 ? roundedHalf : (hours > 0 ? 0.5 : 0);
+              total = Math.max(0, effectiveHours * hourly);
+            }
+          }
+          return `Payer ${Number.isFinite(total) ? total : 'N/A'} €`;
+        })()}
       </Button>
       <Notification open={open} onClose={() => setOpen(false)} severity={severity} message={message} />
     </>
