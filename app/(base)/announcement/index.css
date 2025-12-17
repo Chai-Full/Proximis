@@ -41,6 +41,7 @@
   flex-direction: column;
   row-gap: 8px;
   flex: 1;
+  min-width: 0;
   justify-content: space-between;
 }
 

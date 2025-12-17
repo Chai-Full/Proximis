@@ -235,44 +235,32 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding: 16px;
 }
 
 .reservationCard {
   background-color: #ffffff;
-  border: 2px solid rgba(3, 166, 137, 0.3);
-  border-radius: 16px;
+  border-bottom: 1px solid var(--primary);
+  border-left: 3px solid var(--primary);
+  border-right: 1px solid var(--primary);
   padding: 12px 16px;
-  margin-bottom: 12px;
   cursor: pointer;
-  transition: background-color 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.05);
+  transition: background-color 0.2s ease;
 }
 
 .reservationCard:hover {
-  background-color: #f9f9f9;
-  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+  background-color: #f5f5f5;
 }
 
 .reservationCardOrange {
   background-color: #fff3e0;
-  border: 2px solid var(--secondary);
+  border-bottom: 1px solid var(--secondary);
+  border-top: 1px solid var(--secondary);
   border-left: 6px solid var(--secondary);
-  border-radius: 16px;
+  border-right: 1px solid var(--secondary);
 }
 
 .reservationCardOrange:hover {
   background-color: #ffe0b2;
-}
-
-.reservationCardGreen {
-  background-color: rgba(3, 166, 137, 0.05);
-  border: 2px solid rgba(3, 166, 137, 0.3);
-  border-radius: 16px;
-}
-
-.reservationCardGreen:hover {
-  background-color: rgba(3, 166, 137, 0.1);
 }
 
 .reservationCardContent {
@@ -284,7 +272,7 @@
 .reservationCardImage {
   width: 60px;
   height: 60px;
-  border-radius: 50%;
+  border-radius: 8px;
   flex-shrink: 0;
   background-color: #f0f0f0;
   background-size: cover;
@@ -300,14 +288,29 @@
   min-width: 0;
 }
 
+.reservationCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
 .reservationCardTitle {
-  margin: 0 0 8px 0;
+  margin: 0;
   font-size: 16px;
   font-weight: 600;
   color: #000000;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+}
+
+.reservationCardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
 }
 
 .reservationCardTimeName {
@@ -316,14 +319,7 @@
   gap: 6px;
   font-size: 14px;
   color: #545454;
-  margin-bottom: 8px;
-}
-
-.reservationCardDateBadge {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
+  flex: 1;
 }
 
 .reservationStatusBadge {
@@ -334,21 +330,13 @@
   white-space: nowrap;
 }
 
-.reservationStatusBadge {
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
 .reservationStatusBadge.statusToEvaluate {
-  background-color: var(--secondary);
+  background-color: #ff9800;
   color: #ffffff;
 }
 
 .reservationStatusBadge.statusReserved {
-  background-color: rgba(3, 166, 137, 0.5);
+  background-color: #1ea792;
   color: #ffffff;
 }
 
@@ -363,8 +351,8 @@
 }
 
 .reservationDate {
-  font-size: 14px;
-  color: #545454;
+  font-size: 12px;
+  color: #8c8c8c;
   flex-shrink: 0;
 }
 

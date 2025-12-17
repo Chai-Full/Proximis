@@ -112,7 +112,7 @@ const AnnouncementCard = ({ announcement, profilPage=false }: AnnouncementCardPr
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
                     <span
                         className='T5'
-                        style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}
+                        style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0, maxWidth: '100%' }}
                     >
                         {title}
                     </span>
