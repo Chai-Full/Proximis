@@ -823,10 +823,15 @@ export default function AnnounceDetails() {
           >
             {isChecking ? 'Vérification...' : 'Réserver'}
           </Button>
-          <div style={{ display: 'flex', alignItems: 'center', flex: '0 0 auto' }}>
+          <div 
+            style={{ display: 'flex', alignItems: 'center', flex: '0 0 auto' }}
+            onClick={() => {
+              setCurrentPage && setCurrentPage('reviews');
+            }}
+          >
               <Star sx={{ color: "#FFE135" }} />
               <span className='T4' style={{color:"#545454"}}>
-                {averageRating !== null ? averageRating.toFixed(1) : '—'} - {reviewsCount} {reviewsCount === 1 ? 'Avis' : 'Avis'}
+                {averageRating !== null ? averageRating.toFixed(1) : '0'} ( {reviewsCount} {reviewsCount === 1 ? 'Avis' : 'Avis' } )
               </span>
           </div>
           <Button 

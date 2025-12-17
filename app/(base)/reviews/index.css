@@ -78,11 +78,30 @@
   gap: 12px;
 }
 
+.reviewHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .reviewUsername {
   font-size: 16px;
   font-weight: 600;
-  color: #545454;
+  color: #000000;
   flex-shrink: 0;
+}
+
+.reviewCategoryBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background-color: rgba(3, 166, 137, 0.2);
+  color: rgba(3, 166, 137, 1);
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .reviewStars {
