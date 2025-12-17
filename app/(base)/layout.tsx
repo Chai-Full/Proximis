@@ -195,7 +195,7 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
                                }}
                             >
                             <Icon 
-                                color={(id === 'annonces' ? currentPage === 'my_announcements' : currentPage === id) ? "secondary" : "primary"}
+                                sx={{ color: (id === 'annonces' ? currentPage === 'my_announcements' : currentPage === id) ? 'var(--secondary)' : '#FFFFFF' }}
                                 fontSize={(id === 'annonces' ? currentPage === 'my_announcements' : currentPage === id) ? "large" : "medium"} 
                             />
                             <Link href="#" className="navLink">{label}</Link>
