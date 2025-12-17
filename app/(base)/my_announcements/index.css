@@ -67,6 +67,7 @@
   align-items: flex-start;
   gap: 8px;
   margin-bottom: 8px;
+  min-width: 0;
 }
 
 .myAnnouncementCardTitle {
@@ -75,6 +76,8 @@
   font-weight: 600;
   color: #000000;
   flex: 1;
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

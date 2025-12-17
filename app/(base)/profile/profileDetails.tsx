@@ -75,11 +75,25 @@ export default function ProfileDetails() {
               userId: a.userCreateur?.idUser,
               createdAt: a.datePublication,
               photo: a.photos?.[0]?.urlPhoto,
-              slots: a.creneaux?.map((c: any) => ({
-                start: c.dateDebut,
-                end: c.dateFin,
-                estReserve: c.estReserve,
-              })) || [],
+              slots: a.creneaux?.map((c: any) => {
+                // Extract day from dateDebut (1 = Monday, 7 = Sunday)
+                let day = 0;
+                if (c.dateDebut) {
+                  try {
+                    const date = new Date(c.dateDebut);
+                    const jsDay = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+                    day = jsDay === 0 ? 7 : jsDay; // Convert to 1 = Monday, 7 = Sunday
+                  } catch (e) {
+                    console.error('Error parsing creneau dateDebut:', e, c);
+                  }
+                }
+                return {
+                  day,
+                  start: c.dateDebut,
+                  end: c.dateFin,
+                  estReserve: c.estReserve,
+                };
+              }).filter((slot: any) => slot.day >= 1 && slot.day <= 7) || [],
               isAvailable: a.creneaux?.some((c: any) => !c.estReserve) !== false,
             }));
             if (!cancelled) setAnnouncements(transformed);
@@ -348,7 +362,7 @@ export default function ProfileDetails() {
         <div className="announceProfileContentClosedList">
           {(() => {
             if (closedAnnouncements.length === 0) {
-              return <div className="empty">Aucune annonce disponible</div>;
+              return <div className="empty">Aucune annonce clôturée</div>;
             }
             return closedAnnouncements.map((ann: any) => (
               <AnnouncementCard key={ann.id} announcement={ann} profilPage={true} />

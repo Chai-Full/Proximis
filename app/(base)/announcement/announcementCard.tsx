@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react'
 import './index.css';
 import { useContent } from '../ContentContext';
 import { getDayLabels } from '@/lib/daylabel';
+import { fetchWithAuth } from '../lib/auth';
 
 export type Announcement = {
     scope?: number;
@@ -41,7 +42,7 @@ const AnnouncementCard = ({ announcement, profilPage=false }: AnnouncementCardPr
         const params = new URLSearchParams({
           announcementId: String(id),
         });
-        const res = await fetch(`/api/evaluations?${params.toString()}`);
+        const res = await fetchWithAuth(`/api/evaluations?${params.toString()}`);
         const data = await res.json();
 
         if (cancelled) return;
@@ -112,7 +113,7 @@ const AnnouncementCard = ({ announcement, profilPage=false }: AnnouncementCardPr
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
                     <span
                         className='T5'
-                        style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}
+                        style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0, maxWidth: '100%' }}
                     >
                         {title}
                     </span>
