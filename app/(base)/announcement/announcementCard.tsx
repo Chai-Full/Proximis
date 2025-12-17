@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react'
 import './index.css';
 import { useContent } from '../ContentContext';
 import { getDayLabels } from '@/lib/daylabel';
+import { fetchWithAuth } from '../lib/auth';
 
 export type Announcement = {
     scope?: number;
@@ -41,7 +42,7 @@ const AnnouncementCard = ({ announcement, profilPage=false }: AnnouncementCardPr
         const params = new URLSearchParams({
           announcementId: String(id),
         });
-        const res = await fetch(`/api/evaluations?${params.toString()}`);
+        const res = await fetchWithAuth(`/api/evaluations?${params.toString()}`);
         const data = await res.json();
 
         if (cancelled) return;
