@@ -282,6 +282,11 @@ export default function AnnounceDetails() {
     return () => clearTimeout(timeoutId);
   }, [announcement?.slots]);
 
+  // Reset selected slot when date changes
+  useEffect(() => {
+    setSelectedSlot(null);
+  }, [selectedDate]);
+
   const toggleFavorite = async () => {
     if (!announcement || !currentUserId || isTogglingFavorite) return;
     
@@ -567,25 +572,56 @@ export default function AnnounceDetails() {
             />
           </LocalizationProvider>
           <div className='announcementAvailabilityOptions'>
-            {(!announcement.slots || announcement.slots.length === 0) && <div><span className='T6'>Aucun créneau disponible</span></div>}
-            {announcement.slots && announcement.slots.length > 0 && announcement.slots.map((slot:any, index:number) => (
-                <div className='announcementAvailabilityOptionsItem' key={index}>
-                  <div className='announcementAvailabilityOption'>
-                    <span className='T6'>{getDayLabelById(slot.day)}</span>
-                  </div>
+            {(() => {
+              // Convert selected date to our day format (1=Monday, 7=Sunday)
+              const selectedDayJs = selectedDate ? dayjs(selectedDate).day() : null;
+              const selectedDay = selectedDayJs !== null ? (selectedDayJs === 0 ? 7 : selectedDayJs) : null;
+              
+              // Filter slots to show only those for the selected day
+              const filteredSlots = announcement?.slots?.filter((slot: any) => {
+                const slotDay = Number(slot.day);
+                return slotDay === selectedDay;
+              }) || [];
+              
+              // Get the original index of each slot in the full slots array for selection
+              const slotsWithOriginalIndex = filteredSlots.map((slot: any) => {
+                const originalIndex = announcement.slots.findIndex((s: any) => 
+                  s.day === slot.day && 
+                  s.start === slot.start && 
+                  s.end === slot.end
+                );
+                return { ...slot, originalIndex };
+              });
+              
+              if (!announcement?.slots || announcement.slots.length === 0) {
+                return <div><span className='T6'>Aucun créneau disponible</span></div>;
+              }
+              
+              if (selectedDay === null || filteredSlots.length === 0) {
+                return <div><span className='T6'>Aucun créneau disponible pour ce jour</span></div>;
+              }
+              
+              return slotsWithOriginalIndex.map((slot: any, displayIndex: number) => {
+                const originalIndex = slot.originalIndex;
+                return (
+                  <div className='announcementAvailabilityOptionsItem' key={`${selectedDay}-${displayIndex}`}>
+                    <div className='announcementAvailabilityOption' style={{ backgroundColor: 'rgba(3, 166, 137, 0.5)', color: 'white' }}>
+                      <span className='T6'>{getDayLabelById(selectedDay)}</span>
+                    </div>
                     <Radio
-                      checked={String(selectedSlot) === String(index)}
-                      onChange={() => setSelectedSlot(String(index))}
+                      checked={String(selectedSlot) === String(originalIndex)}
+                      onChange={() => setSelectedSlot(String(originalIndex))}
                       inputProps={{
-                        'aria-label': `slot-${index}`,
+                        'aria-label': `slot-${originalIndex}`,
                       }}
                     />
-                  <div>
-                    <span className='T6' style={{color: "#545454"}}>{formatTime(slot.start)} - {formatTime(slot.end)}</span>
+                    <div>
+                      <span className='T6' style={{color: "#545454"}}>{formatTime(slot.start)} - {formatTime(slot.end)}</span>
+                    </div>
                   </div>
-
-                </div>
-            ))}
+                );
+              });
+            })()}
           </div>
         </div>
         <div className='actionSection'>

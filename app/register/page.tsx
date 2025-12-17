@@ -5,7 +5,6 @@ import { useForm, SubmitHandler, FormProvider, Controller } from "react-hook-for
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
 import MenuItem from "@mui/material/MenuItem";
 import { SignupInputs } from "../types/SingupInputs";
 import { APIProvider } from "@vis.gl/react-google-maps";
@@ -80,7 +79,7 @@ export default function SignupPage() {
         <Image style={{alignSelf: "center"}} src="logo.svg" alt="Connexion Image" width={500} height={500} />
         <div className="registerForm">
           <span className="T2">
-            Compléer mes informations
+            Compléter mes informations
           </span>
           <form onSubmit={methods.handleSubmit(onSubmit)}>
           {step === 0 && (
