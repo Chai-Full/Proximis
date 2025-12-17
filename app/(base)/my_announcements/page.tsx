@@ -296,7 +296,7 @@ function ReservationCard({ data }: { data: ReservationCardData }) {
 
   return (
     <div
-      className={`reservationCard ${isToEvaluate ? "reservationCardOrange" : ""}`}
+      className={`reservationCard ${isToEvaluate ? "reservationCardOrange" : status === "reserved" ? "reservationCardGreen" : ""}`}
       onClick={handleClick}
       role="button"
       tabIndex={0}
@@ -314,15 +314,12 @@ function ReservationCard({ data }: { data: ReservationCardData }) {
           }}
         />
         <div className="reservationCardDetails">
-          <div className="reservationCardHeader">
-            <h3 className="reservationCardTitle">{announcement.title}</h3>
-            {formattedDate && <span className="reservationDate">{formattedDate}</span>}
+          <h3 className="reservationCardTitle">{announcement.title}</h3>
+          <div className="reservationCardTimeName">
+            <span>{startTime} - {providerName || "Prestataire"}</span>
           </div>
-          <div className="reservationCardFooter">
-            <div className="reservationCardTimeName">
-              <AccessTimeIcon sx={{ fontSize: "16px", color: "#545454" }} />
-              <span>{startTime} - {providerName || "Prestataire"}</span>
-            </div>
+          <div className="reservationCardDateBadge">
+            {formattedDate && <span className="reservationDate">{formattedDate}</span>}
             <span className={`reservationStatusBadge ${getStatusClass(status)}`}>
               {statusLabel}
             </span>
@@ -614,7 +611,7 @@ export default function MyAnnouncementsContent() {
         {viewType === "reservations" && (
           <>
             {loading || loadingAnnouncements ? (
-              <div className="reservationsList" style={{ padding: '16px' }}>
+              <div className="reservationsList">
                 <SkeletonReservationCard />
                 <SkeletonReservationCard />
                 <SkeletonReservationCard />
