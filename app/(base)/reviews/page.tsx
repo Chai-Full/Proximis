@@ -78,7 +78,7 @@ export default function ReviewsContent() {
           
           if (announcement) {
             // Set announcement category
-            setAnnouncementCategory(announcement.category || '');
+            setAnnouncementCategory(announcement.typeAnnonce || '');
             
             // Load users from API to resolve provider name
             const usersRes = await fetchWithAuth('/api/users');
