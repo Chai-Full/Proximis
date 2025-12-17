@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import "./index.css";
 import { FormProvider, useForm, Controller, useFormContext } from "react-hook-form";
 import Button from "@mui/material/Button";
@@ -18,8 +18,8 @@ import Slider from "@mui/material/Slider";
 import Notification from "../components/Notification";
 import { useContent } from "../ContentContext";
 import { AnnounceCategories } from "@/app/types/AnnouceService";
-import announcementsData from "../../../data/announcements.json";
-import { getLocalUserId, getAuthHeader } from "../lib/auth";
+// Fetch announcement dynamically to ensure newly created items are available
+import { getLocalUserId, fetchWithAuth } from "../lib/auth";
 import Image from "next/image";
 
 type FormValues = {
@@ -416,15 +416,31 @@ function Step3() {
 /* -------------------------------------------------------------------------- */
 
 export default function EditAnnouncementContent() {
-    const { setHeaderTitle, selectedAnnouncementId, currentUserId, setCurrentPage } = useContent();
+    const { setHeaderTitle, selectedAnnouncementId, currentUserId, setCurrentPage, setAnnouncementUpdated } = useContent();
+    const [announcement, setAnnouncement] = useState<any | null>(null);
 
-    const announcement = useMemo(
-        () =>
-            (announcementsData as any[]).find(
-                (a) => String(a.id) === String(selectedAnnouncementId)
-            ),
-        [selectedAnnouncementId]
-    );
+    useEffect(() => {
+        let cancelled = false;
+        const load = async () => {
+            if (!selectedAnnouncementId) {
+                setAnnouncement(null);
+                return;
+            }
+            try {
+                const res = await fetchWithAuth(`/api/announcements/${selectedAnnouncementId}`);
+                const json = await res.json();
+                if (res.ok && json?.ok && json?.announcement) {
+                    if (!cancelled) setAnnouncement(json.announcement);
+                } else {
+                    if (!cancelled) setAnnouncement(null);
+                }
+            } catch {
+                if (!cancelled) setAnnouncement(null);
+            }
+        };
+        load();
+        return () => { cancelled = true; };
+    }, [selectedAnnouncementId]);
 
     const [step, setStep] = useState(1);
     const [selectedSlots, setSelectedSlots] = useState<
@@ -433,12 +449,12 @@ export default function EditAnnouncementContent() {
 
     const methods = useForm<FormValues>({
         defaultValues: {
-            title: announcement?.title ?? "",
-            category: announcement?.category ?? "",
-            description: announcement?.description ?? "",
-            price: announcement?.price ?? 0,
-            scope: announcement?.scope ?? 0,
-            photo: announcement?.photo ?? null,
+            title: "",
+            category: "",
+            description: "",
+            price: 0,
+            scope: 0,
+            photo: null,
         },
     });
 
@@ -448,8 +464,17 @@ export default function EditAnnouncementContent() {
         return () => setHeaderTitle && setHeaderTitle(null);
     }, [step, setHeaderTitle]);
 
-    /* Load existing slots */
+    /* When announcement loads, populate form + slots */
     useEffect(() => {
+        if (!announcement) return;
+        methods.reset({
+            title: announcement?.title ?? "",
+            category: announcement?.category ?? "",
+            description: announcement?.description ?? "",
+            price: announcement?.price ?? 0,
+            scope: announcement?.scope ?? 0,
+            photo: announcement?.photo ?? null,
+        });
         if (announcement?.slots?.length) {
             const mapped = announcement.slots.map((s: any, idx: number) => ({
                 id: Date.now() + idx,
@@ -458,8 +483,10 @@ export default function EditAnnouncementContent() {
                 end: s.end ? dayjs(s.end) : null,
             }));
             setSelectedSlots(mapped);
+        } else {
+            setSelectedSlots([]);
         }
-    }, [announcement]);
+    }, [announcement, methods]);
 
     useEffect(() => {
         const serialized = selectedSlots.map((s) => ({
@@ -521,10 +548,9 @@ export default function EditAnnouncementContent() {
             setSubmitting(true);
             const payload = { ...data, id: announcement.id, userId: currentUserId ?? getLocalUserId() };
 
-            const res = await fetch(`/api/announcements/${announcement.id}`, {
+            const res = await fetchWithAuth(`/api/announcements/${announcement.id}`, {
                 method: "PUT",
                 headers: {
-                    ...getAuthHeader(),
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify(payload),
@@ -534,6 +560,10 @@ export default function EditAnnouncementContent() {
 
             if (json?.ok) {
                 setNotification({ open: true, message: "Annonce mise à jour", severity: "success" });
+                // Trigger flag to reload announcement data on detail page
+                if (setAnnouncementUpdated) {
+                    setAnnouncementUpdated(true);
+                }
                 setCurrentPage && setCurrentPage('announce_details');
             } else {
                 setNotification({ open: true, message: json?.error ?? "Erreur inconnue", severity: "error" });

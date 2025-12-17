@@ -51,6 +51,9 @@ type ContentContextType = {
   // applied filters from the filter page
   appliedFilters?: InputsAnnounceSearch | null;
   setAppliedFilters: (f: InputsAnnounceSearch | null) => void;
+  // flag to track when an announcement was updated, for invalidating cache
+  announcementUpdated?: boolean;
+  setAnnouncementUpdated: (flag: boolean) => void;
 };
 
 const ContentContext = createContext<ContentContextType | undefined>(undefined);
@@ -81,6 +84,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [appliedFilters, setAppliedFilters] = useState<InputsAnnounceSearch | null>(null);
   const [reservationDraft, setReservationDraft] = useState<{ announcementId: number | string; slotIndex: number; date?: string } | null>(null);
   const [selectedReservationId, setSelectedReservationId] = useState<number | string | null>(null);
+  const [announcementUpdated, setAnnouncementUpdated] = useState<boolean>(false);
 
   const setCurrentPage = useCallback((p: PageKey, replaceHistory?: PageKey[]) => {
     // Navigating to home always clears the history to remove the back option
@@ -142,6 +146,8 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setReservationDraft,
         selectedReservationId,
         setSelectedReservationId,
+        announcementUpdated,
+        setAnnouncementUpdated,
       }}
     >
       {children}

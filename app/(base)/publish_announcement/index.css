@@ -107,7 +107,7 @@
     justify-content: space-around;
     padding: 8px 0px;
     border-radius: 50px;
-    background-color: #03A68912;
-    color: var(--primary);
+    background-color: rgba(3, 166, 137, 0.5);
+    color: white;
     width: 100%;
 }

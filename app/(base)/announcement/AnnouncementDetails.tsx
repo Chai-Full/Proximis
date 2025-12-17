@@ -251,6 +251,42 @@ export default function AnnounceDetails() {
     return () => { cancelled = true; };
   }, [author, currentUser]);
 
+  // Style calendar column headers based on available days
+  useEffect(() => {
+    if (!announcement?.slots || announcement.slots.length === 0) return;
+    
+    const availableDays = new Set(
+      announcement.slots.map((slot: any) => Number(slot.day))
+    );
+    
+    // Map our day format (1=Monday, 7=Sunday) to column index (0=Monday, 6=Sunday)
+    const dayToColumnIndex = (day: number) => {
+      return day === 7 ? 6 : day - 1; // Sunday is 7 in our format, but 6 in column index
+    };
+    
+    // Apply styles to column headers after a short delay to ensure DOM is ready
+    const timeoutId = setTimeout(() => {
+      const dayLabels = document.querySelectorAll('.MuiDayCalendar-weekDayLabel');
+      dayLabels.forEach((label, index) => {
+        const dayNumber = index === 6 ? 7 : index + 1; // Convert column index to our day format
+        if (!availableDays.has(dayNumber)) {
+          (label as HTMLElement).style.color = '#d0d0d0';
+          (label as HTMLElement).style.opacity = '0.5';
+        } else {
+          (label as HTMLElement).style.color = '';
+          (label as HTMLElement).style.opacity = '';
+        }
+      });
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, [announcement?.slots]);
+
+  // Reset selected slot when date changes
+  useEffect(() => {
+    setSelectedSlot(null);
+  }, [selectedDate]);
+
   const toggleFavorite = async () => {
     if (!announcement || !currentUserId || isTogglingFavorite) return;
     
@@ -486,28 +522,106 @@ export default function AnnounceDetails() {
             Disponibilité
           </span>
           <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <DateCalendar value={selectedDate} onChange={(d) => setSelectedDate(d)} minDate={dayjs()} />
+            <DateCalendar 
+              value={selectedDate} 
+              onChange={(d) => setSelectedDate(d)} 
+              minDate={dayjs()}
+              shouldDisableDate={(date) => {
+                if (!announcement?.slots || announcement.slots.length === 0) {
+                  return true; // Disable all dates if no slots
+                }
+                // Get unique available days from slots (1-7, where 1=Monday, 7=Sunday)
+                const availableDays = new Set(
+                  announcement.slots.map((slot: any) => Number(slot.day))
+                );
+                // Convert dayjs day (0=Sunday, 1=Monday, ..., 6=Saturday) to our format (1=Monday, 7=Sunday)
+                const dayjsDay = date.day();
+                const ourDay = dayjsDay === 0 ? 7 : dayjsDay;
+                // Disable dates that don't match any available day
+                return !availableDays.has(ourDay);
+              }}
+              sx={{
+                '& .MuiPickersCalendarHeader-root': {
+                  paddingLeft: '16px',
+                  paddingRight: '16px',
+                },
+                '& .MuiDayCalendar-weekContainer': {
+                  '& .MuiPickersDay-root': {
+                    // Style for available days
+                    '&:not(.Mui-disabled)': {
+                      backgroundColor: 'rgba(255, 146, 2, 0.2)',
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 146, 2, 0.4)',
+                      },
+                      '&.Mui-selected': {
+                        backgroundColor: 'var(--secondary)',
+                        color: 'white',
+                        '&:hover': {
+                          backgroundColor: 'var(--secondary)',
+                        },
+                      },
+                    },
+                    // Style for disabled (unavailable) days
+                    '&.Mui-disabled': {
+                      color: '#d0d0d0',
+                      backgroundColor: '#f5f5f5',
+                    },
+                  },
+                },
+              }}
+            />
           </LocalizationProvider>
           <div className='announcementAvailabilityOptions'>
-            {(!announcement.slots || announcement.slots.length === 0) && <div><span className='T6'>Aucun créneau disponible</span></div>}
-            {announcement.slots && announcement.slots.length > 0 && announcement.slots.map((slot:any, index:number) => (
-                <div className='announcementAvailabilityOptionsItem' key={index}>
-                  <div className='announcementAvailabilityOption'>
-                    <span className='T6'>{getDayLabelById(slot.day)}</span>
-                  </div>
+            {(() => {
+              // Convert selected date to our day format (1=Monday, 7=Sunday)
+              const selectedDayJs = selectedDate ? dayjs(selectedDate).day() : null;
+              const selectedDay = selectedDayJs !== null ? (selectedDayJs === 0 ? 7 : selectedDayJs) : null;
+              
+              // Filter slots to show only those for the selected day
+              const filteredSlots = announcement?.slots?.filter((slot: any) => {
+                const slotDay = Number(slot.day);
+                return slotDay === selectedDay;
+              }) || [];
+              
+              // Get the original index of each slot in the full slots array for selection
+              const slotsWithOriginalIndex = filteredSlots.map((slot: any) => {
+                const originalIndex = announcement.slots.findIndex((s: any) => 
+                  s.day === slot.day && 
+                  s.start === slot.start && 
+                  s.end === slot.end
+                );
+                return { ...slot, originalIndex };
+              });
+              
+              if (!announcement?.slots || announcement.slots.length === 0) {
+                return <div><span className='T6'>Aucun créneau disponible</span></div>;
+              }
+              
+              if (selectedDay === null || filteredSlots.length === 0) {
+                return <div><span className='T6'>Aucun créneau disponible pour ce jour</span></div>;
+              }
+              
+              return slotsWithOriginalIndex.map((slot: any, displayIndex: number) => {
+                const originalIndex = slot.originalIndex;
+                return (
+                  <div className='announcementAvailabilityOptionsItem' key={`${selectedDay}-${displayIndex}`}>
+                    <div className='announcementAvailabilityOption' style={{ backgroundColor: 'rgba(3, 166, 137, 0.5)', color: 'white' }}>
+                      <span className='T6'>{getDayLabelById(selectedDay)}</span>
+                    </div>
                     <Radio
-                      checked={String(selectedSlot) === String(index)}
-                      onChange={() => setSelectedSlot(String(index))}
+                      checked={String(selectedSlot) === String(originalIndex)}
+                      onChange={() => setSelectedSlot(String(originalIndex))}
                       inputProps={{
-                        'aria-label': `slot-${index}`,
+                        'aria-label': `slot-${originalIndex}`,
                       }}
                     />
-                  <div>
-                    <span className='T6' style={{color: "#545454"}}>{formatTime(slot.start)} - {formatTime(slot.end)}</span>
+                    <div>
+                      <span className='T6' style={{color: "#545454"}}>{formatTime(slot.start)} - {formatTime(slot.end)}</span>
+                    </div>
                   </div>
-
-                </div>
-            ))}
+                );
+              });
+            })()}
           </div>
         </div>
         <div className='actionSection'>
