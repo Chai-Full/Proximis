@@ -21,7 +21,7 @@ dayjs.extend(relativeTime);
 dayjs.locale('fr');
 
 export default function AnnounceDetails() {
-  const { selectedAnnouncementId, setHeaderTitle, setSelectedProfileId, setCurrentPage, currentUserId, setSelectedReservationId, setSelectedConversationId } = useContent();
+  const { selectedAnnouncementId, setHeaderTitle, setSelectedProfileId, setCurrentPage, currentUserId, setSelectedReservationId, setSelectedConversationId, announcementUpdated, setAnnouncementUpdated } = useContent();
   const [announcement, setAnnouncement] = useState<any>(null);
   const [author, setAuthor] = useState<any>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -38,6 +38,7 @@ export default function AnnounceDetails() {
   const [isContacting, setIsContacting] = useState<boolean>(false);
   const [hasActiveReservations, setHasActiveReservations] = useState<boolean>(false);
   const [isClosing, setIsClosing] = useState<boolean>(false);
+  const [reservationToEvaluateId, setReservationToEvaluateId] = useState<number | string | null>(null);
 
   // Load announcement and user data from MongoDB
   useEffect(() => {
@@ -150,6 +151,49 @@ export default function AnnounceDetails() {
     };
   }, [selectedAnnouncementId]);
 
+  // If an announcement was updated elsewhere (e.g., edit page), refresh data once
+  useEffect(() => {
+    const refresh = async () => {
+      if (!announcementUpdated || !selectedAnnouncementId) return;
+      try {
+        const announcementRes = await fetchWithAuth(`/api/announcements/${selectedAnnouncementId}`);
+        const announcementData = await announcementRes.json();
+        if (announcementRes.ok && announcementData?.ok && announcementData?.announcement) {
+          const ann = announcementData.announcement;
+          const transformedSlots = (ann.slots || []).map((slot: any) => {
+            if (typeof slot.day === 'number' && slot.day >= 1 && slot.day <= 7) {
+              return { ...slot, day: slot.day };
+            }
+            if (typeof slot.day === 'string') {
+              const dayNum = parseInt(slot.day, 10);
+              if (!isNaN(dayNum) && dayNum >= 1 && dayNum <= 7) {
+                return { ...slot, day: dayNum };
+              }
+            }
+            if (slot.start) {
+              const date = dayjs(slot.start);
+              if (date.isValid()) {
+                const jsDay = date.day();
+                const day = jsDay === 0 ? 7 : jsDay;
+                return { ...slot, day };
+              }
+            }
+            return { ...slot, day: 0 };
+          }).filter((slot: any) => {
+            const day = typeof slot.day === 'number' ? slot.day : (typeof slot.day === 'string' ? parseInt(slot.day, 10) : 0);
+            return !isNaN(day) && day >= 1 && day <= 7;
+          });
+          setAnnouncement({ ...ann, slots: transformedSlots });
+        }
+      } catch {}
+      finally {
+        setAnnouncementUpdated && setAnnouncementUpdated(false);
+      }
+    };
+    refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [announcementUpdated]);
+
   // Load active reservations for this announcement (owner cannot close if any active)
   useEffect(() => {
     let cancelled = false;
@@ -171,6 +215,29 @@ export default function AnnounceDetails() {
     run();
     return () => { cancelled = true; };
   }, [announcement?.id]);
+
+  // Detect if the current user has a reservation to evaluate for this announcement
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      try {
+        if (!announcement?.id || currentUserId == null) { setReservationToEvaluateId(null); return; }
+        const res = await fetchWithAuth(`/api/reservations?announcementId=${encodeURIComponent(String(announcement.id))}`);
+        const data = await res.json();
+        if (!cancelled && res.ok && data?.reservations && Array.isArray(data.reservations)) {
+          const meId = Number(currentUserId);
+          const toEval = data.reservations.find((r: any) => r && r.status === 'to_evaluate' && Number(r.userId) === meId);
+          setReservationToEvaluateId(toEval ? toEval.id : null);
+        } else if (!cancelled) {
+          setReservationToEvaluateId(null);
+        }
+      } catch {
+        if (!cancelled) setReservationToEvaluateId(null);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [announcement?.id, currentUserId]);
 
   // set header title to announcement title while on this page
   useEffect(() => {
@@ -797,7 +864,23 @@ export default function AnnounceDetails() {
             >
                 {isContacting ? 'Connexion...' : 'Contacter'}
               </Button>
-              <Button
+              {reservationToEvaluateId ? (
+                <Button
+                  variant="contained"
+                  fullWidth
+                  sx={{ textTransform: 'capitalize', fontWeight: 600, backgroundColor: '#ff9202', '&:hover': { backgroundColor: '#e58202' } }}
+                  disabled={announcement?.isAvailable === false}
+                  onClick={() => {
+                    if (setSelectedReservationId && setCurrentPage && reservationToEvaluateId != null) {
+                      setSelectedReservationId(reservationToEvaluateId);
+                      setCurrentPage('evaluate');
+                    }
+                  }}
+                >
+                  Évaluer
+                </Button>
+              ) : (
+                <Button
                 variant="contained"
                 fullWidth
                 sx={{ textTransform: 'capitalize', fontWeight: 600 }}
@@ -904,6 +987,7 @@ export default function AnnounceDetails() {
           >
                 {isChecking ? 'Vérification...' : 'Réserver'}
               </Button>
+              )}
             </>
           )}
           <div 
