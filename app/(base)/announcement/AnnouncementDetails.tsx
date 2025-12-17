@@ -549,15 +549,15 @@ export default function AnnounceDetails() {
                   '& .MuiPickersDay-root': {
                     // Style for available days
                     '&:not(.Mui-disabled)': {
-                      backgroundColor: '#03A68920',
+                      backgroundColor: 'rgba(255, 146, 2, 0.2)',
                       '&:hover': {
-                        backgroundColor: '#03A68940',
+                        backgroundColor: 'rgba(255, 146, 2, 0.4)',
                       },
                       '&.Mui-selected': {
-                        backgroundColor: '#03A689',
+                        backgroundColor: 'var(--secondary)',
                         color: 'white',
                         '&:hover': {
-                          backgroundColor: '#03A689',
+                          backgroundColor: 'var(--secondary)',
                         },
                       },
                     },
