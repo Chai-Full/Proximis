@@ -33,6 +33,7 @@ interface AnnouncementCardData {
   isAvailable?: boolean;
   rating?: number;
   description?: string;
+  userId?: number | string;
 }
 
 function MyAnnouncementCard({ announcement, showFavoriteIcon = false }: { announcement: AnnouncementCardData; showFavoriteIcon?: boolean }) {
@@ -230,22 +231,69 @@ function getStatusLabel(status?: ReservationStatus): string {
 
 function ReservationCard({ data }: { data: ReservationCardData }) {
   const { reservation, announcement, providerName } = data;
-  const { setCurrentPage, setSelectedReservationId } = useContent();
+  const { 
+    setCurrentPage, 
+    setSelectedReservationId, 
+    setSelectedAnnouncementId,
+    setSelectedConversationId,
+    currentUserId 
+  } = useContent();
 
-  const handleClick = () => {
+  const handleClick = async () => {
     const status = reservation.status || "to_pay";
     
     // Actions différentes selon le statut de la réservation
     switch (status) {
       case "to_pay":
         // Action pour "A régler" : rediriger vers la page de paiement
-        // TODO: Implémenter la redirection vers la page de paiement
-        console.log("Redirection vers paiement pour réservation:", reservation.id);
+        if (setSelectedReservationId && setCurrentPage) {
+          setSelectedReservationId(reservation.id);
+          setCurrentPage("reservation");
+        }
         break;
       case "reserved":
-        // Action pour "Réservé" : afficher les détails de la réservation
-        // TODO: Implémenter l'affichage des détails de la réservation
-        console.log("Afficher détails réservation:", reservation.id);
+        // Action pour "Réservé" : navigation vers la conversation correspondante
+        if (!currentUserId || !announcement || !setCurrentPage) return;
+        
+        try {
+          // Construct conversation ID: conv_{currentUserId}_{announcement.userId}_{announcement.id}
+          const conversationId = `conv_${currentUserId}_${announcement.userId}_${announcement.id}`;
+          
+          // Check if conversation exists
+          const checkRes = await fetchWithAuth(`/api/conversations?conversationId=${encodeURIComponent(conversationId)}`);
+          const checkData = await checkRes.json();
+          
+          if (checkRes.ok && checkData.conversation) {
+            // Conversation exists, navigate to it
+            if (setSelectedConversationId) {
+              setSelectedConversationId(conversationId);
+            }
+            setCurrentPage('message_chat', ['home', 'messages']);
+          } else {
+            // Create new conversation if it doesn't exist
+            const createRes = await fetchWithAuth('/api/conversations', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                fromUserId: currentUserId,
+                toUserId: announcement.userId,
+                announcementId: announcement.id,
+                initialMessage: `Bonjour, j'ai une réservation pour "${announcement.title}".`,
+              }),
+            });
+            
+            const createData = await createRes.json();
+            
+            if (createRes.ok && createData?.ok && createData?.conversation) {
+              if (setSelectedConversationId) {
+                setSelectedConversationId(createData.conversation.id);
+              }
+              setCurrentPage('message_chat', ['home', 'messages']);
+            }
+          }
+        } catch (error) {
+          console.error('Error handling reserved reservation click:', error);
+        }
         break;
       case "to_evaluate":
         // Action pour "A évaluer" : ouvrir le formulaire d'évaluation
@@ -255,9 +303,11 @@ function ReservationCard({ data }: { data: ReservationCardData }) {
         }
         break;
       case "completed":
-        // Action pour "Terminé" : afficher l'historique
-        // TODO: Implémenter l'affichage de l'historique
-        console.log("Afficher historique réservation:", reservation.id);
+        // Action pour "Terminé" : navigation vers consultation de l'annonce
+        if (setSelectedAnnouncementId && setCurrentPage) {
+          setSelectedAnnouncementId(announcement.id);
+          setCurrentPage("announce_details");
+        }
         break;
       default:
         console.log("Action non définie pour le statut:", status);
