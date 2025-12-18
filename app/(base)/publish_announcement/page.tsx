@@ -88,6 +88,7 @@ function Step1() {
                     fullWidth
                     sx={{ mb: 2, backgroundColor: "#03A68960", borderTopLeftRadius: "5px", borderTopRightRadius: "5px" }}
                     variant="filled"
+                    placeholder='Ex: Cours de Cuisine'
                 />
                 {/* <p className="error">{errors.title?.message as string}</p> */}
             </div>
@@ -102,6 +103,7 @@ function Step1() {
                     rows={4}
                     sx={{ mb: 2, backgroundColor: "#03A68960", borderTopLeftRadius: "5px", borderTopRightRadius: "5px" }}
                     variant="filled"
+                    placeholder='Décrivez votre service...'
                 />
                 {/* <p className="error">{errors.description?.message as string}</p> */}
             </div>
