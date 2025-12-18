@@ -5,6 +5,7 @@ import { useContent } from "../ContentContext";
 import Star from "@mui/icons-material/Star";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import FavoriteBorder from "@mui/icons-material/FavoriteBorder";
+import LocationOn from "@mui/icons-material/LocationOn";
 import { getDayLabels } from "@/lib/daylabel";
 import { fetchWithAuth } from "../lib/auth";
 import dayjs from "dayjs";
@@ -34,6 +35,7 @@ interface AnnouncementCardData {
   rating?: number;
   description?: string;
   userId?: number | string;
+  scope?: number;
 }
 
 function MyAnnouncementCard({ announcement, showFavoriteIcon = false }: { announcement: AnnouncementCardData; showFavoriteIcon?: boolean }) {
@@ -143,16 +145,11 @@ function MyAnnouncementCard({ announcement, showFavoriteIcon = false }: { announ
                   </div>
                 </div>
                 <div className="myAnnouncementCardDaysRow">
-                  <div className="myAnnouncementCardDays">
-                    {dayLabels.length > 0 ? (
-                      dayLabels.map((day, idx) => (
-                        <span key={idx} className="dayBadge">
-                          {day}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="dayBadge empty">Aucun créneau</span>
-                    )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <LocationOn sx={{ color: "#8c8c8c", fontSize: "18px" }} />
+                    <span className="T6" style={{ color: "#8c8c8c" }}>
+                      {announcement.scope ? `à ${announcement.scope}km` : "—"}
+                    </span>
                   </div>
                   <span className="priceText">{announcement.price ? `${announcement.price}€/h` : "—"}</span>
                 </div>
