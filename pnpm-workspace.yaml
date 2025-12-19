@@ -1,0 +1,12 @@
+onlyBuiltDependencies:
+  - '@firebase/util'
+  - '@prisma/client'
+  - '@prisma/engines'
+  - '@scarf/scarf'
+  - '@tree-sitter-grammars/tree-sitter-yaml'
+  - core-js-pure
+  - prisma
+  - protobufjs
+  - sharp
+  - tree-sitter
+  - tree-sitter-json

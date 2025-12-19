@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/app/lib/mongodb';
-import { requireAuth } from '@/app/lib/auth';
+import { NextRequest, NextResponse } from "next/server";
+import { getDb } from "@/app/lib/mongodb";
+import { requireAuth } from "@/app/lib/auth";
 
 type ReservationBody = {
   announcementId: string | number;
@@ -46,174 +46,49 @@ type ReservationBody = {
  *       500:
  *         description: Server error
  */
+
 export async function GET(req: NextRequest) {
   try {
     const { user, error } = await requireAuth(req);
-
     if (!user) {
       return NextResponse.json(
-        { ok: false, error: error || 'Unauthorized' },
-        { status: 401 }
+        { ok: false, error: error || "Unauthorized" },
+        { status: 401 },
       );
     }
 
     const db = await getDb();
     const url = new URL(req.url);
-    const idParam = url.searchParams.get('id');
-    const announcementId = url.searchParams.get('announcementId');
-    const slotIndexParam = url.searchParams.get('slotIndex');
-    const userId = url.searchParams.get('userId');
-    const dateParam = url.searchParams.get('date');
 
-    // Build query filter
     const filter: any = {};
 
-    if (idParam) {
-      filter.id = Number(idParam);
-    }
-    if (announcementId) {
-      filter.announcementId = Number(announcementId);
-    }
-    if (slotIndexParam) {
-      filter.slotIndex = Number(slotIndexParam);
-    }
-    if (userId) {
-      filter.userId = Number(userId);
-    }
-    if (dateParam) {
-      const normalizedDate = String(dateParam).match(/^\d{4}-\d{2}-\d{2}/)?.[0];
-      if (normalizedDate) {
-        filter.date = normalizedDate;
-      }
-    }
+    const id = url.searchParams.get("id");
+    const announcementId = url.searchParams.get("announcementId");
+    const slotIndex = url.searchParams.get("slotIndex");
+    const userId = url.searchParams.get("userId");
+    const date = url.searchParams.get("date");
 
-    // Get all reservations matching the filter
-    let reservations = await db.collection('reservations').find(filter).toArray();
+    if (id) filter.id = Number(id);
+    if (announcementId) filter.announcementId = Number(announcementId);
+    if (slotIndex) filter.slotIndex = Number(slotIndex);
+    if (userId) filter.userId = Number(userId);
+    if (date) filter.date = date;
 
-    console.log("reservations", reservations);
+    const reservations = await db
+      .collection("reservations")
+      .find(filter)
+      .toArray();
 
-    // Check and update reservations with status "reserved" that are past their date and time
-    const now = new Date();
-    let hasUpdates = false;
-
-    try {
-      // Load announcements to get slot information
-      const announcements = await db.collection('announcements').find({}).toArray();
-
-      for (let i = 0; i < reservations.length; i++) {
-        const reservation = reservations[i];
-
-        // Only check reservations with status "reserved"
-        if (reservation.status !== 'reserved') continue;
-
-        if (!reservation.date) continue;
-
-        // Parse reservation date (YYYY-MM-DD)
-        const reservationDate = new Date(reservation.date + 'T00:00:00Z');
-        const reservationDateOnly = new Date(Date.UTC(
-          reservationDate.getUTCFullYear(),
-          reservationDate.getUTCMonth(),
-          reservationDate.getUTCDate()
-        ));
-        const todayDateOnly = new Date(Date.UTC(
-          now.getUTCFullYear(),
-          now.getUTCMonth(),
-          now.getUTCDate()
-        ));
-
-        // Check if reservation date is in the past
-        if (reservationDateOnly < todayDateOnly) {
-          // Date is in the past, update status to "to_evaluate"
-          await db.collection('reservations').updateOne(
-            { id: reservation.id },
-            {
-              $set: {
-                status: 'to_evaluate',
-                updatedAt: new Date().toISOString(),
-              },
-            }
-          );
-          reservations[i].status = 'to_evaluate';
-          reservations[i].updatedAt = new Date().toISOString();
-          hasUpdates = true;
-        } else if (reservationDateOnly.getTime() === todayDateOnly.getTime()) {
-          // Same date, check if the slot end time has passed
-          try {
-            const announcement = announcements.find(
-              (a: any) => String(a.id) === String(reservation.announcementId)
-            );
-
-            if (announcement && announcement.slots && Array.isArray(announcement.slots)) {
-              const slot = announcement.slots[reservation.slotIndex];
-
-              if (slot && slot.end) {
-                // Parse slot end time
-                let slotEndTime: Date;
-                if (typeof slot.end === 'string') {
-                  // Try to parse as ISO string first
-                  if (slot.end.includes('T') || slot.end.includes('Z')) {
-                    const slotDate = new Date(slot.end);
-                    // Extract time from slot and apply to reservation date
-                    const slotHours = slotDate.getUTCHours();
-                    const slotMinutes = slotDate.getUTCMinutes();
-                    slotEndTime = new Date(Date.UTC(
-                      reservationDate.getUTCFullYear(),
-                      reservationDate.getUTCMonth(),
-                      reservationDate.getUTCDate(),
-                      slotHours,
-                      slotMinutes
-                    ));
-                  } else {
-                    // Assume it's HH:mm format, combine with reservation date
-                    const [hours, minutes] = slot.end.split(':').map(Number);
-                    slotEndTime = new Date(Date.UTC(
-                      reservationDate.getUTCFullYear(),
-                      reservationDate.getUTCMonth(),
-                      reservationDate.getUTCDate(),
-                      hours || 0,
-                      minutes || 0
-                    ));
-                  }
-
-                  // Check if slot end time has passed
-                  if (slotEndTime < now) {
-                    await db.collection('reservations').updateOne(
-                      { id: reservation.id },
-                      {
-                        $set: {
-                          status: 'to_evaluate',
-                          updatedAt: new Date().toISOString(),
-                        },
-                      }
-                    );
-                    reservations[i].status = 'to_evaluate';
-                    reservations[i].updatedAt = new Date().toISOString();
-                    hasUpdates = true;
-                  }
-                }
-              }
-            }
-          } catch (e) {
-            console.warn('Error parsing slot time for reservation', reservation.id, e);
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Error updating reservation statuses:', err);
-    }
-
-    // Remove MongoDB _id from each reservation
-    const reservationsWithoutId = reservations.map(({ _id, ...reservation }) => reservation);
+    const cleaned = reservations.map(({ _id, ...r }) => r);
 
     return NextResponse.json({
       ok: true,
-      count: reservationsWithoutId.length,
-      reservations: reservationsWithoutId,
-      exists: reservationsWithoutId.length > 0,
+      count: cleaned.length,
+      reservations: cleaned,
     });
   } catch (err) {
-    console.error('Error reading reservations', err);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    console.error("GET /reservations error", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
@@ -259,163 +134,55 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const { user, error } = await requireAuth(req);
-
     if (!user) {
       return NextResponse.json(
-        { ok: false, error: error || 'Unauthorized' },
-        { status: 401 }
+        { ok: false, error: error || "Unauthorized" },
+        { status: 401 },
       );
     }
 
-    const body = (await req.json()) as ReservationBody;
-    if (!body || !body.announcementId || typeof body.slotIndex !== 'number' || !body.userId || !body.date) {
-      return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+    const body = await req.json();
+    const { announcementId, slotIndex, userId, date } = body;
+
+    if (!announcementId || typeof slotIndex !== "number" || !userId || !date) {
+      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
 
     const db = await getDb();
 
-    // Normalize date to YYYY-MM-DD
-    const incomingDate = String(body.date);
-    const dateMatch = incomingDate.match(/^\d{4}-\d{2}-\d{2}/);
-    if (!dateMatch) {
-      return NextResponse.json({ error: 'Invalid date format' }, { status: 400 });
-    }
-    const normalizedDate = dateMatch[0];
+    const normalizedDate = String(date).slice(0, 10);
 
-    // Don't allow past dates
-    const now = new Date();
-    const picked = new Date(normalizedDate + 'T00:00:00Z');
-    if (picked < new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))) {
-      return NextResponse.json({ error: 'Date cannot be in the past' }, { status: 400 });
-    }
-
-    // Prevent the author from reserving their own announcement
-    const announcement = await db.collection('announcements').findOne({
-      id: Number(body.announcementId),
-    });
-
-    if (announcement && Number(announcement.userId) === Number(body.userId)) {
-      return NextResponse.json({ error: 'Cannot reserve your own announcement' }, { status: 403 });
-    }
-
-    // Check for duplicate reservation
-    const existingDuplicate = await db.collection('reservations').findOne({
-      announcementId: Number(body.announcementId),
-      slotIndex: Number(body.slotIndex),
-      userId: Number(body.userId),
+    const duplicate = await db.collection("reservations").findOne({
+      announcementId: Number(announcementId),
+      slotIndex,
+      userId: Number(userId),
       date: normalizedDate,
     });
 
-    if (existingDuplicate) {
-      return NextResponse.json({ error: 'Duplicate reservation' }, { status: 409 });
+    if (duplicate) {
+      return NextResponse.json(
+        { error: "Duplicate reservation" },
+        { status: 409 },
+      );
     }
 
-    // Check if slot is already taken
-    const alreadyTaken = await db.collection('reservations').findOne({
-      announcementId: Number(body.announcementId),
-      slotIndex: Number(body.slotIndex),
-      date: normalizedDate,
-    });
-
-    if (alreadyTaken) {
-      return NextResponse.json({ error: 'This slot is already taken for this date' }, { status: 409 });
-    }
-
-    // Create new reservation
-    const newReservation = {
+    const reservation = {
       id: Date.now(),
-      announcementId: Number(body.announcementId),
-      slotIndex: Number(body.slotIndex),
-      userId: Number(body.userId),
+      announcementId: Number(announcementId),
+      slotIndex,
+      userId: Number(userId),
       date: normalizedDate,
-      status: 'to_pay' as const,
+      status: "to_pay",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    await db.collection('reservations').insertOne(newReservation);
+    await db.collection("reservations").insertOne(reservation);
 
-    // Automatically create a conversation for this reservation
-    try {
-      if (announcement && announcement.userId) {
-        const conversationId = `conv_${body.userId}_${announcement.userId}_${body.announcementId}`;
-        
-        // Check if conversation already exists
-        let conversation: any = await db.collection('conversations').findOne({
-          id: conversationId,
-        });
-
-        if (!conversation) {
-          // Create new conversation
-          const newConversation = {
-            id: conversationId,
-            fromUserId: Number(body.userId),
-            toUserId: Number(announcement.userId),
-            announcementId: Number(body.announcementId),
-            reservationId: newReservation.id,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-          await db.collection('conversations').insertOne(newConversation as any);
-          conversation = newConversation;
-        } else {
-          // Update existing conversation with reservation ID
-          await db.collection('conversations').updateOne(
-            { id: conversationId },
-            {
-              $set: {
-                reservationId: newReservation.id,
-                updatedAt: new Date().toISOString(),
-              },
-            }
-          );
-          conversation = await db.collection('conversations').findOne({ id: conversationId }) as any;
-        }
-
-        // Create initial message if conversation is new or has no messages
-        const existingMessages = await db.collection('messages').find({
-          conversationId: conversationId,
-        }).toArray();
-
-        if (existingMessages.length === 0) {
-          // Get user info for the message
-          const user = await db.collection('users').findOne({ id: Number(body.userId) });
-          const userName = user 
-            ? `${user.prenom || ""} ${user.nom || ""}`.trim() || user.name || "Utilisateur"
-            : "Utilisateur";
-          
-          const announcementTitle = announcement.title || announcement.nomAnnonce || "votre service";
-          const formattedDate = new Date(normalizedDate + 'T00:00:00Z').toLocaleDateString('fr-FR', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          });
-          
-          const initialMessage = `Bonjour, j'ai réservé votre service "${announcementTitle}" pour le ${formattedDate}.`;
-          
-          const message = {
-            id: `msg_${Date.now()}`,
-            conversationId: conversationId,
-            fromUserId: Number(body.userId),
-            toUserId: Number(announcement.userId),
-            text: initialMessage,
-            createdAt: new Date().toISOString(),
-            read: false,
-          };
-
-          await db.collection('messages').insertOne(message);
-        }
-      }
-    } catch (convErr) {
-      // Log error but don't fail the reservation creation
-      console.error('Error creating conversation for reservation:', convErr);
-    }
-
-    return NextResponse.json({ ok: true, reservation: newReservation });
+    return NextResponse.json({ ok: true, reservation });
   } catch (err) {
-    console.error('Error saving reservation', err);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    console.error("POST /reservations error", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
@@ -457,48 +224,45 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const { user, error } = await requireAuth(req);
-
     if (!user) {
       return NextResponse.json(
-        { ok: false, error: error || 'Unauthorized' },
-        { status: 401 }
+        { ok: false, error: error || "Unauthorized" },
+        { status: 401 },
       );
     }
 
-    const body = (await req.json()) as {
-      id: number | string;
-      status: 'to_pay' | 'reserved' | 'to_evaluate' | 'completed';
-    };
+    const body = await req.json();
+    const { id, status } = body;
 
-    if (!body || !body.id || !body.status) {
-      return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+    if (!id || !status) {
+      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
 
     const db = await getDb();
 
-    const reservation = await db.collection('reservations').findOne({ id: Number(body.id) });
-
-    if (!reservation) {
-      return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });
-    }
-
-    // Update reservation status
-    await db.collection('reservations').updateOne(
-      { id: Number(body.id) },
+    const result = await db.collection("reservations").findOneAndUpdate(
+      { id: Number(id) },
       {
         $set: {
-          status: body.status,
+          status,
           updatedAt: new Date().toISOString(),
         },
-      }
+      },
+      { returnDocument: "after" },
     );
 
-    const updatedReservation = await db.collection('reservations').findOne({ id: Number(body.id) });
-    const { _id, ...reservationWithoutId } = updatedReservation!;
+    if (!result?.value) {
+      return NextResponse.json(
+        { error: "Reservation not found" },
+        { status: 404 },
+      );
+    }
 
-    return NextResponse.json({ ok: true, reservation: reservationWithoutId });
+    const { _id, ...reservation } = result?.value;
+
+    return NextResponse.json({ ok: true, reservation });
   } catch (err) {
-    console.error('Error updating reservation', err);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    console.error("PUT /reservations error", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
