@@ -16,6 +16,7 @@ import AnnouncementCard from "../announcement/announcementCard";
 import dayjs from "dayjs";
 import "dayjs/locale/fr";
 import { fetchWithAuth } from "../lib/auth";
+import { useCachedData } from "../lib/useCachedData";
 import {
   SkeletonNextRDV,
   SkeletonAnnouncementCard,
@@ -40,19 +41,14 @@ export default function HomeContent() {
   const [servicesRendered, setServicesRendered] = React.useState<number>(0);
   const [servicesReceived, setServicesReceived] = React.useState<number>(0);
   const [averageRating, setAverageRating] = React.useState<number>(0);
-  const [loadingStats, setLoadingStats] = React.useState<boolean>(true);
   const [reservationToEvaluate, setReservationToEvaluate] = React.useState<{
     reservation: any;
     announcement: any;
     providerName: string;
     completedDate: string;
   } | null>(null);
-  const [loadingReservationToEvaluate, setLoadingReservationToEvaluate] =
-    React.useState<boolean>(true);
   const [recommendedAnnouncement, setRecommendedAnnouncement] =
     React.useState<any>(null);
-  const [loadingRecommended, setLoadingRecommended] =
-    React.useState<boolean>(true);
   const [nextReservation, setNextReservation] = React.useState<{
     reservation: any;
     announcement: any;
@@ -61,122 +57,100 @@ export default function HomeContent() {
     formattedTime: string;
     relativeDate: string;
   } | null>(null);
-  const [loadingNextReservation, setLoadingNextReservation] =
-    React.useState<boolean>(true);
 
   // Track when component is mounted
   React.useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Load all data when user is connected and page is active
+  // Load stats with cache
+  const { data: statsData, loading: loadingStats } = useCachedData({
+    cacheKey: 'home_stats',
+    fetchFn: async () => {
+      const res = await fetchWithAuth(`/api/stats?userId=${currentUserId}`);
+      const data = await res.json();
+      if (res.ok && data?.ok && data?.data) {
+        return {
+          servicesRendered: data.data.servicesRendered || 0,
+          servicesReceived: data.data.servicesReceived || 0,
+          averageRating: data.data.averageRating || 0,
+        };
+      }
+      return { servicesRendered: 0, servicesReceived: 0, averageRating: 0 };
+    },
+    enabled: currentUserId != null && currentPage === "home",
+    userId: currentUserId,
+  });
+
+  // Load next reservation with cache
+  const { data: nextReservationData, loading: loadingNextReservation } = useCachedData({
+    cacheKey: 'home_next_rdv',
+    fetchFn: async () => {
+      const res = await fetchWithAuth(`/api/reservations/next-rdv?userId=${currentUserId}`);
+      const data = await res.json();
+      if (res.ok && data?.ok && data?.data) {
+        return data.data;
+      }
+      return null;
+    },
+    enabled: currentUserId != null && currentPage === "home",
+    userId: currentUserId,
+  });
+
+  // Load reservation to evaluate with cache
+  const { data: reservationToEvaluateData, loading: loadingReservationToEvaluate } = useCachedData({
+    cacheKey: 'home_next_to_evaluate',
+    fetchFn: async () => {
+      const res = await fetchWithAuth(`/api/reservations/next-to-evaluate?userId=${currentUserId}`);
+      const data = await res.json();
+      if (res.ok && data?.ok && data?.data) {
+        return data.data;
+      }
+      return null;
+    },
+    enabled: currentUserId != null && currentPage === "home",
+    userId: currentUserId,
+  });
+
+  // Load most recent favorite with cache
+  const { data: recommendedAnnouncementData, loading: loadingRecommended } = useCachedData({
+    cacheKey: 'home_most_recent_favorite',
+    fetchFn: async () => {
+      const res = await fetchWithAuth(`/api/favorites/most-recent?userId=${currentUserId}`);
+      const data = await res.json();
+      if (res.ok && data?.ok && data?.data) {
+        return data.data;
+      }
+      return null;
+    },
+    enabled: currentUserId != null && currentPage === "home",
+    userId: currentUserId,
+  });
+
+  // Update states from cached data
   React.useEffect(() => {
-    if (!currentUserId || currentPage !== "home") {
-      // Reset all states when not connected or not on home page
-      if (!currentUserId) {
-        setServicesRendered(0);
-        setServicesReceived(0);
-        setAverageRating(0);
-        setLoadingStats(false);
-        setReservationToEvaluate(null);
-        setLoadingReservationToEvaluate(false);
-        setRecommendedAnnouncement(null);
-        setLoadingRecommended(false);
-        setNextReservation(null);
-        setLoadingNextReservation(false);
-      }
-      return;
+    if (statsData) {
+      setServicesRendered(statsData.servicesRendered);
+      setServicesReceived(statsData.servicesReceived);
+      setAverageRating(statsData.averageRating);
+    } else if (!loadingStats && currentUserId == null) {
+      setServicesRendered(0);
+      setServicesReceived(0);
+      setAverageRating(0);
     }
+  }, [statsData, loadingStats, currentUserId]);
 
-    let cancelled = false;
+  React.useEffect(() => {
+    setNextReservation(nextReservationData ?? null);
+  }, [nextReservationData]);
 
-    // Set loading states
-    setLoadingStats(true);
-    setLoadingNextReservation(true);
-    setLoadingReservationToEvaluate(true);
-    setLoadingRecommended(true);
+  React.useEffect(() => {
+    setReservationToEvaluate(reservationToEvaluateData ?? null);
+  }, [reservationToEvaluateData]);
 
-    const loadAllData = async () => {
-      try {
-        // Load all data in parallel
-        const [statsRes, nextRdvRes, nextToEvaluateRes, mostRecentRes] =
-          await Promise.all([
-            fetchWithAuth(`/api/stats?userId=${currentUserId}`),
-            fetchWithAuth(`/api/reservations/next-rdv?userId=${currentUserId}`),
-            fetchWithAuth(
-              `/api/reservations/next-to-evaluate?userId=${currentUserId}`
-            ),
-            fetchWithAuth(`/api/favorites/most-recent?userId=${currentUserId}`),
-          ]);
-
-        if (cancelled) return;
-
-        // Process stats
-        if (statsRes.ok) {
-          const statsData = await statsRes.json();
-          if (statsData?.ok && statsData?.data) {
-            setServicesRendered(statsData.data.servicesRendered || 0);
-            setServicesReceived(statsData.data.servicesReceived || 0);
-            setAverageRating(statsData.data.averageRating || 0);
-          }
-        }
-        setLoadingStats(false);
-
-        // Process next reservation
-        if (nextRdvRes.ok) {
-          const nextRdvData = await nextRdvRes.json();
-          if (nextRdvData?.ok && nextRdvData?.data) {
-            setNextReservation(nextRdvData.data);
-          } else {
-            setNextReservation(null);
-          }
-        } else {
-          setNextReservation(null);
-        }
-        setLoadingNextReservation(false);
-
-        // Process reservation to evaluate
-        if (nextToEvaluateRes.ok) {
-          const nextToEvaluateData = await nextToEvaluateRes.json();
-          if (nextToEvaluateData?.ok && nextToEvaluateData?.data) {
-            setReservationToEvaluate(nextToEvaluateData.data);
-          } else {
-            setReservationToEvaluate(null);
-          }
-        } else {
-          setReservationToEvaluate(null);
-        }
-        setLoadingReservationToEvaluate(false);
-
-        // Process most recent favorite
-        if (mostRecentRes.ok) {
-          const mostRecentData = await mostRecentRes.json();
-          if (mostRecentData?.ok && mostRecentData?.data) {
-            setRecommendedAnnouncement(mostRecentData.data);
-          } else {
-            setRecommendedAnnouncement(null);
-          }
-        } else {
-          setRecommendedAnnouncement(null);
-        }
-        setLoadingRecommended(false);
-      } catch (error) {
-        console.error("Error loading home data", error);
-        if (!cancelled) {
-          setLoadingStats(false);
-          setLoadingNextReservation(false);
-          setLoadingReservationToEvaluate(false);
-          setLoadingRecommended(false);
-        }
-      }
-    };
-
-    loadAllData();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentUserId, currentPage]); // Reload when userId changes or when arriving on home page
+  React.useEffect(() => {
+    setRecommendedAnnouncement(recommendedAnnouncementData ?? null);
+  }, [recommendedAnnouncementData]);
 
   React.useEffect(() => {
     if (!mounted) return;

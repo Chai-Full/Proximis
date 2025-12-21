@@ -72,10 +72,42 @@ export async function GET(req: NextRequest) {
       .sort({ createdAt: -1 }) // Sort by most recent first
       .toArray();
 
+    // Get unique announcement IDs
+    const announcementIds = [...new Set(reservations.map((r: any) => Number(r.announcementId)))];
+    
+    // Fetch all announcements in one query
+    const announcements = await db
+      .collection("announcements")
+      .find(
+        {
+          id: { $in: announcementIds },
+        },
+        {
+          projection: {
+            _id: 0,
+          },
+        }
+      )
+      .toArray();
+
+    // Create a map of announcements by ID for quick lookup
+    const announcementsMap = new Map(
+      announcements.map((a: any) => [Number(a.id), a])
+    );
+
+    // Enrich reservations with announcement data
+    const enrichedReservations = reservations.map((r: any) => {
+      const announcement = announcementsMap.get(Number(r.announcementId));
+      return {
+        ...r,
+        announcement: announcement || null,
+      };
+    });
+
     return NextResponse.json({
       ok: true,
-      count: reservations.length,
-      reservations,
+      count: enrichedReservations.length,
+      reservations: enrichedReservations,
     });
   } catch (err) {
     console.error("GET /reservations/my-reservations error", err);

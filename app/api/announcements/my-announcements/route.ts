@@ -59,6 +59,8 @@ export async function GET(req: NextRequest) {
       .find(
         {
           $or: [
+            { userCreateur: userIdNum },
+            { userCreateur: String(userIdNum) },
             { userId: userIdNum },
             { userId: String(userIdNum) },
           ],
