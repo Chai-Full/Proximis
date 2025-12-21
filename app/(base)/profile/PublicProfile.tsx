@@ -2,46 +2,25 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useContent } from "../ContentContext";
 import "./index.css";
-import CloudUploadOutlined from "@mui/icons-material/CloudUploadOutlined";
-import FavoriteBorderOutlined from "@mui/icons-material/FavoriteBorderOutlined";
 import Star from "@mui/icons-material/Star";
 import AnnouncementCard from "../announcement/announcementCard";
-import ProfileHeader from "./ProfileHeader";
-import PrivateStatsRow from "./PrivateStatsRow";
-import PrivateMenu from "./PrivateMenu";
-import { MenuItem, PrivateStats } from "./ProfileTypes";
-import TextSnippetIcon from '@mui/icons-material/TextSnippet';
-import OutboxIcon from '@mui/icons-material/Outbox';
 import { fetchWithAuth } from "../lib/auth";
 import { SkeletonProfile } from "../components/Skeleton";
 
-export default function ProfileDetails() {
-  const { selectedProfileId, currentUserId, setHeaderTitle, setCurrentPage } = useContent();
-  const [profileStats, setProfileStats] = useState<{
-    servicesRendered: number;
-    reviews: number;
-    averageRating: number;
-    announcementsCount: number;
-    reservationsCount: number;
-    favoritesCount: number;
-    reservationsToEvaluateCount: number;
-  } | null>(null);
+export default function PublicProfile() {
+  const { selectedProfileId, setHeaderTitle } = useContent();
   const [users, setUsers] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [reviewsCount, setReviewsCount] = useState<number>(0);
+  const [averageRating, setAverageRating] = useState<number>(0);
 
   const targetUserId = useMemo(() => {
     if (selectedProfileId != null) return Number(selectedProfileId);
-    if (currentUserId != null) return Number(currentUserId);
     return null;
-  }, [selectedProfileId, currentUserId]);
+  }, [selectedProfileId]);
 
-  const isCurrentUser =
-    targetUserId != null &&
-    currentUserId != null &&
-    Number(targetUserId) === Number(currentUserId);
-
-  // Load all data for profile
+  // Load profile data
   useEffect(() => {
     if (!targetUserId) {
       setLoading(false);
@@ -53,8 +32,15 @@ export default function ProfileDetails() {
 
     const loadData = async () => {
       try {
-        // Load user data (always needed)
-        const usersRes = await fetchWithAuth('/api/users');
+        // Load user data and announcements in parallel
+        const [usersRes, announcementsRes] = await Promise.all([
+          fetchWithAuth('/api/users'),
+          fetchWithAuth('/api/annonces?page=1&limit=1000'),
+        ]);
+
+        if (cancelled) return;
+
+        // Load user data
         if (usersRes && usersRes.ok) {
           const usersData = await usersRes.json();
           if (usersData?.users && Array.isArray(usersData.users)) {
@@ -62,61 +48,45 @@ export default function ProfileDetails() {
           }
         }
 
-        // For current user profile, only load stats (no need for announcements/reservations)
-        if (isCurrentUser && currentUserId) {
-          const statsRes = await fetchWithAuth('/api/profile/stats');
-
-          if (cancelled) return;
-
-          // Load profile stats
-          if (statsRes && statsRes.ok) {
-            const statsData = await statsRes.json();
-            if (statsData?.ok && statsData?.data) {
-              if (!cancelled) setProfileStats(statsData.data);
-            }
-          }
-        } else {
-          // For public profile, load all announcements to filter by user
-          const announcementsRes = await fetchWithAuth('/api/annonces?page=1&limit=1000');
-          if (announcementsRes && announcementsRes.ok) {
-            const announcementsData = await announcementsRes.json();
-            if (announcementsData?.success && announcementsData?.data?.annonces) {
-              const transformed = announcementsData.data.annonces.map((a: any) => ({
-                id: a.idAnnonce,
-                title: a.nomAnnonce,
-                category: a.typeAnnonce,
-                scope: a.lieuAnnonce,
-                price: a.prixAnnonce,
-                description: a.descAnnonce,
-                userId: a.userCreateur?.idUser,
-                createdAt: a.datePublication,
-                photo: a.photos?.[0]?.urlPhoto,
-                slots: a.creneaux?.map((c: any) => {
-                  let day = 0;
-                  if (c.dateDebut) {
-                    try {
-                      const date = new Date(c.dateDebut);
-                      const jsDay = date.getDay();
-                      day = jsDay === 0 ? 7 : jsDay;
-                    } catch (e) {
-                      console.error('Error parsing creneau dateDebut:', e, c);
-                    }
+        // Load announcements
+        if (announcementsRes && announcementsRes.ok) {
+          const announcementsData = await announcementsRes.json();
+          if (announcementsData?.success && announcementsData?.data?.annonces) {
+            const transformed = announcementsData.data.annonces.map((a: any) => ({
+              id: a.idAnnonce,
+              title: a.nomAnnonce,
+              category: a.typeAnnonce,
+              scope: a.lieuAnnonce,
+              price: a.prixAnnonce,
+              description: a.descAnnonce,
+              userId: a.userCreateur?.idUser,
+              createdAt: a.datePublication,
+              photo: a.photos?.[0]?.urlPhoto,
+              slots: a.creneaux?.map((c: any) => {
+                let day = 0;
+                if (c.dateDebut) {
+                  try {
+                    const date = new Date(c.dateDebut);
+                    const jsDay = date.getDay();
+                    day = jsDay === 0 ? 7 : jsDay;
+                  } catch (e) {
+                    console.error('Error parsing creneau dateDebut:', e, c);
                   }
-                  return {
-                    day,
-                    start: c.dateDebut,
-                    end: c.dateFin,
-                    estReserve: c.estReserve,
-                  };
-                }).filter((slot: any) => slot.day >= 1 && slot.day <= 7) || [],
-                isAvailable: a.creneaux?.some((c: any) => !c.estReserve) !== false,
-              }));
-              if (!cancelled) setAnnouncements(transformed);
-            }
+                }
+                return {
+                  day,
+                  start: c.dateDebut,
+                  end: c.dateFin,
+                  estReserve: c.estReserve,
+                };
+              }).filter((slot: any) => slot.day >= 1 && slot.day <= 7) || [],
+              isAvailable: a.creneaux?.some((c: any) => !c.estReserve) !== false,
+            }));
+            if (!cancelled) setAnnouncements(transformed);
           }
         }
       } catch (error) {
-        console.error('Error loading data', error);
+        console.error('Error loading profile data', error);
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -129,7 +99,7 @@ export default function ProfileDetails() {
     return () => {
       cancelled = true;
     };
-  }, [targetUserId, currentUserId, isCurrentUser]);
+  }, [targetUserId]);
 
   const user = useMemo(() => {
     if (targetUserId == null) return null;
@@ -157,19 +127,8 @@ export default function ProfileDetails() {
     [userAnnouncements]
   );
 
-  // Calculate reviews count and average rating for public profile
-  const [reviewsCount, setReviewsCount] = useState<number>(0);
-  const [averageRating, setAverageRating] = useState<number>(0);
-
+  // Load reviews count and average rating
   useEffect(() => {
-    if (isCurrentUser && profileStats) {
-      // Use stats from API for current user
-      setReviewsCount(profileStats.reviews);
-      setAverageRating(profileStats.averageRating);
-      return;
-    }
-
-    // For public profile, calculate from announcements
     if (!user || userAnnouncements.length === 0) {
       setReviewsCount(0);
       setAverageRating(0);
@@ -231,59 +190,16 @@ export default function ProfileDetails() {
     return () => {
       cancelled = true;
     };
-  }, [isCurrentUser, profileStats, user, userAnnouncements]);
-
-  // Derived simple stats from available data
-  const stats: PrivateStats = isCurrentUser && profileStats
-    ? {
-        services: profileStats.servicesRendered,
-        reviews: profileStats.reviews,
-        note: profileStats.averageRating,
-      }
-    : {
-        services: 0, // Not displayed for public profile
-        reviews: reviewsCount,
-        note: averageRating,
-      };
-
-  const menu: MenuItem[] = [
-    {
-      id: "annonces",
-      title: "Mes annonces",
-      icon: TextSnippetIcon,
-      count: isCurrentUser && profileStats
-        ? profileStats.announcementsCount
-        : userAnnouncements.length,
-    },
-    {
-      id: "reservations",
-      title: "Mes réservations",
-      icon: OutboxIcon,
-      count: isCurrentUser && profileStats
-        ? profileStats.reservationsCount
-        : 0, // Not needed for public profile
-      badge: isCurrentUser && profileStats && profileStats.reservationsToEvaluateCount > 0
-        ? `${profileStats.reservationsToEvaluateCount} à évaluer`
-        : undefined,
-    },
-    {
-      id: "favoris",
-      title: "Mes favoris",
-      icon: FavoriteBorderOutlined,
-      count: isCurrentUser && profileStats
-        ? profileStats.favoritesCount
-        : 0,
-    },
-  ];
+  }, [user, userAnnouncements]);
 
   useEffect(() => {
     if (user && setHeaderTitle) {
-      setHeaderTitle(isCurrentUser ? "Profil" : `Profil de ${fullName}`);
+      setHeaderTitle(`Profil de ${fullName}`);
       return () => setHeaderTitle && setHeaderTitle(null);
     }
     setHeaderTitle && setHeaderTitle(null);
     return () => {};
-  }, [isCurrentUser, user, fullName, setHeaderTitle]);
+  }, [user, fullName, setHeaderTitle]);
 
   if (loading) {
     return <SkeletonProfile />;
@@ -297,25 +213,6 @@ export default function ProfileDetails() {
     );
   }
 
-  if (isCurrentUser) {
-    return (
-      <div className="announceProfile">
-        <ProfileHeader
-          fullName={fullName}
-          initials={initials}
-          rating={stats.note}
-          ratingCount={stats.reviews}
-          editable
-          photo={user.photo ?? null}
-          onEdit={() => setCurrentPage("profil_edit")}
-        />
-        <PrivateStatsRow stats={stats} />
-        <PrivateMenu menu={menu} />
-      </div>
-    );
-  }
-
-  // Public profile (owner of an announcement)
   return (
     <div className="announceProfile">
       <div className="announceProfileHeader">
@@ -374,3 +271,4 @@ export default function ProfileDetails() {
     </div>
   );
 }
+

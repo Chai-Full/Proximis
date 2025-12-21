@@ -11,6 +11,8 @@ import { InputsAnnounceSearch } from "../types/InputsAnnounceSearch";
 import AnnouncementContent from "./announcement/page";
 import AnnounceDetails from "./announcement/AnnouncementDetails";
 import ProfileDetails from "./profile/profileDetails";
+import MyProfile from "./profile/MyProfile";
+import PublicProfile from "./profile/PublicProfile";
 import EditAnnouncementContent from "./announcement/EditAnnouncementContent";
 import ProfileEditContent from "./profile/EditProfileContent";
 import { ContentProvider, useContent, PageKey } from "./ContentContext";
@@ -48,7 +50,9 @@ const contentComponents = {
     annonces: AnnouncementContent,
     announce_details: AnnounceDetails,
     announce_edit: EditAnnouncementContent,
-    profil: ProfileDetails,
+    profil: ProfileDetails, // Keep for backward compatibility
+    my_profile: MyProfile,
+    public_profile: PublicProfile,
     profil_edit: ProfileEditContent,
     publish: PublishAnnouncementContent,
     my_announcements: MyAnnouncementsContent,
@@ -163,17 +167,16 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
                     {navItems.map(({ id, label, icon: Icon, href }) => (
                         <div
                             key={id}
-                            className={`navItem ${(id === 'annonces' ? currentPage === 'my_announcements' : currentPage === id) ? "active" : ""}`}
+                            className={`navItem ${(id === 'annonces' ? currentPage === 'my_announcements' : id === 'profil' ? (currentPage === 'my_profile' || currentPage === 'profil' || currentPage === 'profil_edit') : currentPage === id) ? "active" : ""}`}
                                onClick={() => {
                                    if (id === 'profil') {
-                                       // when user clicks the navbar profile, show the connected user's profile (by id)
-                                       if (setSelectedProfileId) setSelectedProfileId(currentUserId ?? null);
+                                       // when user clicks the navbar profile, show the connected user's profile
                                        // Ensure history includes home if coming from bottom nav
-                                       if ((currentPage as PageKey) !== 'profil') {
+                                       if ((currentPage as PageKey) !== 'my_profile' && (currentPage as PageKey) !== 'profil') {
                                            if (history.length === 0 && currentPage === 'home') {
-                                               setCurrentPage('profil', ['home']);
+                                               setCurrentPage('my_profile', ['home']);
                                            } else {
-                                               setCurrentPage('profil');
+                                               setCurrentPage('my_profile');
                                            }
                                        }
                                    } else if (id === 'annonces') {
@@ -195,8 +198,8 @@ function BaseLayoutInner({ children }: Readonly<{ children: React.ReactNode }>) 
                                }}
                             >
                             <Icon 
-                                sx={{ color: (id === 'annonces' ? currentPage === 'my_announcements' : currentPage === id) ? 'var(--secondary)' : '#FFFFFF' }}
-                                fontSize={(id === 'annonces' ? currentPage === 'my_announcements' : currentPage === id) ? "large" : "medium"} 
+                                sx={{ color: (id === 'annonces' ? currentPage === 'my_announcements' : id === 'profil' ? (currentPage === 'my_profile' || currentPage === 'profil' || currentPage === 'profil_edit') : currentPage === id) ? 'var(--secondary)' : '#FFFFFF' }}
+                                fontSize={(id === 'annonces' ? currentPage === 'my_announcements' : id === 'profil' ? (currentPage === 'my_profile' || currentPage === 'profil' || currentPage === 'profil_edit') : currentPage === id) ? "large" : "medium"} 
                             />
                             <Link href="#" className="navLink">{label}</Link>
                         </div>

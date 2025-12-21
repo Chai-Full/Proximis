@@ -44,7 +44,7 @@ function Step1() {
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "16px" }}>
             <div>
-                <label htmlFor="category">Catégorie d'annonce</label>
+                <label htmlFor="category">Catégorie de Service</label>
                 <FormControl fullWidth variant="outlined" sx={{ mb: 1 }}>
                     <Controller
                         name="category"
@@ -80,7 +80,7 @@ function Step1() {
             </div>
 
             <div>
-                <label>Quel service proposez-vous ?</label>
+                <label>Nom de votre Annonce</label>
                 <TextField
                     {...register("title", { required: "Titre obligatoire" })}
                     error={!!errors.title}
@@ -88,11 +88,12 @@ function Step1() {
                     fullWidth
                     sx={{ mb: 2, backgroundColor: "#03A68960", borderTopLeftRadius: "5px", borderTopRightRadius: "5px" }}
                     variant="filled"
+                    placeholder='Ex: Cours de Cuisine'
                 />
             </div>
 
             <div>
-                <label>Description du service ?</label>
+                <label>Description du Service</label>
                 <TextField
                     {...register("description", { required: "Description obligatoire" })}
                     error={!!errors.description}
@@ -102,6 +103,7 @@ function Step1() {
                     rows={4}
                     sx={{ mb: 2, backgroundColor: "#03A68960", borderTopLeftRadius: "5px", borderTopRightRadius: "5px" }}
                     variant="filled"
+                    placeholder='Décrivez votre service...'
                 />
             </div>
         </div>

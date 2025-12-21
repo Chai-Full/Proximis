@@ -39,7 +39,7 @@ function Step1() {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px' }}>
             <div>
-                <label htmlFor="category">Catégorie d’annonce</label>
+                <label htmlFor="category">Catégorie de Service</label>
                 {(() => {
                     const { control } = useFormContext<FormValues>();
                     return (
@@ -80,7 +80,7 @@ function Step1() {
                 <p className="error">{errors.category?.message as string}</p>
             </div>
             <div>
-                <label>Quel service proposez-vous ?</label>
+                <label>Nom de votre Annonce</label>
                 <TextField
                     {...register("title", { required: "Titre obligatoire" })}
                     error={!!errors.title}
@@ -88,11 +88,12 @@ function Step1() {
                     fullWidth
                     sx={{ mb: 2, backgroundColor: "#03A68960", borderTopLeftRadius: "5px", borderTopRightRadius: "5px" }}
                     variant="filled"
+                    placeholder='Ex: Cours de Cuisine'
                 />
                 {/* <p className="error">{errors.title?.message as string}</p> */}
             </div>
             <div>
-                <label>Description du service ?</label>
+                <label>Description du Service</label>
                 <TextField
                     {...register("description", { required: "Description obligatoire" })}
                     error={!!errors.description}
@@ -102,6 +103,7 @@ function Step1() {
                     rows={4}
                     sx={{ mb: 2, backgroundColor: "#03A68960", borderTopLeftRadius: "5px", borderTopRightRadius: "5px" }}
                     variant="filled"
+                    placeholder='Décrivez votre service...'
                 />
                 {/* <p className="error">{errors.description?.message as string}</p> */}
             </div>

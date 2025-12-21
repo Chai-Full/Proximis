@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useContent } from "../ContentContext";
 import Star from "@mui/icons-material/Star";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import FavoriteBorder from "@mui/icons-material/FavoriteBorder";
+import LocationOn from "@mui/icons-material/LocationOn";
 import { getDayLabels } from "@/lib/daylabel";
 import { fetchWithAuth } from "../lib/auth";
+import { useCachedData } from "../lib/useCachedData";
 import dayjs from "dayjs";
 import "dayjs/locale/fr";
 import updateLocale from "dayjs/plugin/updateLocale";
@@ -34,6 +36,8 @@ interface AnnouncementCardData {
   rating?: number;
   description?: string;
   userId?: number | string;
+  scope?: number;
+  createdAt?: string;
 }
 
 function MyAnnouncementCard({ announcement, showFavoriteIcon = false }: { announcement: AnnouncementCardData; showFavoriteIcon?: boolean }) {
@@ -143,16 +147,11 @@ function MyAnnouncementCard({ announcement, showFavoriteIcon = false }: { announ
                   </div>
                 </div>
                 <div className="myAnnouncementCardDaysRow">
-                  <div className="myAnnouncementCardDays">
-                    {dayLabels.length > 0 ? (
-                      dayLabels.map((day, idx) => (
-                        <span key={idx} className="dayBadge">
-                          {day}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="dayBadge empty">Aucun créneau</span>
-                    )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <LocationOn sx={{ color: "#8c8c8c", fontSize: "18px" }} />
+                    <span className="T6" style={{ color: "#8c8c8c" }}>
+                      {announcement.scope ? `à ${announcement.scope}km` : "—"}
+                    </span>
                   </div>
                   <span className="priceText">{announcement.price ? `${announcement.price}€/h` : "—"}</span>
                 </div>
@@ -364,12 +363,12 @@ function ReservationCard({ data }: { data: ReservationCardData }) {
           }}
         />
         <div className="reservationCardDetails">
-          <h3 className="reservationCardTitle">{announcement.title}</h3>
-          <div className="reservationCardTimeName">
-            <span>{startTime} - {providerName || "Prestataire"}</span>
-          </div>
-          <div className="reservationCardDateBadge">
+          <div className="reservationCardFirstLine">
             {formattedDate && <span className="reservationDate">{formattedDate}</span>}
+            <h3 className="reservationCardTitle">{announcement.title}</h3>
+          </div>
+          <div className="reservationCardSecondLine">
+            <span className="reservationCardTimeName">{startTime} - {providerName || "Prestataire"}</span>
             <span className={`reservationStatusBadge ${getStatusClass(status)}`}>
               {statusLabel}
             </span>
@@ -405,6 +404,7 @@ export default function MyAnnouncementsContent() {
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Set header title based on view type
   useEffect(() => {
@@ -419,134 +419,169 @@ export default function MyAnnouncementsContent() {
     };
   }, [setHeaderTitle, viewType]);
 
-  // Load announcements and users from MongoDB
-  // Only load if needed (for my_announcements, reservations, or favorites views)
+  // Helper function to transform announcement data to the expected format
+  const transformAnnouncement = (a: any): AnnouncementCardData => {
+    // Handle both MongoDB format and /api/annonces format
+    const id = a.id || a.idAnnonce;
+    const title = a.title || a.nomAnnonce;
+    const category = a.category || a.typeAnnonce;
+    const scope = a.scope || a.lieuAnnonce;
+    const price = a.price || a.prixAnnonce;
+    const description = a.description || a.descAnnonce;
+    const userId = a.userId || a.userCreateur?.idUser || a.userCreateur;
+    const createdAt = a.createdAt || a.datePublication;
+    const photo = a.photo || a.photos?.[0]?.urlPhoto;
+    
+    // Transform slots
+    const slots = (a.slots || a.creneaux || []).map((c: any) => {
+      // Extract day of week from dateDebut (1 = Monday, 7 = Sunday)
+      // dayjs uses 0 = Sunday, so we need to convert: 0 -> 7, 1-6 -> 1-6
+      const dayOfWeek = (c.day != null) ? c.day : (c.dateDebut ? (() => {
+        const date = dayjs(c.dateDebut);
+        const jsDay = date.day(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+        return jsDay === 0 ? 7 : jsDay; // Convert to 1 = Monday, 7 = Sunday
+      })() : undefined);
+      return {
+        day: dayOfWeek,
+        start: c.start || c.dateDebut,
+        end: c.end || c.dateFin,
+        estReserve: c.estReserve,
+      };
+    }).filter((c: any) => c.day != null && c.day >= 1 && c.day <= 7 && !c.estReserve);
+
+    return {
+      id,
+      title,
+      category,
+      scope,
+      price,
+      description,
+      userId,
+      createdAt,
+      photo,
+      slots,
+    };
+  };
+
+  // Load announcements with cache - only when needed for specific views
+  const { data: myAnnouncementsData, loading: loadingMyAnnouncements } = useCachedData({
+    cacheKey: 'my_announcements_list',
+    fetchFn: async () => {
+      const res = await fetchWithAuth('/api/announcements/my-announcements');
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.ok && data?.announcements) {
+          return data.announcements.map(transformAnnouncement);
+        }
+      }
+      return [];
+    },
+    enabled: currentUserId != null && viewType === "my_announcements",
+    userId: currentUserId,
+    dependencies: [viewType],
+  });
+
   useEffect(() => {
-    if (!currentUserId || (viewType !== "my_announcements" && viewType !== "reservations" && viewType !== "favorites")) {
+    if (viewType === "my_announcements") {
+      if (myAnnouncementsData !== null) {
+        setAnnouncements(myAnnouncementsData);
+      }
+      // Always update loading state, and if we don't have data yet, show loading
+      setLoadingAnnouncements(loadingMyAnnouncements || myAnnouncementsData === null);
+    } else {
       setAnnouncements([]);
+      setLoadingAnnouncements(false);
+    }
+  }, [myAnnouncementsData, loadingMyAnnouncements, viewType]);
+
+  // Load reservations with cache (only when on reservations view)
+  // The endpoint now returns reservations with announcement data included
+  const { data: reservationsData, loading: loadingReservations } = useCachedData({
+    cacheKey: 'my_reservations_list',
+    fetchFn: async () => {
+      const res = await fetchWithAuth("/api/reservations/my-reservations");
+      const json = await res.json();
+      if (res.ok && json?.ok && json?.reservations) {
+        return json.reservations || [];
+      }
+      return [];
+    },
+    enabled: currentUserId != null && viewType === "reservations",
+    userId: currentUserId,
+    dependencies: [viewType],
+  });
+
+  useEffect(() => {
+    if (viewType === "reservations") {
+      if (reservationsData !== null) {
+        setReservations(reservationsData);
+        
+        // Extract announcements from reservations and transform them
+        const announcementsData = reservationsData
+          .map((r: any) => r.announcement)
+          .filter((a: any) => a != null)
+          .map(transformAnnouncement);
+        setAnnouncements(announcementsData);
+      }
+      setLoading(loadingReservations);
+      setLoadingAnnouncements(loadingReservations);
+    } else {
+      setReservations([]);
+      setAnnouncements([]);
+      setLoading(false);
+      setLoadingAnnouncements(false);
+    }
+  }, [reservationsData, loadingReservations, viewType]);
+
+  // Load users (only needed for reservations view to get provider names)
+  useEffect(() => {
+    if (!currentUserId || viewType !== "reservations") {
       setUsers([]);
       return;
     }
 
     let cancelled = false;
-    setLoadingAnnouncements(true);
-
-    const loadData = async () => {
+    const loadUsers = async () => {
       try {
-        // Load announcements
-        const announcementsRes = await fetchWithAuth('/api/annonces?page=1&limit=1000');
-        if (announcementsRes.ok) {
-          const announcementsData = await announcementsRes.json();
-          if (announcementsData?.success && announcementsData?.data?.annonces) {
-            const transformed = announcementsData.data.annonces.map((a: any) => ({
-              id: a.idAnnonce,
-              title: a.nomAnnonce,
-              category: a.typeAnnonce,
-              scope: a.lieuAnnonce,
-              price: a.prixAnnonce,
-              description: a.descAnnonce,
-              userId: a.userCreateur?.idUser,
-              createdAt: a.datePublication,
-              photo: a.photos?.[0]?.urlPhoto,
-              slots: a.creneaux?.map((c: any) => {
-                // Extract day of week from dateDebut (1 = Monday, 7 = Sunday)
-                // dayjs uses 0 = Sunday, so we need to convert: 0 -> 7, 1-6 -> 1-6
-                const dayOfWeek = c.dateDebut ? (() => {
-                  const date = dayjs(c.dateDebut);
-                  const jsDay = date.day(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-                  return jsDay === 0 ? 7 : jsDay; // Convert to 1 = Monday, 7 = Sunday
-                })() : undefined;
-                return {
-                  day: dayOfWeek,
-                  start: c.dateDebut,
-                  end: c.dateFin,
-                  estReserve: c.estReserve,
-                };
-              }).filter((c: any) => c.day != null && c.day >= 1 && c.day <= 7 && !c.estReserve) || [],
-            }));
-            if (!cancelled) setAnnouncements(transformed);
-          }
-        }
-
-        // Load users (only needed for reservations view to get provider names)
-        if (viewType === "reservations") {
-          const usersRes = await fetchWithAuth('/api/users');
-          if (usersRes.ok) {
-            const usersData = await usersRes.json();
-            if (usersData?.users && Array.isArray(usersData.users)) {
-              if (!cancelled) setUsers(usersData.users);
-            }
+        const usersRes = await fetchWithAuth('/api/users');
+        if (usersRes.ok) {
+          const usersData = await usersRes.json();
+          if (usersData?.users && Array.isArray(usersData.users)) {
+            if (!cancelled) setUsers(usersData.users);
           }
         }
       } catch (error) {
-        console.error('Error loading data', error);
-      } finally {
-        if (!cancelled) {
-          setLoadingAnnouncements(false);
-        }
+        console.error('Error loading users', error);
       }
     };
 
-    loadData();
-
+    loadUsers();
     return () => {
       cancelled = true;
     };
   }, [currentUserId, viewType]);
 
-  // Load reservations (only when on reservations view)
-  useEffect(() => {
-    if (!currentUserId || viewType !== "reservations") {
-      setReservations([]);
-      setLoading(false);
-      return;
-    }
-    let mounted = true;
-    setLoading(true);
-    (async () => {
-      try {
-        const params = new URLSearchParams({ userId: String(currentUserId) });
-        const res = await fetchWithAuth("/api/reservations?" + params.toString());
-        const json = await res.json();
-        if (!mounted) return;
-        if (res.ok && json?.reservations) {
-          setReservations(json.reservations || []);
-        } else if (res.ok && Array.isArray(json)) {
-          setReservations(json);
-        } else {
-          setReservations([]);
-        }
-      } catch (e) {
-        console.error("Could not load reservations", e);
-        if (mounted) setReservations([]);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [currentUserId, viewType]);
 
-  // Get user's announcements
+  // Get user's announcements (already filtered by endpoint, but keep for compatibility)
   const myAnnouncements = useMemo(() => {
-    if (!currentUserId) return [];
-    return announcements.filter(
-      (a: any) => String(a.userId) === String(currentUserId)
-    ) as AnnouncementCardData[];
-  }, [currentUserId, announcements]);
+    if (!currentUserId || viewType !== "my_announcements") return [];
+    return announcements as AnnouncementCardData[];
+  }, [currentUserId, announcements, viewType]);
 
   // Get reservations with announcement data and provider names
+  // Announcements are now included in the reservation data from the API
   const reservationsWithAnnouncements = useMemo(() => {
     if (!reservations || reservations.length === 0) return [];
     
     return reservations.map((r: any) => {
-      const ann = announcements.find(
-        (a: any) => String(a.id) === String(r.announcementId)
-      ) as any;
+      // Announcement is already included in the reservation object from the API
+      const annRaw = r.announcement;
+      const ann = annRaw ? transformAnnouncement(annRaw) : null;
       
       // Get provider name (prénom + première lettre du nom)
-      const provider = ann ? users.find((u: any) => String(u.id) === String(ann.userId)) : null;
+      // The provider is the owner of the announcement (ann.userId or ann.userCreateur)
+      const providerUserId = ann?.userId || annRaw?.userId || annRaw?.userCreateur?.idUser || annRaw?.userCreateur;
+      const provider = providerUserId ? users.find((u: any) => String(u.id) === String(providerUserId)) : null;
       let providerName = "Prestataire";
       if (provider) {
         const prenom = provider.prenom || "";
@@ -583,46 +618,60 @@ export default function MyAnnouncementsContent() {
       const dateB = b.reservation.updatedAt || b.reservation.createdAt || "";
       return dateB.localeCompare(dateA);
     });
-  }, [reservations, announcements, users]);
+  }, [reservations, users]);
 
-  // Get favorites (from API)
+  // Load favorites with cache
+  const { data: favoritesData, loading: loadingFavorites } = useCachedData({
+    cacheKey: 'my_favorites_list',
+    fetchFn: async () => {
+      const params = new URLSearchParams({
+        userId: String(currentUserId),
+      });
+      const res = await fetchWithAuth(`/api/favorites?${params.toString()}`);
+      const data = await res.json();
+      if (res.ok && data?.favorites && Array.isArray(data.favorites)) {
+        const favoritesIds = data.favorites.map((f: any) => f.announcementId);
+        
+        // Load each favorite announcement
+        const announcementPromises = favoritesIds.map(async (announcementId: any) => {
+          try {
+            const annRes = await fetchWithAuth(`/api/announcements/${announcementId}`);
+            if (annRes.ok) {
+              const annData = await annRes.json();
+              if (annData?.ok && annData?.announcement) {
+                return transformAnnouncement(annData.announcement);
+              }
+            }
+            return null;
+          } catch (error) {
+            console.error(`Error loading favorite announcement ${announcementId}`, error);
+            return null;
+          }
+        });
+
+        const loadedFavorites = await Promise.all(announcementPromises);
+        return loadedFavorites.filter((a): a is AnnouncementCardData => a !== null);
+      }
+      return [];
+    },
+    enabled: currentUserId != null && viewType === "favorites",
+    userId: currentUserId,
+    dependencies: [viewType],
+  });
+
   const [favorites, setFavorites] = useState<AnnouncementCardData[]>([]);
-  const [loadingFavorites, setLoadingFavorites] = useState(false);
 
   useEffect(() => {
-    if (!currentUserId || viewType !== "favorites") {
-      setFavorites([]);
-      return;
-    }
-    
-    const loadFavorites = async () => {
-      setLoadingFavorites(true);
-      try {
-        const params = new URLSearchParams({
-          userId: String(currentUserId),
-        });
-        const res = await fetchWithAuth(`/api/favorites?${params.toString()}`);
-        const data = await res.json();
-        if (res.ok && data.favorites) {
-          const favoritesIds = data.favorites.map((f: any) => f.announcementId);
-          const favoritesAnnouncements = announcements
-            .filter((a: any) =>
-              favoritesIds.some((favId: number | string) => String(favId) === String(a.id))
-            ) as AnnouncementCardData[];
-          setFavorites(favoritesAnnouncements);
-        } else {
-          setFavorites([]);
-        }
-      } catch (e) {
-        console.error("Error loading favorites", e);
-        setFavorites([]);
-      } finally {
-        setLoadingFavorites(false);
+    if (viewType === "favorites") {
+      if (favoritesData !== null) {
+        setFavorites(favoritesData);
       }
-    };
-    
-    loadFavorites();
-  }, [currentUserId, viewType, announcements]);
+      setLoadingAnnouncements(loadingFavorites);
+    } else {
+      setFavorites([]);
+      setLoadingAnnouncements(false);
+    }
+  }, [favoritesData, loadingFavorites, viewType]);
 
   if (!currentUserId) {
     return (
