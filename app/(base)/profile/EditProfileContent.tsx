@@ -182,13 +182,13 @@ export default function EditProfileContent() {
           <PlaceAutocomplete
             onPlaceSelect={(selectedPlace) => {
               if (!selectedPlace?.address_components) return;
-              const route = selectedPlace.address_components.find((c) => c.types.includes("route"))?.long_name || "";
+              const route = selectedPlace.address_components.find((c: any) => c.types.includes("route"))?.long_name || "";
               const streetNumber =
-                selectedPlace.address_components.find((c) => c.types.includes("street_number"))?.long_name || "";
+                selectedPlace.address_components.find((c: any) => c.types.includes("street_number"))?.long_name || "";
               const postalCode =
-                selectedPlace.address_components.find((c) => c.types.includes("postal_code"))?.long_name || "";
+                selectedPlace.address_components.find((c: any) => c.types.includes("postal_code"))?.long_name || "";
               const country =
-                selectedPlace.address_components.find((c) => c.types.includes("country"))?.long_name || "";
+                selectedPlace.address_components.find((c: any) => c.types.includes("country"))?.long_name || "";
               const composedAddress = [streetNumber, route].filter(Boolean).join(" ").trim() || selectedPlace.name || "";
               methods.setValue("adresse", composedAddress);
               if (postalCode) methods.setValue("codePostal", postalCode);
