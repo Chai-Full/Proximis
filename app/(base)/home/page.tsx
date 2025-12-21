@@ -84,6 +84,8 @@ export default function HomeContent() {
       try {
         // Load announcements
         const announcementsRes = await fetchWithAuth("/api/annonces");
+        console.log("the announceRes", announcementsRes);
+        
         if (announcementsRes.ok) {
           const announcementsData = await announcementsRes.json();
           if (announcementsData?.success && announcementsData?.data?.annonces) {
@@ -398,7 +400,7 @@ export default function HomeContent() {
     return () => {
       cancelled = true;
     };
-  }, [currentUserId, announcements, users]);
+  }, [currentUserId, announcements, users]); // Re-run when announcements/users arrive
 
   // Load most recent favorite announcement
   React.useEffect(() => {
@@ -483,16 +485,16 @@ export default function HomeContent() {
   }, [currentUserId, announcements]);
 
   // Load next reservation (closest upcoming)
-  React.useEffect(() => {
+  /*React.useEffect(() => {
     if (!currentUserId) {
       setNextReservation(null);
       setLoadingNextReservation(false);
       return;
     }
 
-    // SUPPRESSION DE LA CONDITION DE BLOCAGE
-    // On lance le chargement immédiatement, quitte à ne rien trouver si les annonces ne sont pas encore là.
-    // Quand "announcements" changera (chargement terminé), ce useEffect se relancera automatiquement.
+    SUPPRESSION DE LA CONDITION DE BLOCAGE
+    On lance le chargement immédiatement, quitte à ne rien trouver si les annonces ne sont pas encore là.
+    Quand "announcements" changera (chargement terminé), ce useEffect se relancera automatiquement.
 
     let cancelled = false;
     setLoadingNextReservation(true);
@@ -530,9 +532,9 @@ export default function HomeContent() {
           ? announcements
           : [];
 
-        // Si les annonces sont vides (pas encore chargées), cette liste sera vide.
-        // Ce n'est pas grave, on affichera "rien" (loading = false) temporairement.
-        // Dès que les annonces arriveront, le useEffect rejouera et remplira la liste.
+        Si les annonces sont vides (pas encore chargées), cette liste sera vide.
+        Ce n'est pas grave, on affichera "rien" (loading = false) temporairement.
+        Dès que les annonces arriveront, le useEffect rejouera et remplira la liste.
         const reservationsWithDateTime = upcoming
           .map((r: any) => {
             const rAnnouncementId =
@@ -629,7 +631,7 @@ export default function HomeContent() {
         console.error("Error loading next reservation", error);
         if (!cancelled) setNextReservation(null);
       } finally {
-        // On s'assure que le loading passe toujours à false, quoi qu'il arrive
+        On s'assure que le loading passe toujours à false, quoi qu'il arrive
         if (!cancelled) setLoadingNextReservation(false);
       }
     };
@@ -639,7 +641,7 @@ export default function HomeContent() {
     return () => {
       cancelled = true;
     };
-  }, [currentUserId, announcements, users]); // Dépendances importantes : si announcements change, on recharge.
+  }, [currentUserId, announcements, users]);*/ // Re-run when announcements/users arrive
 
   const stats = [
     { label: "Services rendus", value: String(servicesRendered) },
@@ -649,6 +651,16 @@ export default function HomeContent() {
       value: averageRating > 0 ? averageRating.toFixed(1) : "0",
     },
   ];
+
+  // Tant que le userId n'est pas encore déterminé (undefined), on montre un loader global
+  if (!mounted || currentUserId === undefined) {
+    return (
+      <div className="homeContainer">
+        <SkeletonNextRDV />
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="homeContainer">
@@ -668,7 +680,7 @@ export default function HomeContent() {
         >
           Publier une annonce
         </Button>
-        {loadingNextReservation ? (
+        {/* {loadingNextReservation ? (
           <SkeletonNextRDV />
         ) : nextReservation ? (
           <div className="nextRDV">
@@ -714,8 +726,8 @@ export default function HomeContent() {
             </div>
             <AnnouncementCard announcement={recommendedAnnouncement} />
           </div>
-        ) : null}
-        {loadingReservationToEvaluate ? (
+        ) : null} */}
+        {/* {loadingReservationToEvaluate ? (
           <div className="anouncementActionRequire" style={{ padding: "16px" }}>
             <Skeleton
               variant="text"
@@ -777,7 +789,7 @@ export default function HomeContent() {
               <span className="T6">Action requise</span>
             </div>
           </div>
-        ) : null}
+        ) : null} */}
         <div className="statsRecap">
           <div
             style={{ display: "flex", alignItems: "center", columnGap: "5px" }}
