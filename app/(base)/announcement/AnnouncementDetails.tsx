@@ -575,7 +575,7 @@ export default function AnnounceDetails() {
             onClick={() => {
               const authorId = author ? Number(author.id) : null;
               setSelectedProfileId && setSelectedProfileId(authorId);
-              setCurrentPage && setCurrentPage('profil');
+              setCurrentPage && setCurrentPage('public_profile');
             }}
           >
             <div className='announceDEtailsNameLogo'>

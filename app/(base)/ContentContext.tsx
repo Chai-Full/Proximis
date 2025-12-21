@@ -12,6 +12,8 @@ export type PageKey =
   | "announce_edit"
   | "annonces"
   | "profil"
+  | "my_profile"
+  | "public_profile"
   | "profil_edit"
   | "announce_details"
   | "filters"
