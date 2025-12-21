@@ -24,9 +24,9 @@ function CircleOverlay({ center, radius }: { center: { lat: number; lng: number 
   const map = useMap();
   
   React.useEffect(() => {
-    if (!map) return;
+    if (!map || typeof window === 'undefined' || !window.google || !window.google.maps) return;
     
-    const circle = new google.maps.Circle({
+    const circle = new window.google.maps.Circle({
       center: center,
       radius: radius,
       fillColor: '#FF0000',
@@ -106,8 +106,8 @@ function MapContent({
                 <path d="M 15 23 Q 20 26 25 23" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
               </svg>
             `),
-            scaledSize: new google.maps.Size(40, 40),
-            anchor: new google.maps.Point(20, 20),
+            scaledSize: typeof window !== 'undefined' && window.google?.maps ? new window.google.maps.Size(40, 40) : undefined,
+            anchor: typeof window !== 'undefined' && window.google?.maps ? new window.google.maps.Point(20, 20) : undefined,
           }}
         />
       )}
@@ -145,8 +145,8 @@ function MapContent({
                   <circle cx="16" cy="16" r="8" fill="white"/>
                 </svg>
               `)}`,
-              scaledSize: new google.maps.Size(32, 32),
-              anchor: new google.maps.Point(16, 32),
+              scaledSize: typeof window !== 'undefined' && window.google?.maps ? new window.google.maps.Size(32, 32) : undefined,
+              anchor: typeof window !== 'undefined' && window.google?.maps ? new window.google.maps.Point(16, 32) : undefined,
             }}
           />
         );
@@ -187,7 +187,7 @@ function AnnouncementSearchWithMapContent({ announcements, appliedFilters }: Ann
 
       if (cancelled) return;
 
-      const geocoder = new google.maps.Geocoder();
+      const geocoder = new window.google.maps.Geocoder();
       const address = `${currentUser.adresse}, ${currentUser.codePostal}, France`;
 
       geocoder.geocode({ address }, (results, status) => {
@@ -235,7 +235,7 @@ function AnnouncementSearchWithMapContent({ announcements, appliedFilters }: Ann
 
       if (cancelled) return;
 
-      const geocoder = new google.maps.Geocoder();
+      const geocoder = new window.google.maps.Geocoder();
       const geocodePromises: Promise<AnnouncementWithLocation>[] = [];
 
       announcements.forEach((announcement) => {
