@@ -32,9 +32,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${LeagueSpartan.variable} ${PoppinsM.variable} antialiased`}
+        suppressHydrationWarning
       >
         <ThemeProvider theme={theme}>
           <CssBaseline />

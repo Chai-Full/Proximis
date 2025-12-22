@@ -151,6 +151,34 @@ function Reservation() {
     }
   }, [selectedReservationId, setCurrentPage]);
 
+  // Compute slot, formattedDate, and totalToPay BEFORE any conditional returns
+  // This ensures hooks are always called in the same order
+  const slot = React.useMemo(() => {
+    if (!announcement?.slots || !Array.isArray(announcement.slots) || reservation?.slotIndex === undefined) {
+      return null;
+    }
+    return announcement.slots[reservation.slotIndex] || null;
+  }, [announcement?.slots, reservation?.slotIndex]);
+
+  const formattedDate = React.useMemo(() => {
+    return reservation?.date ? dayjs(reservation.date).format('DD.MM.YY') : '--/--/----';
+  }, [reservation?.date]);
+
+  // Compute total to pay: hourly price * duration (rounded to nearest 0.5 hour)
+  const totalToPay = React.useMemo(() => {
+    const hourly = Number(announcement?.price ?? 0) || 0;
+    if (!slot || !slot.start || !slot.end) return hourly;
+    const start = dayjs(slot.start);
+    const end = dayjs(slot.end);
+    if (!start.isValid() || !end.isValid()) return hourly;
+    const minutes = Math.max(0, end.diff(start, 'minute'));
+    const hours = minutes / 60;
+    const roundedHalf = Math.round(hours * 2) / 2; // nearest 0.5h
+    const effectiveHours = roundedHalf > 0 ? roundedHalf : (hours > 0 ? 0.5 : 0);
+    return Math.max(0, effectiveHours * hourly);
+  }, [announcement?.price, slot]);
+
+  // Now we can do conditional returns AFTER all hooks
   if (loading) {
     return (
       <div style={{ 
@@ -172,26 +200,6 @@ function Reservation() {
   if (!announcement) {
     return <div style={{ padding: 16 }}>Annonce introuvable.</div>;
   }
-
-  const slot = announcement.slots && Array.isArray(announcement.slots) && reservation.slotIndex !== undefined 
-    ? announcement.slots[reservation.slotIndex] 
-    : null;
-
-  const formattedDate = reservation?.date ? dayjs(reservation.date).format('DD.MM.YY') : '--/--/----';
-
-  // Compute total to pay: hourly price * duration (rounded to nearest 0.5 hour)
-  const totalToPay = React.useMemo(() => {
-    const hourly = Number(announcement?.price ?? 0) || 0;
-    if (!slot || !slot.start || !slot.end) return hourly;
-    const start = dayjs(slot.start);
-    const end = dayjs(slot.end);
-    if (!start.isValid() || !end.isValid()) return hourly;
-    const minutes = Math.max(0, end.diff(start, 'minute'));
-    const hours = minutes / 60;
-    const roundedHalf = Math.round(hours * 2) / 2; // nearest 0.5h
-    const effectiveHours = roundedHalf > 0 ? roundedHalf : (hours > 0 ? 0.5 : 0);
-    return Math.max(0, effectiveHours * hourly);
-  }, [announcement?.price, slot]);
   
 
   return (
@@ -297,6 +305,26 @@ function PaymentButton({ reservation, announcement, setSelectedReservationId, cu
   const [open, setOpen] = React.useState(() => false);
   const [message, setMessage] = React.useState('');
   const [severity, setSeverity] = React.useState<'success'|'warning'|'error'|'info'>('info');
+
+  // Calculate button total using useMemo to avoid hydration issues
+  const buttonTotal = React.useMemo(() => {
+    if (!announcement || !reservation) return 0;
+    const hourly = Number(announcement?.price ?? 0) || 0;
+    const s = announcement?.slots && reservation?.slotIndex !== undefined ? announcement.slots[reservation.slotIndex] : null;
+    let total = hourly;
+    if (s && s.start && s.end) {
+      const start = dayjs(s.start);
+      const end = dayjs(s.end);
+      if (start.isValid() && end.isValid()) {
+        const minutes = Math.max(0, end.diff(start, 'minute'));
+        const hours = minutes / 60;
+        const roundedHalf = Math.round(hours * 2) / 2;
+        const effectiveHours = roundedHalf > 0 ? roundedHalf : (hours > 0 ? 0.5 : 0);
+        total = Math.max(0, effectiveHours * hourly);
+      }
+    }
+    return total;
+  }, [announcement, reservation]);
 
   async function handlePay() {
     if (!reservation || !announcement) {
@@ -421,23 +449,7 @@ function PaymentButton({ reservation, announcement, setSelectedReservationId, cu
   return (
     <>
       <Button fullWidth variant="contained" sx={{ textTransform: 'none' }} onClick={handlePay} disabled={loading}>
-        {(() => {
-          const hourly = Number(announcement?.price ?? 0) || 0;
-          const s = announcement?.slots && reservation?.slotIndex !== undefined ? announcement.slots[reservation.slotIndex] : null;
-          let total = hourly;
-          if (s && s.start && s.end) {
-            const start = dayjs(s.start);
-            const end = dayjs(s.end);
-            if (start.isValid() && end.isValid()) {
-              const minutes = Math.max(0, end.diff(start, 'minute'));
-              const hours = minutes / 60;
-              const roundedHalf = Math.round(hours * 2) / 2;
-              const effectiveHours = roundedHalf > 0 ? roundedHalf : (hours > 0 ? 0.5 : 0);
-              total = Math.max(0, effectiveHours * hourly);
-            }
-          }
-          return `Payer ${Number.isFinite(total) ? total : 'N/A'} €`;
-        })()}
+        {`Payer ${Number.isFinite(buttonTotal) ? buttonTotal : 'N/A'} €`}
       </Button>
       <Notification open={open} onClose={() => setOpen(false)} severity={severity} message={message} />
     </>
