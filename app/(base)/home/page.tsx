@@ -32,6 +32,7 @@ export default function HomeContent() {
     clearHistory,
     history,
     setSelectedReservationId,
+    setEvaluationData,
   } = useContent();
   const router = useRouter();
   const [mounted, setMounted] = React.useState(false);
@@ -314,10 +315,15 @@ export default function HomeContent() {
             <div
               className="anouncementActionRequireBtn"
               onClick={() => {
-                if (setCurrentPage && setSelectedReservationId) {
+                if (setCurrentPage && setSelectedReservationId && setEvaluationData) {
                   setSelectedReservationId(
                     reservationToEvaluate.reservation.id,
                   );
+                  setEvaluationData({
+                    reservation: reservationToEvaluate.reservation,
+                    announcement: reservationToEvaluate.announcement,
+                    providerName: reservationToEvaluate.providerName,
+                  });
                   setCurrentPage("evaluate");
                 }
               }}

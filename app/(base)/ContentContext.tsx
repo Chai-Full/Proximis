@@ -50,6 +50,9 @@ type ContentContextType = {
   // selected reservation id when evaluating a reservation
   selectedReservationId?: number | string | null;
   setSelectedReservationId?: (id: number | string | null) => void;
+  // evaluation data (reservation, announcement, providerName) when navigating from home
+  evaluationData?: { reservation: any; announcement: any; providerName: string } | null;
+  setEvaluationData?: (data: { reservation: any; announcement: any; providerName: string } | null) => void;
   // applied filters from the filter page
   appliedFilters?: InputsAnnounceSearch | null;
   setAppliedFilters: (f: InputsAnnounceSearch | null) => void;
@@ -86,6 +89,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [appliedFilters, setAppliedFilters] = useState<InputsAnnounceSearch | null>(null);
   const [reservationDraft, setReservationDraft] = useState<{ announcementId: number | string; slotIndex: number; date?: string } | null>(null);
   const [selectedReservationId, setSelectedReservationId] = useState<number | string | null>(null);
+  const [evaluationData, setEvaluationData] = useState<{ reservation: any; announcement: any; providerName: string } | null>(null);
   const [announcementUpdated, setAnnouncementUpdated] = useState<boolean>(false);
 
   const setCurrentPage = useCallback((p: PageKey, replaceHistory?: PageKey[]) => {
@@ -148,6 +152,8 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setReservationDraft,
         selectedReservationId,
         setSelectedReservationId,
+        evaluationData,
+        setEvaluationData,
         announcementUpdated,
         setAnnouncementUpdated,
       }}

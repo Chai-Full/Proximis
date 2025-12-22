@@ -771,17 +771,17 @@ export default function AnnounceDetails() {
             )
           ) : (
             <>
-              <Button 
-                variant="outlined"
-                fullWidth
-                sx={{
-                  textTransform: "capitalize",
-                  fontWeight: 600,
-                  boxShadow: "0px 4px 4px rgba(0, 0, 0, 0.25)",
-                }}
+          <Button 
+            variant="outlined"
+            fullWidth
+            sx={{
+              textTransform: "capitalize",
+              fontWeight: 600,
+              boxShadow: "0px 4px 4px rgba(0, 0, 0, 0.25)",
+            }}
                 startIcon={<ChatBubbleOutlineOutlined />}
                 disabled={isContacting || !currentUserId || !announcement || !author || announcement?.isAvailable === false}
-                onClick={async () => {
+            onClick={async () => {
               if (!currentUserId || !announcement || !author) {
                 setNotification({ open: true, message: 'Impossible de contacter le propriétaire.', severity: 'error' });
                 return;
@@ -862,8 +862,8 @@ export default function AnnounceDetails() {
               }
             }}
             >
-                {isContacting ? 'Connexion...' : 'Contacter'}
-              </Button>
+            {isContacting ? 'Connexion...' : 'Contacter'}
+          </Button>
               {reservationToEvaluateId ? (
                 <Button
                   variant="contained"
@@ -880,13 +880,13 @@ export default function AnnounceDetails() {
                   Évaluer
                 </Button>
               ) : (
-                <Button
-                variant="contained"
-                fullWidth
-                sx={{ textTransform: 'capitalize', fontWeight: 600 }}
+          <Button
+            variant="contained"
+            fullWidth
+            sx={{ textTransform: 'capitalize', fontWeight: 600 }}
                 disabled={isChecking || announcement?.isAvailable === false}
-                startIcon={isChecking ? <CircularProgress size={18} color="inherit" /> : <CheckBoxOutlined />}
-                onClick={async () => {
+            startIcon={isChecking ? <CircularProgress size={18} color="inherit" /> : <CheckBoxOutlined />}
+            onClick={async () => {
               if (selectedSlot === null) {
                 setNotification({ open: true, message: 'Veuillez sélectionner un créneau avant de réserver.', severity: 'warning' });
                 return;
@@ -897,8 +897,8 @@ export default function AnnounceDetails() {
               }
                   if (announcement?.isAvailable === false) {
                     setNotification({ open: true, message: 'Cette annonce est clôturée et ne peut plus être réservée.', severity: 'warning' });
-                    return;
-                  }
+                return;
+              }
               // ensure selected date is not before today
               if (!dayjs(selectedDate).isValid() || dayjs(selectedDate).startOf('day').isBefore(dayjs().startOf('day'))) {
                 setNotification({ open: true, message: 'La date sélectionnée ne peut pas être antérieure à aujourd\'hui.', severity: 'error' });
@@ -985,8 +985,8 @@ export default function AnnounceDetails() {
               }
             }}
           >
-                {isChecking ? 'Vérification...' : 'Réserver'}
-              </Button>
+            {isChecking ? 'Vérification...' : 'Réserver'}
+          </Button>
               )}
             </>
           )}
