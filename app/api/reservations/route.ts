@@ -240,8 +240,32 @@ export async function PUT(req: NextRequest) {
 
     const db = await getDb();
 
+    // Convert id to number for consistency
+    const idNum = Number(id);
+    console.log(`PUT /reservations - Looking for reservation with id: ${id} (as number: ${idNum})`);
+
+    // First, try to find the reservation to see what format the ID is stored in
+    const existingReservation = await db.collection("reservations").findOne({
+      $or: [
+        { id: idNum },
+        { id: String(idNum) },
+        { id: id }, // Try original format
+      ],
+    });
+
+    if (!existingReservation) {
+      console.error(`Reservation not found for id: ${id} (tried as number: ${idNum}, string: ${String(idNum)}, and original: ${id})`);
+      return NextResponse.json(
+        { error: "Reservation not found" },
+        { status: 404 },
+      );
+    }
+
+    console.log(`Found reservation with id type: ${typeof existingReservation.id}, value: ${existingReservation.id}`);
+
+    // Use the exact ID format found in the database
     const result = await db.collection("reservations").findOneAndUpdate(
-      { id: Number(id) },
+      { id: existingReservation.id }, // Use the exact ID format from the database
       {
         $set: {
           status,
@@ -252,6 +276,7 @@ export async function PUT(req: NextRequest) {
     );
 
     if (!result?.value) {
+      console.error(`Failed to update reservation with id: ${existingReservation.id}`);
       return NextResponse.json(
         { error: "Reservation not found" },
         { status: 404 },

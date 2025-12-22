@@ -523,7 +523,7 @@ export default function AnnounceDetails() {
     <div className='announceDEtails'>
       <div className='announceDEtailsHeader'
         style={{
-          backgroundImage: announcement.photo ? `url("${String(announcement.photo)}")` : undefined,
+          backgroundImage: announcement.photo && !String(announcement.photo).startsWith('/uploads/') ? `url("${String(announcement.photo)}")` : undefined,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',

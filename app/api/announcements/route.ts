@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '../../lib/mongodb';
 import { requireAuth } from '@/app/lib/auth';
+import dayjs from 'dayjs';
 
 /**
  * @swagger
@@ -23,6 +24,41 @@ import { requireAuth } from '@/app/lib/auth';
  *         schema:
  *           type: integer
  *         description: Items per page
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: integer
+ *         description: Filter announcements by owner userId
+ *       - in: query
+ *         name: excludeUserId
+ *         schema:
+ *           type: integer
+ *         description: Exclude announcements from a specific userId
+ *       - in: query
+ *         name: keyword
+ *         schema:
+ *           type: string
+ *         description: Search keyword (matches title or description)
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *         description: Filter by category
+ *       - in: query
+ *         name: price
+ *         schema:
+ *           type: number
+ *         description: Maximum price filter
+ *       - in: query
+ *         name: distance
+ *         schema:
+ *           type: number
+ *         description: Maximum distance (scope) filter
+ *       - in: query
+ *         name: slots
+ *         schema:
+ *           type: string
+ *         description: JSON array of slots filters [{day: number, time: string}]
  *     responses:
  *       200:
  *         description: List of announcements
@@ -45,19 +81,179 @@ export async function GET(req: NextRequest) {
     const db = await getDb();
     const url = new URL(req.url);
     const page = parseInt(url.searchParams.get('page') || '1');
-    const limit = parseInt(url.searchParams.get('limit') || '100');
+    const limit = parseInt(url.searchParams.get('limit') || '10'); // Default to 10 for search page
     const skip = (page - 1) * limit;
+    const userId = url.searchParams.get('userId');
+    const excludeUserId = url.searchParams.get('excludeUserId');
+    const keyword = url.searchParams.get('keyword');
+    const category = url.searchParams.get('category');
+    const price = url.searchParams.get('price');
+    const distance = url.searchParams.get('distance');
+    const slotsParam = url.searchParams.get('slots');
 
-    const announcements = await db.collection('announcements')
-      .find({})
-      .skip(skip)
-      .limit(limit)
-      .sort({ createdAt: -1 })
+    // Build filter query
+    const filter: any = {};
+    const andConditions: any[] = [];
+
+    // User filters
+    if (userId) {
+      const userIdNum = Number(userId);
+      filter.$or = [
+        { userId: userIdNum },
+        { userId: String(userIdNum) },
+        { userCreateur: userIdNum },
+        { userCreateur: String(userIdNum) },
+        { 'userCreateur.idUser': userIdNum },
+        { 'userCreateur.idUser': String(userIdNum) },
+      ];
+    } else if (excludeUserId) {
+      // Exclude announcements from a specific user
+      const excludeUserIdNum = Number(excludeUserId);
+      andConditions.push({
+        $nor: [
+          { userId: excludeUserIdNum },
+          { userId: String(excludeUserIdNum) },
+          { userCreateur: excludeUserIdNum },
+          { userCreateur: String(excludeUserIdNum) },
+          { 'userCreateur.idUser': excludeUserIdNum },
+          { 'userCreateur.idUser': String(excludeUserIdNum) },
+        ],
+      });
+    }
+
+    // Keyword filter (search in title and description)
+    if (keyword && keyword.trim()) {
+      const keywordLower = keyword.toLowerCase().trim();
+      andConditions.push({
+        $or: [
+          { title: { $regex: keywordLower, $options: 'i' } },
+          { description: { $regex: keywordLower, $options: 'i' } },
+          { nomAnnonce: { $regex: keywordLower, $options: 'i' } },
+          { descAnnonce: { $regex: keywordLower, $options: 'i' } },
+        ],
+      });
+    }
+
+    // Category filter
+    if (category && category.trim()) {
+      andConditions.push({
+        $or: [
+          { category: category },
+          { typeAnnonce: category },
+        ],
+      });
+    }
+
+    // Price filter (maximum price)
+    if (price) {
+      const priceNum = Number(price);
+      if (!isNaN(priceNum)) {
+        andConditions.push({
+          $or: [
+            { price: { $lte: priceNum } },
+            { prixAnnonce: { $lte: priceNum } },
+          ],
+        });
+      }
+    }
+
+    // Distance filter (maximum scope)
+    if (distance) {
+      const distanceNum = Number(distance);
+      if (!isNaN(distanceNum)) {
+        andConditions.push({
+          $or: [
+            { scope: { $lte: distanceNum } },
+            { lieuAnnonce: { $lte: distanceNum } },
+          ],
+        });
+      }
+    }
+
+    // Combine all conditions
+    if (andConditions.length > 0) {
+      if (filter.$or) {
+        filter.$and = [{ $or: filter.$or }, ...andConditions];
+        delete filter.$or;
+      } else {
+        filter.$and = andConditions;
+      }
+    }
+
+    // Fetch all matching announcements first (for slot filtering)
+    let allAnnouncements = await db.collection('announcements')
+      .find(filter)
       .toArray();
 
-    const total = await db.collection('announcements').countDocuments();
+    // Filter by slots if provided
+    if (slotsParam) {
+      try {
+        const slotsFilters = JSON.parse(slotsParam);
+        if (Array.isArray(slotsFilters) && slotsFilters.length > 0) {
+          allAnnouncements = allAnnouncements.filter((announcement: any) => {
+            const announcementSlots = announcement.slots || announcement.creneaux || [];
+            
+            return slotsFilters.some((slotFilter: any) => {
+              if (!slotFilter || slotFilter.day == null || !slotFilter.time) return false;
+              
+              const filterDay = Number(slotFilter.day);
+              const filterTime = dayjs(slotFilter.time);
+              const filterMinutes = filterTime.hour() * 60 + filterTime.minute();
+              
+              return announcementSlots.some((slot: any) => {
+                let slotDay = 0;
+                if (slot.day) {
+                  slotDay = Number(slot.day);
+                } else if (slot.dateDebut) {
+                  try {
+                    const date = new Date(slot.dateDebut);
+                    const jsDay = date.getDay();
+                    slotDay = jsDay === 0 ? 7 : jsDay;
+                  } catch (e) {
+                    return false;
+                  }
+                }
+                
+                if (slotDay !== filterDay) return false;
+                
+                const start = dayjs(slot.start || slot.dateDebut);
+                const end = dayjs(slot.end || slot.dateFin);
+                
+                if (!start.isValid() || !end.isValid()) return false;
+                
+                const startMinutes = start.hour() * 60 + start.minute();
+                const endMinutes = end.hour() * 60 + end.minute();
+                
+                return filterMinutes >= startMinutes && filterMinutes <= endMinutes;
+              });
+            });
+          });
+        }
+      } catch (e) {
+        console.error('Error parsing slots filter:', e);
+      }
+    }
 
-    const announcementsWithoutId = announcements.map(({ _id, ...announcement }) => announcement);
+    // Sort: by distance (scope) ascending, then by price ascending
+    allAnnouncements.sort((a: any, b: any) => {
+      const aScope = typeof a.scope === 'number' ? a.scope : (typeof a.lieuAnnonce === 'number' ? a.lieuAnnonce : Infinity);
+      const bScope = typeof b.scope === 'number' ? b.scope : (typeof b.lieuAnnonce === 'number' ? b.lieuAnnonce : Infinity);
+      
+      if (aScope !== bScope) {
+        return aScope - bScope;
+      }
+      
+      const aPrice = typeof a.price === 'number' ? a.price : (typeof a.prixAnnonce === 'number' ? a.prixAnnonce : Infinity);
+      const bPrice = typeof b.price === 'number' ? b.price : (typeof b.prixAnnonce === 'number' ? b.prixAnnonce : Infinity);
+      
+      return aPrice - bPrice;
+    });
+
+    // Apply pagination
+    const total = allAnnouncements.length;
+    const paginatedAnnouncements = allAnnouncements.slice(skip, skip + limit);
+
+    const announcementsWithoutId = paginatedAnnouncements.map(({ _id, ...announcement }) => announcement);
 
     return NextResponse.json({
       ok: true,

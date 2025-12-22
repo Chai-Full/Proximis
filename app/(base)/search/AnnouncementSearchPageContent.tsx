@@ -8,15 +8,123 @@ import dayjs from 'dayjs';
 import Paper from '@mui/material/Paper';
 import InputBase from '@mui/material/InputBase';
 import IconButton from '@mui/material/IconButton';
-import announcements from '../../../data/announcements.json';
 import AnnouncementCard from '../announcement/announcementCard';
 import MapOutlined from '@mui/icons-material/MapOutlined';
+import { fetchWithAuth } from '../lib/auth';
+import { useCachedData } from '../lib/useCachedData';
 
 
 function AnnouncementSearchPageContent() {
     const [view, setView] = React.useState<'list' | 'map'>('list');
     const { setCurrentPage, appliedFilters, setAppliedFilters, currentUserId } = useContent();
     const [favoriteIds, setFavoriteIds] = React.useState<Set<string>>(new Set());
+
+    // Transform announcement data to match expected format
+    const transformAnnouncement = React.useCallback((a: any) => ({
+        id: a.id,
+        title: a.title || a.nomAnnonce,
+        category: a.category || a.typeAnnonce,
+        description: a.description || a.descAnnonce,
+        price: a.price || a.prixAnnonce,
+        scope: a.scope || a.lieuAnnonce,
+        userId: a.userId || a.userCreateur?.idUser || a.userCreateur,
+        createdAt: a.createdAt || a.datePublication,
+        photo: a.photo || a.photos?.[0]?.urlPhoto,
+        slots: (a.slots || a.creneaux || []).map((c: any) => {
+            let day = 0;
+            if (c.day) {
+                day = c.day;
+            } else if (c.dateDebut) {
+                try {
+                    const date = new Date(c.dateDebut);
+                    const jsDay = date.getDay();
+                    day = jsDay === 0 ? 7 : jsDay;
+                } catch (e) {
+                    console.error('Error parsing creneau dateDebut:', e, c);
+                }
+            }
+            return {
+                day,
+                start: c.start || c.dateDebut,
+                end: c.end || c.dateFin,
+                estReserve: c.estReserve || false,
+            };
+        }).filter((slot: any) => slot.day >= 1 && slot.day <= 7),
+        isAvailable: (a.slots || a.creneaux || []).some((c: any) => !(c.estReserve || false)) !== false,
+    }), []);
+
+    // Create a stable filter key for cache
+    const filterKey = React.useMemo(() => {
+        if (!appliedFilters) return 'no-filters';
+        const parts: string[] = [];
+        if (appliedFilters.keyword && typeof appliedFilters.keyword === 'string' && appliedFilters.keyword.trim()) {
+            parts.push(`kw:${appliedFilters.keyword.trim().toLowerCase()}`);
+        }
+        if (appliedFilters.category && typeof appliedFilters.category === 'string') {
+            parts.push(`cat:${appliedFilters.category}`);
+        }
+        if (appliedFilters.price && typeof appliedFilters.price === 'number') {
+            parts.push(`price:${appliedFilters.price}`);
+        }
+        if (appliedFilters.distance && typeof appliedFilters.distance === 'number') {
+            parts.push(`dist:${appliedFilters.distance}`);
+        }
+        if (appliedFilters.slots && Array.isArray(appliedFilters.slots) && appliedFilters.slots.length > 0) {
+            const slotsStr = JSON.stringify(appliedFilters.slots);
+            parts.push(`slots:${slotsStr}`);
+        }
+        return parts.length > 0 ? parts.join('|') : 'no-filters';
+    }, [appliedFilters]);
+
+    // Load announcements from API with filters using cache
+    const { data: announcementsData, loading: loadingAnnouncements } = useCachedData({
+        cacheKey: 'search_announcements',
+        fetchFn: async () => {
+            const params = new URLSearchParams({
+                page: '1',
+                limit: '10', // Limit to 10 results
+            });
+            
+            // Exclude current user's announcements if logged in
+            if (currentUserId) {
+                params.append('excludeUserId', String(currentUserId));
+            }
+            
+            // Add filter parameters
+            if (appliedFilters) {
+                if (appliedFilters.keyword && typeof appliedFilters.keyword === 'string' && appliedFilters.keyword.trim()) {
+                    params.append('keyword', appliedFilters.keyword.trim());
+                }
+                if (appliedFilters.category && typeof appliedFilters.category === 'string') {
+                    params.append('category', appliedFilters.category);
+                }
+                if (appliedFilters.price && typeof appliedFilters.price === 'number') {
+                    params.append('price', String(appliedFilters.price));
+                }
+                if (appliedFilters.distance && typeof appliedFilters.distance === 'number') {
+                    params.append('distance', String(appliedFilters.distance));
+                }
+                if (appliedFilters.slots && Array.isArray(appliedFilters.slots) && appliedFilters.slots.length > 0) {
+                    params.append('slots', JSON.stringify(appliedFilters.slots));
+                }
+            }
+            
+            const res = await fetchWithAuth(`/api/announcements?${params.toString()}`);
+            const data = await res.json();
+
+            if (!res.ok || !data?.ok || !Array.isArray(data.announcements)) {
+                return [];
+            }
+
+            // Transform announcements to match expected format
+            return data.announcements.map(transformAnnouncement);
+        },
+        enabled: true,
+        userId: currentUserId || null,
+        dependencies: [filterKey], // Cache invalidated when filters change
+    });
+
+    const announcements = announcementsData || [];
 
     // Load user favorites
     React.useEffect(() => {
@@ -32,7 +140,7 @@ function AnnouncementSearchPageContent() {
                 const params = new URLSearchParams({
                     userId: String(currentUserId),
                 });
-                const res = await fetch(`/api/favorites?${params.toString()}`);
+                const res = await fetchWithAuth(`/api/favorites?${params.toString()}`);
                 const data = await res.json();
 
                 if (cancelled) return;
@@ -80,136 +188,24 @@ function AnnouncementSearchPageContent() {
         setView('list');
     };
 
-    // apply filters to announcements
+    // Announcements are already filtered and sorted by API
+    // Just sort by favorites if no filters are applied
     const filteredAnnouncements = React.useMemo(() => {
         let list = Array.isArray(announcements) ? announcements : [];
         
-        // Filter out announcements where the current user is the author
-        if (currentUserId != null) {
-            list = list.filter((a: any) => String(a.userId) !== String(currentUserId));
+        // Sort by favorites first only when no filters are applied
+        if (!appliedFilters && favoriteIds.size > 0) {
+            return list.sort((a: any, b: any) => {
+                const aIsFavorite = favoriteIds.has(String(a.id));
+                const bIsFavorite = favoriteIds.has(String(b.id));
+                if (aIsFavorite && !bIsFavorite) return -1;
+                if (!aIsFavorite && bIsFavorite) return 1;
+                return 0;
+            });
         }
         
-        if (!appliedFilters) {
-            // Sort by favorites first even when no filters are applied
-            if (favoriteIds.size > 0) {
-                return list.sort((a: any, b: any) => {
-                    const aIsFavorite = favoriteIds.has(String(a.id));
-                    const bIsFavorite = favoriteIds.has(String(b.id));
-                    if (aIsFavorite && !bIsFavorite) return -1;
-                    if (!aIsFavorite && bIsFavorite) return 1;
-                    return 0;
-                });
-            }
-            return list;
-        }
-
-        const hasKeyword = typeof appliedFilters.keyword === 'string' && appliedFilters.keyword.trim() !== '';
-        const hasCategory = typeof appliedFilters.category === 'string' && appliedFilters.category !== '';
-        const hasPrice = typeof appliedFilters.price === 'number';
-        const hasDistance = typeof appliedFilters.distance === 'number';
-        const hasSlots = Array.isArray(appliedFilters.slots) && appliedFilters.slots.length > 0;
-
-        if (!hasKeyword && !hasCategory && !hasPrice && !hasDistance && !hasSlots) {
-            // Sort by favorites first even when no filters match
-            if (favoriteIds.size > 0) {
-                return list.sort((a: any, b: any) => {
-                    const aIsFavorite = favoriteIds.has(String(a.id));
-                    const bIsFavorite = favoriteIds.has(String(b.id));
-                    if (aIsFavorite && !bIsFavorite) return -1;
-                    if (!aIsFavorite && bIsFavorite) return 1;
-                    return 0;
-                });
-            }
-            return list;
-        }
-
-        const scored: Array<any> = [];
-
-        for (const a of list) {
-            let matchKeyword = false;
-            let matchCategory = false;
-            let matchPrice = false;
-            let matchDistance = false;
-            let matchSlots = false;
-
-            if (hasKeyword) {
-            const kw = appliedFilters.keyword!.toLowerCase();
-            matchKeyword =
-                (a.title || '').toLowerCase().includes(kw) ||
-                (a.description || '').toLowerCase().includes(kw);
-            }
-
-            if (hasCategory) {
-            matchCategory = a.category === appliedFilters.category;
-            }
-
-            if (hasPrice) {
-            matchPrice = typeof a.price === 'number' && a.price <= (appliedFilters.price as number);
-            }
-
-            if (hasDistance) {
-            matchDistance = typeof a.scope === 'number' && a.scope <= (appliedFilters.distance as number);
-            }
-
-            if (hasSlots) {
-            matchSlots = appliedFilters.slots!.some((fs: any) => {
-                if (!fs || fs.time == null) return false;
-                const ft = dayjs(fs.time);
-                return (Array.isArray(a.slots) ? a.slots : []).some((aslot: any) => {
-                if (aslot.day !== fs.day) return false;
-                const start = dayjs(aslot.start);
-                const end = dayjs(aslot.end);
-                const ftMinutes = ft.hour() * 60 + ft.minute();
-                const startMinutes = start.hour() * 60 + start.minute();
-                const endMinutes = end.hour() * 60 + end.minute();
-                return ftMinutes >= startMinutes && ftMinutes <= endMinutes;
-                });
-            });
-            }
-
-            //  Étape cruciale : priorité aux filtres numériques
-            // Si l’utilisateur a mis un prix ou une distance, il faut que l’annonce respecte au moins un des deux
-            if (hasPrice || hasDistance) {
-            if (
-                (hasPrice && hasDistance && !matchPrice && !matchDistance) ||
-                (hasPrice && !hasDistance && !matchPrice) ||
-                (hasDistance && !hasPrice && !matchDistance)
-            ) {
-                continue; //  exclure cette annonce
-            }
-            }
-
-            //  à ce stade, l’annonce respecte au moins un critère pertinent
-            const score = [
-            hasKeyword && matchKeyword,
-            hasCategory && matchCategory,
-            hasPrice && matchPrice,
-            hasDistance && matchDistance,
-            hasSlots && matchSlots,
-            ].filter(Boolean).length;
-
-            scored.push({ item: a, _score: score });
-        }
-
-        // tri : plus de correspondances en premier, puis distance croissante, puis prix croissant
-        // (favoris seulement prioritaires quand aucun filtre n'est appliqué)
-        scored.sort((x, y) => {
-            // By score first (relevance)
-            if (y._score !== x._score) return y._score - x._score;
-            
-            // Then by distance
-            const ax = typeof x.item.scope === 'number' ? x.item.scope : Infinity;
-            const ay = typeof y.item.scope === 'number' ? y.item.scope : Infinity;
-            if (ax !== ay) return ax - ay;
-            
-            // Finally by price
-            const px = typeof x.item.price === 'number' ? x.item.price : Infinity;
-            const py = typeof y.item.price === 'number' ? y.item.price : Infinity;
-            return px - py;
-        });
-
-        return scored.map(s => s.item);
-    }, [appliedFilters, favoriteIds]);
+        return list;
+    }, [appliedFilters, favoriteIds, announcements]);
 
 
 
@@ -280,16 +276,24 @@ function AnnouncementSearchPageContent() {
                     </div>
 
                     <div className='searchResultContent'>
-            <span className='T4'>{filteredAnnouncements.length} Résultats trouvés</span>
-                            {/* Liste des résultats */}
-                            <div className='searchResultList'>
-                {filteredAnnouncements.map((announcement: any) => (
-                    <AnnouncementCard 
-                        key={announcement.id}
-                        announcement={announcement}
-                    />
-                ))}
+                        {loadingAnnouncements ? (
+                            <div style={{ padding: 16, textAlign: 'center' }}>
+                                <span className='T4'>Chargement...</span>
                             </div>
+                        ) : (
+                            <>
+                                <span className='T4'>{filteredAnnouncements.length} Résultats trouvés</span>
+                                {/* Liste des résultats */}
+                                <div className='searchResultList'>
+                                    {filteredAnnouncements.map((announcement: any) => (
+                                        <AnnouncementCard 
+                                            key={announcement.id}
+                                            announcement={announcement}
+                                        />
+                                    ))}
+                                </div>
+                            </>
+                        )}
                     </div>
                 </>
             )}

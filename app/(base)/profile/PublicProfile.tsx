@@ -32,39 +32,47 @@ export default function PublicProfile() {
 
     const loadData = async () => {
       try {
-        // Load user data and announcements in parallel
-        const [usersRes, announcementsRes] = await Promise.all([
-          fetchWithAuth('/api/users'),
-          fetchWithAuth('/api/annonces?page=1&limit=1000'),
+        // Load profile info and user's announcements in parallel
+        const [profileRes, announcementsRes] = await Promise.all([
+          fetchWithAuth(`/api/profile/${targetUserId}`),
+          fetchWithAuth(`/api/announcements?userId=${targetUserId}&page=1&limit=1000`),
         ]);
 
         if (cancelled) return;
 
-        // Load user data
-        if (usersRes && usersRes.ok) {
-          const usersData = await usersRes.json();
-          if (usersData?.users && Array.isArray(usersData.users)) {
-            if (!cancelled) setUsers(usersData.users);
+        // Load profile data
+        if (profileRes && profileRes.ok) {
+          const profileData = await profileRes.json();
+          if (profileData?.ok && profileData?.data) {
+            if (!cancelled) {
+              // Set user data
+              setUsers([profileData.data.user]);
+              // Set stats
+              setReviewsCount(profileData.data.stats.reviewsCount || 0);
+              setAverageRating(profileData.data.stats.averageRating || 0);
+            }
           }
         }
 
         // Load announcements
         if (announcementsRes && announcementsRes.ok) {
           const announcementsData = await announcementsRes.json();
-          if (announcementsData?.success && announcementsData?.data?.annonces) {
-            const transformed = announcementsData.data.annonces.map((a: any) => ({
-              id: a.idAnnonce,
-              title: a.nomAnnonce,
-              category: a.typeAnnonce,
-              scope: a.lieuAnnonce,
-              price: a.prixAnnonce,
-              description: a.descAnnonce,
-              userId: a.userCreateur?.idUser,
-              createdAt: a.datePublication,
-              photo: a.photos?.[0]?.urlPhoto,
-              slots: a.creneaux?.map((c: any) => {
+          if (announcementsData?.ok && announcementsData?.announcements) {
+            const transformed = announcementsData.announcements.map((a: any) => ({
+              id: a.id,
+              title: a.title || a.nomAnnonce,
+              category: a.category || a.typeAnnonce,
+              scope: a.scope || a.lieuAnnonce,
+              price: a.price || a.prixAnnonce,
+              description: a.description || a.descAnnonce,
+              userId: a.userId || a.userCreateur?.idUser || a.userCreateur,
+              createdAt: a.createdAt || a.datePublication,
+              photo: a.photo || a.photos?.[0]?.urlPhoto,
+              slots: (a.slots || a.creneaux || []).map((c: any) => {
                 let day = 0;
-                if (c.dateDebut) {
+                if (c.day) {
+                  day = c.day;
+                } else if (c.dateDebut) {
                   try {
                     const date = new Date(c.dateDebut);
                     const jsDay = date.getDay();
@@ -75,12 +83,12 @@ export default function PublicProfile() {
                 }
                 return {
                   day,
-                  start: c.dateDebut,
-                  end: c.dateFin,
-                  estReserve: c.estReserve,
+                  start: c.start || c.dateDebut,
+                  end: c.end || c.dateFin,
+                  estReserve: c.estReserve || false,
                 };
-              }).filter((slot: any) => slot.day >= 1 && slot.day <= 7) || [],
-              isAvailable: a.creneaux?.some((c: any) => !c.estReserve) !== false,
+              }).filter((slot: any) => slot.day >= 1 && slot.day <= 7),
+              isAvailable: (a.slots || a.creneaux || []).some((c: any) => !(c.estReserve || false)) !== false,
             }));
             if (!cancelled) setAnnouncements(transformed);
           }
@@ -114,9 +122,10 @@ export default function PublicProfile() {
     .join("")
     .toUpperCase();
 
+  // Announcements are already filtered by userId from the API, no need to filter again
   const userAnnouncements = useMemo(
-    () => (user ? announcements.filter((a: any) => Number(a.userId) === Number(user.id)) : []),
-    [user, announcements]
+    () => announcements,
+    [announcements]
   );
   const availableAnnouncements = useMemo(
     () => userAnnouncements.filter((a: any) => a.isAvailable !== false),
@@ -127,70 +136,8 @@ export default function PublicProfile() {
     [userAnnouncements]
   );
 
-  // Load reviews count and average rating
-  useEffect(() => {
-    if (!user || userAnnouncements.length === 0) {
-      setReviewsCount(0);
-      setAverageRating(0);
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadReviewsStats = async () => {
-      try {
-        const evalResults = await Promise.all(
-          userAnnouncements.map(async (announcement) => {
-            try {
-              const params = new URLSearchParams({
-                announcementId: String(announcement.id),
-              });
-              const res = await fetchWithAuth(`/api/evaluations?${params.toString()}`);
-              const data = await res.json();
-              if (res.ok && data?.evaluations && Array.isArray(data.evaluations)) {
-                return data.evaluations;
-              }
-            } catch (e) {
-              console.error(`Error loading evaluations for announcement ${announcement.id}`, e);
-            }
-            return [] as any[];
-          })
-        );
-
-        const allEvaluations: any[] = evalResults.flat();
-
-        if (cancelled) return;
-
-        const totalReviews = allEvaluations.length;
-        let avgRating = 0;
-        
-        if (totalReviews > 0) {
-          const sum = allEvaluations.reduce((acc, evaluation) => {
-            const rating = typeof evaluation.rating === 'number' ? evaluation.rating : 0;
-            return acc + rating;
-          }, 0);
-          avgRating = sum / totalReviews;
-        }
-
-        if (!cancelled) {
-          setReviewsCount(totalReviews);
-          setAverageRating(avgRating);
-        }
-      } catch (error) {
-        console.error("Error loading reviews stats", error);
-        if (!cancelled) {
-          setReviewsCount(0);
-          setAverageRating(0);
-        }
-      }
-    };
-
-    loadReviewsStats();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user, userAnnouncements]);
+  // Reviews count and average rating are now loaded from the profile endpoint
+  // No need for separate useEffect
 
   useEffect(() => {
     if (user && setHeaderTitle) {
