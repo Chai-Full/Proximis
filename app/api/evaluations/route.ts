@@ -105,38 +105,30 @@ export async function POST(req: NextRequest) {
       reservationId: Number(body.reservationId),
     });
 
-    let savedEvaluation;
     if (existingEvaluation) {
-      // Update existing evaluation
-      await db.collection('evaluations').updateOne(
-        { _id: existingEvaluation._id },
-        {
-          $set: {
-            rating: body.rating,
-            comment: body.comment.trim(),
-            updatedAt: new Date().toISOString(),
-          },
-        }
-      );
-      savedEvaluation = await db.collection('evaluations').findOne({ _id: existingEvaluation._id });
-    } else {
-      // Create new evaluation
-      const newEvaluation = {
-        id: Date.now(),
-        reservationId: Number(body.reservationId),
-        announcementId: Number(body.announcementId),
-        // `userId` is the user receiving the evaluation (announcement owner)
-        userId: evaluatedUserId,
-        // store who made the evaluation
-        reviewerId: reviewerId,
-        rating: body.rating,
-        comment: body.comment.trim(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      await db.collection('evaluations').insertOne(newEvaluation);
-      savedEvaluation = newEvaluation;
+      // Evaluation already exists - cannot evaluate twice
+      return NextResponse.json({ 
+        ok: false, 
+        error: 'Cette réservation a déjà été évaluée' 
+      }, { status: 400 });
     }
+
+    // Create new evaluation
+    const newEvaluation = {
+      id: Date.now(),
+      reservationId: Number(body.reservationId),
+      announcementId: Number(body.announcementId),
+      // `userId` is the user receiving the evaluation (announcement owner)
+      userId: evaluatedUserId,
+      // store who made the evaluation
+      reviewerId: reviewerId,
+      rating: body.rating,
+      comment: body.comment.trim(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    await db.collection('evaluations').insertOne(newEvaluation);
+    const savedEvaluation = newEvaluation;
 
     // Update reservation status to "completed" after evaluation is saved
     try {
