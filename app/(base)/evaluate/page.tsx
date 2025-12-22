@@ -13,6 +13,8 @@ import './index.css';
 export default function EvaluateContent() {
   const { 
     selectedReservationId, 
+    evaluationData,
+    setEvaluationData,
     setHeaderTitle, 
     setCurrentPage, 
     goBack, 
@@ -22,7 +24,8 @@ export default function EvaluateContent() {
   
   const [rating, setRating] = useState<number>(0);
   const [comment, setComment] = useState<string>('');
-  const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true); // For initial data loading
+  const [submitting, setSubmitting] = useState(false); // For form submission
   const [notification, setNotification] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'warning' | 'info' }>({
     open: false,
     message: '',
@@ -41,8 +44,35 @@ export default function EvaluateContent() {
       return;
     }
 
+    // If we have evaluation data from home page, use it directly
+    if (evaluationData && evaluationData.reservation && evaluationData.announcement) {
+      setReservation(evaluationData.reservation);
+      setAnnouncement(evaluationData.announcement);
+      setProviderName(evaluationData.providerName || 'Prestataire');
+      
+      // Set header title with announcement title
+      const announcementTitle = evaluationData.announcement.title || evaluationData.announcement.nomAnnonce || 'Évaluation';
+      if (setHeaderTitle) {
+        setHeaderTitle(announcementTitle);
+      }
+      
+      setLoadingData(false);
+      
+      // Clear evaluation data after using it
+      if (setEvaluationData) {
+        setEvaluationData(null);
+      }
+      
+      return () => {
+        if (setHeaderTitle) {
+          setHeaderTitle(null);
+        }
+      };
+    }
+
+    // Otherwise, load from API (fallback for direct navigation)
     let cancelled = false;
-    setLoading(true);
+    setLoadingData(true);
 
     const loadData = async () => {
       try {
@@ -69,7 +99,7 @@ export default function EvaluateContent() {
             severity: 'error'
           });
           setTimeout(() => goBack && goBack(), 2000);
-          setLoading(false);
+          setLoadingData(false);
           return;
         }
 
@@ -96,7 +126,7 @@ export default function EvaluateContent() {
                 message: 'Annonce introuvable',
                 severity: 'error'
               });
-              setLoading(false);
+              setLoadingData(false);
               return;
             }
 
@@ -160,7 +190,7 @@ export default function EvaluateContent() {
         }
       } finally {
         if (!cancelled) {
-          setLoading(false);
+          setLoadingData(false);
         }
       }
     };
@@ -173,7 +203,7 @@ export default function EvaluateContent() {
         setHeaderTitle(null);
       }
     };
-  }, [selectedReservationId, currentUserId, setHeaderTitle, goBack]);
+  }, [selectedReservationId, evaluationData, currentUserId, setHeaderTitle, goBack, setEvaluationData]);
 
   const handleStarClick = (value: number) => {
     setRating(value);
@@ -208,7 +238,7 @@ export default function EvaluateContent() {
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
 
     try {
       // Prepare robust payload: support various announcement id fields and fallback to localStorage for userId
@@ -218,12 +248,12 @@ export default function EvaluateContent() {
 
       if (!announcementId) {
         setNotification({ open: true, message: 'Identifiant de l\'annonce manquant', severity: 'error' });
-        setLoading(false);
+        setSubmitting(false);
         return;
       }
       if (!userIdToSend) {
         setNotification({ open: true, message: 'Utilisateur non authentifié', severity: 'error' });
-        setLoading(false);
+        setSubmitting(false);
         return;
       }
 
@@ -281,11 +311,11 @@ export default function EvaluateContent() {
         severity: 'error'
       });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  if (loading || !reservation || !announcement) {
+  if (loadingData || !reservation || !announcement) {
     return (
       <div style={{ padding: 16, textAlign: 'center' }}>
         <p>Chargement...</p>
@@ -339,7 +369,7 @@ export default function EvaluateContent() {
             fullWidth
             variant="contained"
             onClick={handleSubmit}
-            disabled={loading || rating === 0 || !comment.trim()}
+            disabled={submitting || rating === 0 || !comment.trim()}
             className="evaluateSubmitButton"
             sx={{
               textTransform: 'none',
@@ -349,7 +379,7 @@ export default function EvaluateContent() {
               fontWeight: 600,
             }}
           >
-            {loading ? 'Enregistrement...' : 'Evaluer'}
+            {submitting ? 'Enregistrement...' : 'Evaluer'}
           </Button>
         </div>
       </div>
