@@ -247,7 +247,7 @@ export async function PUT(
     }
 
     // Map category from updateData to idCategorie and category title from categories.json
-    let categoryMapping = { idCategorie: undefined, category: undefined };
+    let categoryMapping: { idCategorie?: number | null; category?: string | null } = {};
     if (updateData.category !== undefined) {
       const mapping = getCategoryFromTitle(updateData.category);
       if (mapping.idCategorie !== null) {

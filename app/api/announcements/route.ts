@@ -111,7 +111,7 @@ function getCategoryFromTitle(categoryTitle: string | null | undefined): { idCat
  *         name: slots
  *         schema:
  *           type: string
- *         description: JSON array of slots filters [{day: number, time: string}]
+ *         description: JSON array of slots filters with format array of objects with day (number) and time (string) properties
  *     responses:
  *       200:
  *         description: List of announcements
