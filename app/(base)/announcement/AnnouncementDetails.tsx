@@ -718,7 +718,16 @@ export default function AnnounceDetails() {
         <div className='actionSection'>
           {currentUserId != null && announcement && String(currentUserId) === String(announcement.userId) ? (
             // Owner view
-            hasActiveReservations ? (
+            announcement.isAvailable === false ? (
+              <Button
+                variant="outlined"
+                fullWidth
+                sx={{ textTransform: 'capitalize', fontWeight: 600 }}
+                onClick={() => setCurrentPage && setCurrentPage('reviews')}
+              >
+                Voir tous les avis
+              </Button>
+            ) : hasActiveReservations ? (
               <div
                 className='T6'
                 style={{
