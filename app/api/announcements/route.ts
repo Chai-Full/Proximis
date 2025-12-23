@@ -134,7 +134,7 @@ export async function GET(req: NextRequest) {
     const db = await getDb();
     const url = new URL(req.url);
     const page = parseInt(url.searchParams.get('page') || '1');
-    const limit = parseInt(url.searchParams.get('limit') || '10'); // Default to 10 for search page
+    const limit = parseInt(url.searchParams.get('limit') || '100'); // Default to 100 for search page
     const skip = (page - 1) * limit;
     const userId = url.searchParams.get('userId');
     const excludeUserId = url.searchParams.get('excludeUserId');
@@ -147,6 +147,15 @@ export async function GET(req: NextRequest) {
     // Build filter query
     const filter: any = {};
     const andConditions: any[] = [];
+
+    // Exclude closed announcements (only show available announcements)
+    // Only show announcements where isAvailable is true or doesn't exist (for backward compatibility)
+    andConditions.push({
+      $or: [
+        { isAvailable: true },
+        { isAvailable: { $exists: false } }, // Include announcements where isAvailable doesn't exist (backward compatibility)
+      ],
+    });
 
     // User filters
     if (userId) {
