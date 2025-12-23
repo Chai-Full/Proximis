@@ -16,6 +16,8 @@ export type Announcement = {
     slots?: { day: number; start?: string | null; end?: string | null }[];
     isAvailable?: boolean;
     category?: string;
+    userId?: number | string;
+    userCreateur?: number | string | { idUser: number | string };
 };
 
 interface AnnouncementCardProps {
@@ -25,8 +27,11 @@ interface AnnouncementCardProps {
 
 const AnnouncementCard = ({ announcement, profilPage=false }: AnnouncementCardProps) => {
   const { id, title, price, photo, slots, category } = announcement;
-  const { setCurrentPage, setSelectedAnnouncementId } = useContent();
+  const { setCurrentPage, setSelectedAnnouncementId, currentUserId } = useContent();
   const [averageRating, setAverageRating] = useState<number>(0);
+  const [distanceKm, setDistanceKm] = useState<number | null>(null);
+  const [author, setAuthor] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   // Load average rating from evaluations
   useEffect(() => {
@@ -85,6 +90,144 @@ const AnnouncementCard = ({ announcement, profilPage=false }: AnnouncementCardPr
 
   const displayRating = averageRating > 0 ? averageRating.toFixed(1) : '0';
 
+  // Load author and current user for distance calculation
+  useEffect(() => {
+    if (!id || !currentUserId) {
+      setAuthor(null);
+      setCurrentUser(null);
+      setDistanceKm(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadUsers = async () => {
+      try {
+        const usersRes = await fetchWithAuth('/api/users');
+        if (usersRes.ok && !cancelled) {
+          const usersData = await usersRes.json();
+          if (usersData?.users && Array.isArray(usersData.users)) {
+            const annUserId = announcement.userId || (announcement as any).userCreateur?.idUser || (announcement as any).userCreateur;
+            const annUserIdNum = typeof annUserId === 'number' ? annUserId : Number(annUserId);
+            const foundAuthor = usersData.users.find((u: any) => Number(u.id) === annUserIdNum) || null;
+            const foundCurrent = currentUserId != null ? usersData.users.find((u: any) => Number(u.id) === Number(currentUserId)) || null : null;
+            if (!cancelled) {
+              setAuthor(foundAuthor);
+              setCurrentUser(foundCurrent);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading users for distance calculation', error);
+        if (!cancelled) {
+          setAuthor(null);
+          setCurrentUser(null);
+        }
+      }
+    };
+
+    loadUsers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, currentUserId, announcement.userId, (announcement as any).userCreateur]);
+
+  // Compute distance between current user and announcement author (same logic as AnnouncementDetails)
+  useEffect(() => {
+    let cancelled = false;
+    const computeDistance = async () => {
+      setDistanceKm(null);
+      if (!author || !currentUser) return;
+      
+      const getUserCoords = (u: any): {lat: number, lng: number} | null => {
+        if (!u) return null;
+        const lat = u.latitude ?? u.lat ?? (u.position?.lat);
+        const lng = u.longitude ?? u.lng ?? (u.position?.lng);
+        if (typeof lat === 'number' && typeof lng === 'number') {
+          return { lat, lng };
+        }
+        return null;
+      };
+
+      const buildAddress = (u: any): string => {
+        if (!u) return '';
+        const parts = [u.adresse, u.codePostal, u.ville, u.pays].filter(Boolean);
+        return parts.join(' ');
+      };
+
+      const haversineDistanceKm = (a: {lat: number, lng: number}, b: {lat: number, lng: number}) => {
+        const toRad = (deg: number) => (deg * Math.PI) / 180;
+        const R = 6371; // km
+        const dLat = toRad(b.lat - a.lat);
+        const dLng = toRad(b.lng - a.lng);
+        const lat1 = toRad(a.lat);
+        const lat2 = toRad(b.lat);
+        const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+        return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+      };
+
+      const geocodeAddress = async (address: string, country?: string): Promise<{lat: number, lng: number} | null> => {
+        try {
+          if (!address || typeof window === 'undefined') return null;
+          const query = (address + (country ? ' ' + country : '')).trim();
+          const cacheKey = 'proximis_geocode_' + encodeURIComponent(query.toLowerCase());
+          const ttlMs = 30 * 24 * 60 * 60 * 1000; // 30 days
+          try {
+            const cached = localStorage.getItem(cacheKey);
+            if (cached) {
+              const obj = JSON.parse(cached);
+              if (obj && obj.lat != null && obj.lng != null && obj.ts && (Date.now() - obj.ts) < ttlMs) {
+                return { lat: Number(obj.lat), lng: Number(obj.lng) };
+              }
+            }
+          } catch {}
+
+          const countryParam = country && /france|^fr$/i.test(country) ? '&countrycodes=fr' : '';
+          const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=0${countryParam}&q=${encodeURIComponent(query)}`;
+          const resp = await fetch(url, {
+            headers: {
+              'Accept-Language': 'fr',
+            },
+          });
+          if (!resp.ok) return null;
+          const arr = await resp.json();
+          if (Array.isArray(arr) && arr.length > 0 && arr[0]?.lat && arr[0]?.lon) {
+            const lat = parseFloat(arr[0].lat);
+            const lng = parseFloat(arr[0].lon);
+            try { localStorage.setItem(cacheKey, JSON.stringify({ lat, lng, ts: Date.now() })); } catch {}
+            return { lat, lng };
+          }
+          return null;
+        } catch {
+          return null;
+        }
+      };
+
+      const directAuthor = getUserCoords(author);
+      const directCurrent = getUserCoords(currentUser);
+      let a = directAuthor;
+      let c = directCurrent;
+      if (!a) {
+        const addrA = buildAddress(author);
+        a = await geocodeAddress(addrA, author?.pays);
+      }
+      if (!c) {
+        const addrC = buildAddress(currentUser);
+        c = await geocodeAddress(addrC, currentUser?.pays);
+      }
+      if (!cancelled) {
+        if (a && c) {
+          setDistanceKm(haversineDistanceKm(c, a));
+        } else {
+          setDistanceKm(null);
+        }
+      }
+    };
+    computeDistance();
+    return () => { cancelled = true; };
+  }, [author, currentUser]);
+
     return (
         <div
             className={'announcementCard' + (profilPage && announcement.isAvailable ? ' active' : profilPage && !announcement.isAvailable ? ' deactive' : '')}
@@ -102,7 +245,7 @@ const AnnouncementCard = ({ announcement, profilPage=false }: AnnouncementCardPr
                 className='announcementCardImage'
                 aria-label={photo ? title : 'no image'}
                 style={{
-                    backgroundImage: photo ? `url("${String(photo)}")` : `url('/photo1.svg')`,
+                    backgroundImage: photo && !String(photo).startsWith('/uploads/') ? `url("${String(photo)}")` : `url('/photo1.svg')`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                     backgroundRepeat: 'no-repeat',
@@ -133,7 +276,9 @@ const AnnouncementCard = ({ announcement, profilPage=false }: AnnouncementCardPr
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: "#1ea792" }}>
                     <div>
                         <LocationOn sx={{ color: "#8c8c8c"}}/>
-                        <span className='T6' style={{color: "#8c8c8c"}}>à {announcement.scope}km</span>
+                        <span className='T6' style={{color: "#8c8c8c"}}>
+                          {distanceKm != null ? `à ${distanceKm.toFixed(1)} km` : (announcement.scope != null ? `à ${announcement.scope} km` : '- km')}
+                        </span>
                     </div>
                     <span className={'T4' + (profilPage && !announcement.isAvailable ? ' deactiveGray' : '')}>{price ? `${price} €/h` : '—'}</span>
                 </div>

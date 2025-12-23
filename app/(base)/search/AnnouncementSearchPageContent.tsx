@@ -82,7 +82,7 @@ function AnnouncementSearchPageContent() {
         fetchFn: async () => {
             const params = new URLSearchParams({
                 page: '1',
-                limit: '10', // Limit to 10 results
+                limit: '100', // Limit to 100 results
             });
             
             // Exclude current user's announcements if logged in

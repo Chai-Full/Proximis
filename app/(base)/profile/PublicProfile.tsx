@@ -88,7 +88,7 @@ export default function PublicProfile() {
                   estReserve: c.estReserve || false,
                 };
               }).filter((slot: any) => slot.day >= 1 && slot.day <= 7),
-              isAvailable: (a.slots || a.creneaux || []).some((c: any) => !(c.estReserve || false)) !== false,
+              isAvailable: a.isAvailable !== false, // Use the isAvailable field from the database
             }));
             if (!cancelled) setAnnouncements(transformed);
           }

@@ -288,7 +288,7 @@ function FilterPageContent() {
                 </Box>
 
                 <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <label className='T2'>Créneaux horaires</label>
+                    <label className='T2'>Heure de Disponibilité</label>
                     <div className='scopeComponent'>
                         <div className='hourPickerItemGroup' style={{ display: 'flex', gap: 8 }}>
                             <div className='hourPickerItem' style={{ flex: 1 }}>
@@ -300,11 +300,11 @@ function FilterPageContent() {
                         </div>
                         <p className="error">{(errors as any).slots?.message as string}</p>
                         <Button variant="contained" sx={{ marginTop: '8px', borderRadius: '15px', borderColor: 'black', color: 'black', textTransform: 'capitalize' }} onClick={addSlot} startIcon={<AddCircleOutline />}>
-                            <span className='T4'>Ajouter le créneau</span>
+                            <span className='T4'>Ajouter le Filtre</span>
                         </Button>
 
                         <div className='selectedScopes' style={{ marginTop: 8 }}>
-                            {selectedSlots.length === 0 && <div className='T6' style={{ color: '#8c8c8c' }}>Aucun créneau ajouté</div>}
+                            {selectedSlots.length === 0 && <div className='T6' style={{ color: '#8c8c8c' }}>Aucun filtre Date/Heure ajouté</div>}
                             {selectedSlots.map(slot => (
                                 <div key={slot.id} className='selectedScopeItem' style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                     <span className='T5'>{dayIdToLabel(slot.day)}</span>

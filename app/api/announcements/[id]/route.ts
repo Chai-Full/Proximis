@@ -1,6 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/app/lib/mongodb';
 import { requireAuth } from '@/app/lib/auth';
+import fs from 'fs';
+import path from 'path';
+
+/**
+ * Load categories from JSON file and find category by title
+ * The form now sends the title directly from categories.json, so we just need to find the matching id
+ */
+function getCategoryFromTitle(categoryTitle: string | null | undefined): { idCategorie: number | null; category: string | null } {
+  if (!categoryTitle) {
+    return { idCategorie: null, category: null };
+  }
+
+  try {
+    const categoriesPath = path.join(process.cwd(), 'data', 'categories.json');
+    const categoriesData = fs.readFileSync(categoriesPath, 'utf-8');
+    const categories = JSON.parse(categoriesData);
+
+    const searchTitle = categoryTitle.trim();
+
+    // Find category by exact title match (form now sends title from categories.json)
+    const foundCategory = categories.find((cat: any) => {
+      const catTitle = cat.title || '';
+      return catTitle === searchTitle;
+    });
+
+    if (foundCategory) {
+      return {
+        idCategorie: foundCategory.id,
+        category: foundCategory.title, // Store the title from JSON as category
+      };
+    }
+
+    // If no exact match found, try case-insensitive match
+    const foundCategoryCaseInsensitive = categories.find((cat: any) => {
+      const catTitle = cat.title || '';
+      return catTitle.toLowerCase() === searchTitle.toLowerCase();
+    });
+
+    if (foundCategoryCaseInsensitive) {
+      return {
+        idCategorie: foundCategoryCaseInsensitive.id,
+        category: foundCategoryCaseInsensitive.title,
+      };
+    }
+
+    // If no match found, return the original title but log a warning
+    console.warn(`Category not found in categories.json for: "${searchTitle}"`);
+    return { idCategorie: null, category: categoryTitle };
+  } catch (error) {
+    console.error('Error loading categories.json:', error);
+    return { idCategorie: null, category: categoryTitle };
+  }
+}
 
 /**
  * @swagger
@@ -63,6 +116,12 @@ export async function GET(
     }
 
     const { _id, ...announcementWithoutId } = announcement;
+    
+    // Add default photo based on idCategorie if no photo exists
+    if (!announcementWithoutId.photo && !announcementWithoutId.photos && announcementWithoutId.idCategorie != null) {
+      announcementWithoutId.photo = `/categories/${announcementWithoutId.idCategorie}.png`;
+    }
+    
     return NextResponse.json({ ok: true, announcement: announcementWithoutId });
   } catch (err: any) {
     console.error('Error getting announcement:', err);
@@ -187,9 +246,23 @@ export async function PUT(
       }
     }
 
+    // Map category from updateData to idCategorie and category title from categories.json
+    let categoryMapping: { idCategorie?: number | null; category?: string | null } = {};
+    if (updateData.category !== undefined) {
+      const mapping = getCategoryFromTitle(updateData.category);
+      if (mapping.idCategorie !== null) {
+        categoryMapping.idCategorie = mapping.idCategorie;
+      }
+      if (mapping.category !== null) {
+        categoryMapping.category = mapping.category;
+      }
+    }
+
     const finalUpdateData = {
       ...updateData,
       ...(photoBase64 && { photo: photoBase64 }),
+      ...(categoryMapping.idCategorie !== undefined && { idCategorie: categoryMapping.idCategorie }),
+      ...(categoryMapping.category !== undefined && { category: categoryMapping.category }),
       updatedAt: new Date().toISOString(),
     };
 
@@ -200,6 +273,11 @@ export async function PUT(
 
     const updatedAnnouncement = await db.collection('announcements').findOne({ id: announcementId });
     const { _id, ...announcementWithoutId } = updatedAnnouncement!;
+    
+    // Add default photo based on idCategorie if no photo exists
+    if (!announcementWithoutId.photo && !announcementWithoutId.photos && announcementWithoutId.idCategorie != null) {
+      announcementWithoutId.photo = `/categories/${announcementWithoutId.idCategorie}.png`;
+    }
 
     return NextResponse.json({ ok: true, announcement: announcementWithoutId });
   } catch (err: any) {

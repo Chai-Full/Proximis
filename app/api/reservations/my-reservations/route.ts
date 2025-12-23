@@ -90,9 +90,17 @@ export async function GET(req: NextRequest) {
       )
       .toArray();
 
+    // Add default photo based on idCategorie if no photo exists
+    const announcementsWithDefaultPhoto = announcements.map((a: any) => {
+      if (!a.photo && !a.photos && a.idCategorie != null) {
+        a.photo = `/categories/${a.idCategorie}.png`;
+      }
+      return a;
+    });
+
     // Create a map of announcements by ID for quick lookup
     const announcementsMap = new Map(
-      announcements.map((a: any) => [Number(a.id), a])
+      announcementsWithDefaultPhoto.map((a: any) => [Number(a.id), a])
     );
 
     // Enrich reservations with announcement data

@@ -74,10 +74,18 @@ export async function GET(req: NextRequest) {
       .sort({ createdAt: -1 }) // Sort by most recent first
       .toArray();
 
+    // Add default photo based on idCategorie if no photo exists
+    const announcementsWithDefaultPhoto = announcements.map((announcement: any) => {
+      if (!announcement.photo && !announcement.photos && announcement.idCategorie != null) {
+        announcement.photo = `/categories/${announcement.idCategorie}.png`;
+      }
+      return announcement;
+    });
+
     return NextResponse.json({
       ok: true,
-      count: announcements.length,
-      announcements,
+      count: announcementsWithDefaultPhoto.length,
+      announcements: announcementsWithDefaultPhoto,
     });
   } catch (err) {
     console.error("GET /announcements/my-announcements error", err);
