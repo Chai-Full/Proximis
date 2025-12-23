@@ -431,6 +431,7 @@ export default function MyAnnouncementsContent() {
     const userId = a.userId || a.userCreateur?.idUser || a.userCreateur;
     const createdAt = a.createdAt || a.datePublication;
     const photo = a.photo || a.photos?.[0]?.urlPhoto;
+    const isAvailable = a.isAvailable !== undefined ? a.isAvailable : true;
     
     // Transform slots
     const slots = (a.slots || a.creneaux || []).map((c: any) => {
@@ -460,6 +461,7 @@ export default function MyAnnouncementsContent() {
       createdAt,
       photo,
       slots,
+      isAvailable,
     };
   };
 
@@ -483,6 +485,10 @@ export default function MyAnnouncementsContent() {
 
   useEffect(() => {
     if (viewType === "my_announcements") {
+      // Ensure loading state shows skeletons while data is being fetched
+      if (myAnnouncementsData === null) {
+        setLoadingAnnouncements(true);
+      }
       if (myAnnouncementsData !== null) {
         setAnnouncements(myAnnouncementsData);
       }
@@ -693,11 +699,7 @@ export default function MyAnnouncementsContent() {
                 <SkeletonAnnouncementCard />
                 <SkeletonAnnouncementCard />
               </div>
-            ) : myAnnouncements.length === 0 ? (
-              <div className="emptyState">
-                <p>Vous n'avez pas encore publié d'annonce.</p>
-              </div>
-            ) : (
+            ): (
               <div className="announcementsList">
                 {myAnnouncements.map((ann) => (
                   <MyAnnouncementCard key={ann.id} announcement={ann} />

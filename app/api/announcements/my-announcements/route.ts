@@ -76,6 +76,10 @@ export async function GET(req: NextRequest) {
 
     // Add default photo based on idCategorie if no photo exists
     const announcementsWithDefaultPhoto = announcements.map((announcement: any) => {
+      // Ensure isAvailable is present; default to true if missing
+      if (announcement.isAvailable === undefined) {
+        announcement.isAvailable = true;
+      }
       if (!announcement.photo && !announcement.photos && announcement.idCategorie != null) {
         announcement.photo = `/categories/${announcement.idCategorie}.png`;
       }
