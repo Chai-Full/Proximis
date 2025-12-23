@@ -37,7 +37,7 @@ import { getDb } from "@/app/lib/mongodb";
  *                       description: Number of reservations for user's announcements
  *                     servicesReceived:
  *                       type: number
- *                       description: Number of reservations where user is the client
+ *                       description: Number of reservations where user is the client AND status is "to_evaluate" or "completed" (service completed and ready to evaluate or already evaluated)
  *                     averageRating:
  *                       type: number
  *                       description: Average rating from evaluations of user's announcements
@@ -81,16 +81,22 @@ export async function GET(req: NextRequest) {
             _id: 0,
             userId: 1,
             announcementId: 1,
+            status: 1,
           },
         }
       )
       .toArray();
 
     // Count services received (reservations where user is the client)
+    // A service is only considered "received" when it has moved from "reserved" to "to_evaluate" 
+    // (meaning the service has been completed and is ready to be evaluated) or is already "completed" (already evaluated)
     const servicesReceived = reservations.filter((r: any) => {
       const rUserId =
         typeof r.userId === "number" ? r.userId : Number(r.userId);
-      return rUserId === userIdNum;
+      const status = r.status || 'reserved';
+      // Only count services that have been completed: status "to_evaluate" (completed, ready to evaluate) 
+      // or "completed" (already evaluated)
+      return rUserId === userIdNum && (status === 'to_evaluate' || status === 'completed');
     }).length;
 
     // Fetch user's announcements
@@ -114,13 +120,16 @@ export async function GET(req: NextRequest) {
 
     const userAnnouncementIds = userAnnouncements.map((a: any) => a.id);
 
-    // Count services rendered (reservations for user's announcements)
+    // Count services rendered (reservations for user's announcements with status "to_evaluate" or "completed")
+    // A service is only considered "rendered" when it moves from "reserved" to "to_evaluate"
     const servicesRendered = reservations.filter((r: any) => {
       const rAnnouncementId =
         typeof r.announcementId === "number"
           ? r.announcementId
           : Number(r.announcementId);
-      return userAnnouncementIds.includes(rAnnouncementId);
+      const status = r.status || 'reserved';
+      // Only count services that have been completed (to_evaluate or completed status)
+      return userAnnouncementIds.includes(rAnnouncementId) && (status === 'to_evaluate' || status === 'completed');
     }).length;
 
     // Fetch all evaluations for user's announcements

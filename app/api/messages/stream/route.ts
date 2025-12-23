@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
-import { requireAuth } from '@/app/lib/auth';
+import { verifyAuth } from '@/app/lib/auth';
+import { extractTokenFromHeader, verifyToken } from '@/app/lib/jwt';
 
 // Augment globalThis to hold SSE clients per conversation in a typed way
 declare global {
@@ -11,15 +12,31 @@ const encoder = new TextEncoder();
 
 export async function GET(req: NextRequest) {
   try {
-    const { user, error } = await requireAuth(req);
-    if (!user) {
-      return new Response(JSON.stringify({ ok: false, error: error || 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
-    }
-
     const url = new URL(req.url);
     const conversationId = url.searchParams.get('conversationId');
     if (!conversationId) {
       return new Response(JSON.stringify({ error: 'conversationId required' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // EventSource doesn't support custom headers, so we need to get token from query param
+    // Try to get token from Authorization header first (for compatibility)
+    let token: string | null = null;
+    const authHeader = req.headers.get('Authorization');
+    if (authHeader) {
+      token = extractTokenFromHeader(authHeader);
+    } else {
+      // Fallback to query parameter (for EventSource)
+      token = url.searchParams.get('token');
+    }
+
+    if (!token) {
+      return new Response(JSON.stringify({ ok: false, error: 'Token required' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // Verify token manually since EventSource can't send headers
+    const payload = verifyToken(token);
+    if (!payload || !payload.userId) {
+      return new Response(JSON.stringify({ ok: false, error: 'Invalid or expired token' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
     }
 
     if (!globalThis.__message_streams) {

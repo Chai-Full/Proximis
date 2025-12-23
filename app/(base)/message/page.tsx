@@ -61,8 +61,6 @@ export default function MessageContent() {
   const { setHeaderTitle, setCurrentPage, setSelectedConversationId, history, currentUserId, currentPage } = useContent();
   const [conversations, setConversations] = React.useState<MessageListItem[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [users, setUsers] = React.useState<any[]>([]);
-  const [announcements, setAnnouncements] = React.useState<any[]>([]);
 
   React.useEffect(() => {
     setHeaderTitle && setHeaderTitle('Messages');
@@ -83,58 +81,6 @@ export default function MessageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
 
-  // Load users and announcements from MongoDB
-  React.useEffect(() => {
-    if (!currentUserId) return;
-
-    let cancelled = false;
-
-    const loadData = async () => {
-      try {
-        // Load users
-        const usersRes = await fetchWithAuth('/api/users');
-        if (usersRes.ok) {
-          const usersData = await usersRes.json();
-          if (usersData?.users && Array.isArray(usersData.users)) {
-            if (!cancelled) setUsers(usersData.users);
-          }
-        }
-
-        // Load announcements
-        const announcementsRes = await fetchWithAuth('/api/annonces?page=1&limit=1000');
-        if (announcementsRes.ok) {
-          const announcementsData = await announcementsRes.json();
-          if (announcementsData?.success && announcementsData?.data?.annonces) {
-            const transformed = announcementsData.data.annonces.map((a: any) => ({
-              id: a.idAnnonce,
-              title: a.nomAnnonce,
-              category: a.typeAnnonce,
-              scope: a.lieuAnnonce,
-              price: a.prixAnnonce,
-              description: a.descAnnonce,
-              userId: a.userCreateur?.idUser,
-              createdAt: a.datePublication,
-              photo: a.photos?.[0]?.urlPhoto,
-              slots: a.creneaux?.map((c: any) => ({
-                start: c.dateDebut,
-                end: c.dateFin,
-                estReserve: c.estReserve,
-              })) || [],
-            }));
-            if (!cancelled) setAnnouncements(transformed);
-          }
-        }
-      } catch (error) {
-        console.error('Error loading data', error);
-      }
-    };
-
-    loadData();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentUserId]);
 
   // Load conversations from API
   React.useEffect(() => {
@@ -169,28 +115,23 @@ export default function MessageContent() {
 
           // Transform conversations to MessageListItem format
           const transformedConversations: MessageListItem[] = data.conversations.map((conv: any) => {
-            // Find the other user (not the current user)
-            // Convert to numbers for comparison since MongoDB stores them as numbers
+            // Find the other user (not the current user) from enriched conversation data
             const convFromUserId = typeof conv.fromUserId === 'number' ? conv.fromUserId : Number(conv.fromUserId);
             const convToUserId = typeof conv.toUserId === 'number' ? conv.toUserId : Number(conv.toUserId);
             const currentUserIdNum = Number(currentUserId);
             
-            const otherUserId = convFromUserId === currentUserIdNum 
-              ? convToUserId 
-              : convFromUserId;
-            const otherUser = users.find((u: any) => Number(u.id) === Number(otherUserId));
+            // Determine which user is the "other" user and get their data from enriched conversation
+            const isFromCurrentUser = convFromUserId === currentUserIdNum;
+            const otherUserData = isFromCurrentUser ? conv.toUser : conv.fromUser;
 
-            // Get user name and avatar
-            const userName = otherUser 
-              ? `${otherUser.prenom || ''} ${otherUser.nom || ''}`.trim() || otherUser.email || 'Utilisateur'
+            // Get user name and avatar from enriched data
+            const userName = otherUserData
+              ? `${otherUserData.prenom || ''} ${otherUserData.nom || ''}`.trim() || otherUserData.email || 'Utilisateur'
               : 'Utilisateur';
-            const userAvatar = otherUser?.photo || '/photo1.svg';
+            const userAvatar = otherUserData?.photo || '/photo1.svg';
 
-            // Get announcement title for subtitle
-            // Convert to numbers for comparison since MongoDB stores them as numbers
-            const convAnnouncementId = typeof conv.announcementId === 'number' ? conv.announcementId : Number(conv.announcementId);
-            const announcement = announcements.find((a: any) => Number(a.id) === convAnnouncementId);
-            const announcementTitle = announcement?.title || 'Annonce';
+            // Get announcement title from enriched conversation data
+            const announcementTitle = conv.announcement?.title || 'Annonce';
 
             // Get last message
             const conversationMessages = data.messages.filter((m: any) => m.conversationId === conv.id);
@@ -200,22 +141,11 @@ export default function MessageContent() {
             const lastMessage = sortedMessages[0];
             const lastMessageText = lastMessage?.text || '';
             
-            // Format time: "HH:mm" if today, "Hier" if yesterday, or date if older
+            // Format date: DD:MM:YY
             let lastMessageTime = '';
             if (lastMessage?.createdAt) {
               const messageDate = dayjs(lastMessage.createdAt);
-              const now = dayjs();
-              const diffDays = now.diff(messageDate, 'day');
-              
-              if (diffDays === 0) {
-                lastMessageTime = messageDate.format('HH:mm');
-              } else if (diffDays === 1) {
-                lastMessageTime = 'Hier';
-              } else if (diffDays < 7) {
-                lastMessageTime = messageDate.format('ddd');
-              } else {
-                lastMessageTime = messageDate.format('D MMM');
-              }
+              lastMessageTime = messageDate.format('DD:MM:YY');
             }
 
             // Count unread messages (messages not read and from other user)
@@ -269,11 +199,11 @@ export default function MessageContent() {
     };
 
     loadConversations();
-  }, [currentUserId, users, announcements]);
+  }, [currentUserId]);
 
   // Reload conversations when returning to messages page from chat
   React.useEffect(() => {
-    if (currentPage === 'messages' && currentUserId && users.length > 0 && announcements.length > 0) {
+    if (currentPage === 'messages' && currentUserId) {
       const loadConversations = async () => {
         try {
           const params = new URLSearchParams({
@@ -289,19 +219,18 @@ export default function MessageContent() {
               const convToUserId = typeof conv.toUserId === 'number' ? conv.toUserId : Number(conv.toUserId);
               const currentUserIdNum = Number(currentUserId);
               
-              const otherUserId = convFromUserId === currentUserIdNum 
-                ? convToUserId
-                : convFromUserId;
-              const otherUser = users.find((u: any) => Number(u.id) === Number(otherUserId));
+              // Determine which user is the "other" user and get their data from enriched conversation
+              const isFromCurrentUser = convFromUserId === currentUserIdNum;
+              const otherUserData = isFromCurrentUser ? conv.toUser : conv.fromUser;
 
-              const userName = otherUser 
-                ? `${otherUser.prenom || ''} ${otherUser.nom || ''}`.trim() || otherUser.email || 'Utilisateur'
+              // Get user name and avatar from enriched data
+              const userName = otherUserData
+                ? `${otherUserData.prenom || ''} ${otherUserData.nom || ''}`.trim() || otherUserData.email || 'Utilisateur'
                 : 'Utilisateur';
-              const userAvatar = otherUser?.photo || '/photo1.svg';
+              const userAvatar = otherUserData?.photo || '/photo1.svg';
 
-              const convAnnouncementId = typeof conv.announcementId === 'number' ? conv.announcementId : Number(conv.announcementId);
-              const announcement = announcements.find((a: any) => Number(a.id) === convAnnouncementId);
-              const announcementTitle = announcement?.title || 'Annonce';
+              // Get announcement title from enriched conversation data
+              const announcementTitle = conv.announcement?.title || 'Annonce';
 
               const conversationMessages = data.messages.filter((m: any) => m.conversationId === conv.id);
               const sortedMessages = conversationMessages.sort((a: any, b: any) => 
@@ -313,18 +242,7 @@ export default function MessageContent() {
               let lastMessageTime = '';
               if (lastMessage?.createdAt) {
                 const messageDate = dayjs(lastMessage.createdAt);
-                const now = dayjs();
-                const diffDays = now.diff(messageDate, 'day');
-                
-                if (diffDays === 0) {
-                  lastMessageTime = messageDate.format('HH:mm');
-                } else if (diffDays === 1) {
-                  lastMessageTime = 'Hier';
-                } else if (diffDays < 7) {
-                  lastMessageTime = messageDate.format('ddd');
-                } else {
-                  lastMessageTime = messageDate.format('D MMM');
-                }
+                lastMessageTime = messageDate.format('DD:MM:YY');
               }
 
               // Count unread messages (messages not read and from other user)
@@ -373,7 +291,7 @@ export default function MessageContent() {
       
       return () => clearTimeout(timer);
     }
-  }, [currentPage, currentUserId, users, announcements]);
+  }, [currentPage, currentUserId]);
 
   // Listen for read events from chat to update unread counters live
   React.useEffect(() => {

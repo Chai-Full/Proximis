@@ -17,10 +17,23 @@ type Evaluation = {
   reservationId: number | string;
   announcementId: number | string;
   userId: number | string;
+  reviewerId?: number | string;
   rating: number;
   comment: string;
   createdAt: string;
   updatedAt: string;
+  reviewerName?: string;
+  reviewer?: {
+    id: number | string;
+    prenom?: string;
+    nom?: string;
+    name?: string;
+    email?: string;
+  };
+  announcement?: {
+    id: number | string;
+    category?: string;
+  };
 };
 
 export default function ReviewsContent() {
@@ -35,7 +48,6 @@ export default function ReviewsContent() {
   const [loading, setLoading] = useState(true);
   const [providerName, setProviderName] = useState<string>('');
   const [announcementCategory, setAnnouncementCategory] = useState<string>('');
-  const [usersData, setUsersData] = useState<any>({ users: [] });
 
   useEffect(() => {
     if (!selectedAnnouncementId) {
@@ -61,40 +73,50 @@ export default function ReviewsContent() {
           );
           setEvaluations(sorted);
 
-          // Get provider name and category from API announcements
-          const annRes = await fetchWithAuth('/api/annonces?page=1&limit=1000');
-          let announcement: any = null;
-          let announcements: any[] = [];
+          // Get announcement category from first evaluation if available
+          if (sorted.length > 0 && sorted[0].announcement?.category) {
+            setAnnouncementCategory(sorted[0].announcement.category);
+          } else {
+            // Fallback: fetch announcement if not in evaluation data
+            const annRes = await fetchWithAuth(`/api/announcements/${selectedAnnouncementId}`);
+            if (annRes.ok) {
+              const annData = await annRes.json();
+              if (annData?.ok && annData?.announcement) {
+                setAnnouncementCategory(annData.announcement.category || annData.announcement.typeAnnonce || '');
+              }
+            }
+          }
+
+          // Get provider name from announcement
+          const annRes = await fetchWithAuth(`/api/announcements/${selectedAnnouncementId}`);
           if (annRes.ok) {
             const annData = await annRes.json();
-            announcements = annData?.data?.annonces || annData?.annonces || [];
-            // Try multiple field names for ID
-            announcement = announcements.find(
-              (a: any) => String(a.id) === String(selectedAnnouncementId)
-                || String(a.idAnnonce) === String(selectedAnnouncementId)
-                || String(a._id) === String(selectedAnnouncementId)
-            );
-          }
-          
-          if (announcement) {
-            // Set announcement category
-            setAnnouncementCategory(announcement.typeAnnonce || '');
-            
-            // Load users from API to resolve provider name
-            const usersRes = await fetchWithAuth('/api/users');
-            const usersJson = usersRes.ok ? await usersRes.json() : { users: [] };
-            const users = usersJson?.users || [];
-            setUsersData(usersJson); // Store users data for getUsername function
-            const provider = users.find((u: any) => String(u.id) === String(announcement.userId));
-            
-            if (provider) {
-              const prenom = provider.prenom || '';
-              const nom = provider.nom || '';
-              const name = `${prenom} ${nom}`.trim() || provider.name || 'Prestataire';
-              setProviderName(name);
+            if (annData?.ok && annData?.announcement) {
+              const announcement = annData.announcement;
+              // Load users from API to resolve provider name
+              const usersRes = await fetchWithAuth('/api/users');
+              const usersJson = usersRes.ok ? await usersRes.json() : { users: [] };
+              const users = usersJson?.users || [];
+              const provider = users.find((u: any) => 
+                String(u.id) === String(announcement.userId) || 
+                String(u.id) === String(announcement.userCreateur) ||
+                String(u.id) === String(announcement.userCreateur?.idUser)
+              );
               
-              if (setHeaderTitle) {
-                setHeaderTitle(`Avis de ${name.split(' ')[0] || name}`);
+              if (provider) {
+                const prenom = provider.prenom || '';
+                const nom = provider.nom || '';
+                const name = `${prenom} ${nom}`.trim() || provider.name || 'Prestataire';
+                setProviderName(name);
+                
+                if (setHeaderTitle) {
+                  setHeaderTitle(`Avis de ${name.split(' ')[0] || name}`);
+                }
+              } else {
+                setProviderName('Prestataire');
+                if (setHeaderTitle) {
+                  setHeaderTitle('Avis');
+                }
               }
             } else {
               setProviderName('Prestataire');
@@ -104,7 +126,6 @@ export default function ReviewsContent() {
             }
           } else {
             setProviderName('Prestataire');
-            setAnnouncementCategory('');
             if (setHeaderTitle) {
               setHeaderTitle('Avis');
             }
@@ -155,24 +176,26 @@ export default function ReviewsContent() {
     }
   };
 
-  // Get username in format "Prénom N."
-  const getUsername = (userId: number | string): string => {
-    const users = (usersData as any).users ?? [];
-    const user = users.find((u: any) => String(u.id) === String(userId));
-    if (user) {
-      const prenom = user.prenom || '';
-      const nom = user.nom || '';
-      if (prenom && nom) {
-        return `${prenom} ${nom.charAt(0).toUpperCase()}.`;
-      } else if (prenom) {
-        return prenom;
-      } else if (nom) {
-        return `${nom.charAt(0).toUpperCase()}.`;
-      } else if (user.email) {
-        const emailName = user.email.split('@')[0];
-        return emailName.charAt(0).toUpperCase() + emailName.slice(1);
-      }
+  // Get username from evaluation data (now included in API response)
+  const getUsername = (evaluation: Evaluation): string => {
+    // Use reviewerPrenom and reviewerNom if available (from enriched API response)
+    const prenom = (evaluation as any).reviewerPrenom || '';
+    const nom = (evaluation as any).reviewerNom || '';
+    
+    if (prenom && nom) {
+      return `${prenom} ${nom}`;
+    } else if (prenom) {
+      return prenom;
+    } else if (nom) {
+      return nom;
     }
+    
+    // Fallback to reviewerName if available
+    if ((evaluation as any).reviewerName) {
+      return (evaluation as any).reviewerName;
+    }
+    
+    // Fallback to 'Utilisateur' if no reviewer name is available
     return 'Utilisateur';
   };
 
@@ -222,7 +245,7 @@ export default function ReviewsContent() {
           evaluations.map((evaluation) => (
             <div key={evaluation.id} className="reviewCard">
               <div className="reviewHeader">
-                <div className="reviewUsername">{getUsername(evaluation.userId)}</div>
+                <div className="reviewUsername">{getUsername(evaluation)}</div>
                 <div className="reviewStars">
                   {[1, 2, 3, 4, 5].map((value) => (
                     <StarIcon

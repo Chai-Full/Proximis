@@ -4,6 +4,9 @@ import React from "react";
 import SendRounded from "@mui/icons-material/SendRounded";
 import ImageIcon from '@mui/icons-material/Image';
 import AttachFileRounded from "@mui/icons-material/AttachFileRounded";
+import CalendarToday from '@mui/icons-material/CalendarToday';
+import AccessTime from '@mui/icons-material/AccessTime';
+import LocationOn from '@mui/icons-material/LocationOn';
 import { useContent } from "../ContentContext";
 import "./index.css";
 import dayjs from 'dayjs';
@@ -17,7 +20,77 @@ type ChatMessage = {
   author: "me" | "other";
   text: string;
   time: string;
+  date: string; // Full date for grouping
+  dateLabel: string; // Formatted date label (DD:MM:YY)
 };
+
+// Utility functions for distance calculation (copied from AnnouncementDetails.tsx)
+function haversineDistanceKm(a: {lat: number, lng: number}, b: {lat: number, lng: number}) {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const R = 6371; // km
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function getUserCoords(u: any): {lat: number, lng: number} | null {
+  if (!u) return null;
+  const lat = u.latitude ?? u.lat ?? (u.position?.lat);
+  const lng = u.longitude ?? u.lng ?? (u.position?.lng);
+  if (typeof lat === 'number' && typeof lng === 'number') {
+    return { lat, lng };
+  }
+  return null;
+}
+
+function buildAddress(u: any): string {
+  if (!u) return '';
+  const parts = [u.adresse, u.codePostal, u.ville, u.pays].filter(Boolean);
+  return parts.join(' ');
+}
+
+async function geocodeAddress(address: string, country?: string): Promise<{lat: number, lng: number} | null> {
+  try {
+    if (!address || typeof window === 'undefined') return null;
+    const query = (address + (country ? ' ' + country : '')).trim();
+    const cacheKey = 'proximis_geocode_' + encodeURIComponent(query.toLowerCase());
+    const ttlMs = 30 * 24 * 60 * 60 * 1000; // 30 days
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const obj = JSON.parse(cached);
+        if (obj && obj.lat != null && obj.lng != null && obj.ts && (Date.now() - obj.ts) < ttlMs) {
+          return { lat: Number(obj.lat), lng: Number(obj.lng) };
+        }
+      }
+    } catch {}
+
+    const countryParam = country && /france|^fr$/i.test(country) ? '&countrycodes=fr' : '';
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=0${countryParam}&q=${encodeURIComponent(query)}`;
+    const resp = await fetch(url, {
+      headers: {
+        'Accept-Language': 'fr',
+        'User-Agent': 'Proximis/1.0',
+      },
+    });
+    if (!resp.ok) return null;
+    const json = await resp.json();
+    if (json && json[0] && typeof json[0].lat === 'string' && typeof json[0].lon === 'string') {
+      const result = { lat: Number(json[0].lat), lng: Number(json[0].lon) };
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify({ ...result, ts: Date.now() }));
+      } catch {}
+      return result;
+    }
+    return null;
+  } catch (e) {
+    console.error('Geocoding error:', e);
+    return null;
+  }
+}
 
 export default function ChatContent() {
   const {
@@ -40,14 +113,13 @@ export default function ChatContent() {
   const [otherUserName, setOtherUserName] = React.useState<string>('Utilisateur');
   const [otherUserAvatar, setOtherUserAvatar] = React.useState<string>('/photo1.svg');
   const [announcementTitle, setAnnouncementTitle] = React.useState<string>('Annonce');
-  const [conversationAnnouncement, setConversationAnnouncement] = React.useState<any>(null);
+  const [announcementPhoto, setAnnouncementPhoto] = React.useState<string>('/photo1.svg');
   const [reservationDate, setReservationDate] = React.useState<string>('');
   const [reservationTime, setReservationTime] = React.useState<string>('');
+  const [reservationDay, setReservationDay] = React.useState<string>('');
   const [reservationLocation, setReservationLocation] = React.useState<string>('');
   const [statusLabel, setStatusLabel] = React.useState<string>('Réservé');
   const [statusColor, setStatusColor] = React.useState<string>('#1ea792');
-  const [users, setUsers] = React.useState<any[]>([]);
-  const [announcements, setAnnouncements] = React.useState<any[]>([]);
 
   // Note: we avoid loading all users/announcements here to speed up conversation load.
   // ChatContent will fetch only the specific user and announcement needed for the opened conversation.
@@ -89,97 +161,136 @@ export default function ChatContent() {
         if (res.ok && data.conversation && data.messages && Array.isArray(data.messages)) {
           setConversationData(data.conversation);
 
-          // Get other user info
-          // Convert to numbers for comparison since MongoDB stores them as numbers
-            const convFromUserId = typeof data.conversation.fromUserId === 'number' ? data.conversation.fromUserId : Number(data.conversation.fromUserId);
-            const convToUserId = typeof data.conversation.toUserId === 'number' ? data.conversation.toUserId : Number(data.conversation.toUserId);
-            const currentUserIdNum = Number(currentUserId);
+          // Get other user info from enriched conversation data
+          const convFromUserId = typeof data.conversation.fromUserId === 'number' ? data.conversation.fromUserId : Number(data.conversation.fromUserId);
+          const convToUserId = typeof data.conversation.toUserId === 'number' ? data.conversation.toUserId : Number(data.conversation.toUserId);
+          const currentUserIdNum = Number(currentUserId);
 
-            const otherUserId = convFromUserId === currentUserIdNum ? convToUserId : convFromUserId;
+          const isFromCurrentUser = convFromUserId === currentUserIdNum;
+          const otherUserData = isFromCurrentUser ? data.conversation.toUser : data.conversation.fromUser;
 
-            // Fetch only the other user and the announcement in parallel to speed up load
-            try {
-              const userPromise = fetchWithAuth(`/api/users?userId=${encodeURIComponent(String(otherUserId))}`);
-              const annId = data.conversation.announcementId;
-              const annPromise = annId ? fetchWithAuth(`/api/annonces?announcementId=${encodeURIComponent(String(annId))}`) : Promise.resolve({ ok: false } as Response);
+          // Set user name and avatar from enriched data
+          if (otherUserData) {
+            const name = `${otherUserData.prenom || ''} ${otherUserData.nom || ''}`.trim() || otherUserData.email || 'Utilisateur';
+            setOtherUserName(name);
+            setOtherUserAvatar(otherUserData.photo || '/photo1.svg');
+          }
 
-              const [userRes, annRes] = await Promise.all([userPromise, annPromise]);
-
-              if (userRes.ok) {
-                const userData = await userRes.json();
-                const u = userData.user || null;
-                if (u) {
-                  const name = `${u.prenom || ''} ${u.nom || ''}`.trim() || u.email || 'Utilisateur';
-                  setOtherUserName(name);
-                  setOtherUserAvatar(u.photo || '/photo1.svg');
+          // Get announcement info from enriched conversation data
+          if (data.conversation.announcement) {
+            const ann = data.conversation.announcement;
+            setAnnouncementTitle(ann.title || 'Annonce');
+            setAnnouncementPhoto(ann.photo || '/photo1.svg');
+          }
+          
+          // Calculate distance between announcement owner and the user who reserved (other user)
+          if (data.conversation.announcementOwner && otherUserData) {
+            let cancelled = false;
+            const computeDistance = async () => {
+              setReservationLocation('');
+              const owner = data.conversation.announcementOwner;
+              const reservedBy = otherUserData;
+              
+              const directOwner = getUserCoords(owner);
+              const directReservedBy = getUserCoords(reservedBy);
+              let ownerCoords = directOwner;
+              let reservedByCoords = directReservedBy;
+              
+              if (!ownerCoords) {
+                const addrOwner = buildAddress(owner);
+                ownerCoords = await geocodeAddress(addrOwner, owner?.pays);
+              }
+              if (!reservedByCoords) {
+                const addrReservedBy = buildAddress(reservedBy);
+                reservedByCoords = await geocodeAddress(addrReservedBy, reservedBy?.pays);
+              }
+              
+              if (!cancelled) {
+                if (ownerCoords && reservedByCoords) {
+                  const distanceKm = haversineDistanceKm(reservedByCoords, ownerCoords);
+                  // Convert km to meters if less than 1 km, otherwise show in km
+                  if (distanceKm < 1) {
+                    const meters = Math.round(distanceKm * 1000);
+                    setReservationLocation(`à ${meters}m`);
+                  } else {
+                    setReservationLocation(`à ${distanceKm.toFixed(1)} km`);
+                  }
+                } else {
+                  setReservationLocation('');
                 }
               }
+            };
+            computeDistance();
+          }
 
-              if (annRes.ok) {
-                const annData = await annRes.json();
-                const ann = (annData?.data?.annonces && annData.data.annonces[0]) || null;
-                if (ann) {
-                  setAnnouncementTitle(ann.nomAnnonce || ann.nomAnnonce || 'Annonce');
-                  setReservationLocation(ann.lieuAnnonce ? `${ann.lieuAnnonce} km` : '');
-                  setConversationAnnouncement(ann);
+          // Get reservation info from enriched conversation data
+          if (data.conversation.reservation) {
+            const reservation = data.conversation.reservation;
+            
+            // Format date (e.g., "15 octobre 2025")
+            if (reservation.date) {
+              const resDate = dayjs(reservation.date);
+              setReservationDate(resDate.format('D MMMM YYYY'));
+            }
+            console.log("data.conversation.announcement", data.conversation.announcement);
+            
+            // Get slot time and day from announcement slots
+            if (data.conversation.announcement && data.conversation.announcement.slots && reservation.slotIndex !== null && reservation.slotIndex !== undefined) {
+              const slot = data.conversation.announcement.slots[reservation.slotIndex];
+              if (slot) {
+                // Get day label
+                const dayId = slot.day;
+                if (dayId) {
+                  const dayMap: Record<number, string> = { 
+                    1: 'Lundi', 
+                    2: 'Mardi', 
+                    3: 'Mercredi', 
+                    4: 'Jeudi', 
+                    5: 'Vendredi', 
+                    6: 'Samedi', 
+                    7: 'Dimanche' 
+                  };
+                  setReservationDay(dayMap[dayId] || '');
                 }
+                
+                // Get time slot
+                const start = slot.start ? dayjs(slot.start).format('HH:mm').replace(':', 'h') : '';
+                const end = slot.end ? dayjs(slot.end).format('HH:mm').replace(':', 'h') : '';
+                setReservationTime(start && end ? `${start} - ${end}` : '');
               }
-            } catch (e) {
-              console.error('Error fetching user/announcement for conversation', e);
             }
 
-          // Get reservation info if exists
-          if (data.conversation.reservationId) {
-            // Load reservation from API
-            try {
-              const reservationParams = new URLSearchParams({
-                reservationId: String(data.conversation.reservationId),
-              });
-              const reservationRes = await fetchWithAuth(`/api/reservations?${reservationParams.toString()}`);
-              if (reservationRes.ok) {
-                const reservationData = await reservationRes.json();
-                const reservations = reservationData?.reservations || (Array.isArray(reservationData) ? reservationData : []);
-                const reservation = reservations.find((r: any) => String(r.id) === String(data.conversation.reservationId));
-                if (reservation) {
-                  const resDate = dayjs(reservation.date);
-                  setReservationDate(resDate.format('D MMMM YYYY'));
-                  
-                  // Get slot time from conversation announcement
-                  if (conversationAnnouncement && conversationAnnouncement.slots && conversationAnnouncement.slots[reservation.slotIndex]) {
-                    const slot = conversationAnnouncement.slots[reservation.slotIndex];
-                    const start = slot.start ? dayjs(slot.start).format('HH:mm') : '';
-                    const end = slot.end ? dayjs(slot.end).format('HH:mm') : '';
-                    setReservationTime(start && end ? `${start} - ${end}` : '');
-                  }
-
-                  // Set status based on reservation status
-                  const status = reservation.status || 'reserved';
-                  switch (status) {
-                    case 'to_pay':
-                      setStatusLabel('À régler');
-                      setStatusColor('#ffc107');
-                      break;
-                    case 'reserved':
-                      setStatusLabel('Réservé');
-                      setStatusColor('#1ea792');
-                      break;
-                    case 'to_evaluate':
-                      setStatusLabel('À évaluer');
-                      setStatusColor('#ff9800');
-                      break;
-                    case 'completed':
-                      setStatusLabel('Terminé');
-                      setStatusColor('#e0e0e0');
-                      break;
-                    default:
-                      setStatusLabel('Réservé');
-                      setStatusColor('#1ea792');
-                  }
-                }
-              }
-            } catch (error) {
-              console.error('Error loading reservation', error);
+            // Set status based on reservation status
+            const status = reservation.status || 'reserved';
+            switch (status) {
+              case 'to_pay':
+                setStatusLabel('À régler');
+                setStatusColor('#ffc107');
+                break;
+              case 'reserved':
+                setStatusLabel('Réservé');
+                setStatusColor('#1ea792');
+                break;
+              case 'to_evaluate':
+                setStatusLabel('À évaluer');
+                setStatusColor('#ff9800');
+                break;
+              case 'completed':
+                setStatusLabel('Terminé');
+                setStatusColor('#e0e0e0');
+                break;
+              default:
+                setStatusLabel('Réservé');
+                setStatusColor('#1ea792');
             }
+          } else {
+            // No reservation - set default values
+            setReservationDate('');
+            setReservationTime('');
+            setReservationDay('');
+            setReservationLocation('');
+            setStatusLabel('Réservé');
+            setStatusColor('#1ea792');
           }
 
           // Transform messages to ChatMessage format
@@ -192,22 +303,20 @@ export default function ChatContent() {
               const now = dayjs();
               const diffDays = now.diff(msgTime, 'day');
 
-              let timeStr = '';
-              if (diffDays === 0) {
-                timeStr = msgTime.format('HH:mm');
-              } else if (diffDays === 1) {
-                timeStr = 'Hier ' + msgTime.format('HH:mm');
-              } else if (diffDays < 7) {
-                timeStr = msgTime.format('ddd HH:mm');
-              } else {
-                timeStr = msgTime.format('D MMM HH:mm');
-              }
+              // Format time (HH:mm)
+              const timeStr = msgTime.format('HH:mm');
+              
+              // Format date (DD:MM:YY) for grouping and display
+              const dateStr = msgTime.format('YYYY-MM-DD'); // For grouping
+              const dateLabel = msgTime.format('DD:MM:YY'); // For display
 
               return {
                 id: msg.id,
                 author: isMe ? 'me' : 'other',
                 text: msg.text,
                 time: timeStr,
+                date: dateStr,
+                dateLabel: dateLabel,
               };
             });
 
@@ -268,7 +377,10 @@ export default function ChatContent() {
             }
             
             try {
-              const es = new EventSource(`/api/messages/stream?conversationId=${encodeURIComponent(conversationId)}`);
+              // EventSource doesn't support custom headers, so we pass token in URL
+              const token = typeof window !== 'undefined' ? localStorage.getItem('proximis_token') : null;
+              const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
+              const es = new EventSource(`/api/messages/stream?conversationId=${encodeURIComponent(conversationId)}${tokenParam}`);
               
               es.onopen = () => {
                 console.log('SSE connection opened');
@@ -286,15 +398,24 @@ export default function ChatContent() {
                   
                   if (parsed && parsed.type === 'message' && parsed.message) {
                     const msg = parsed.message;
-                    const now = dayjs(msg.createdAt);
-                    const timeStr = now.format('HH:mm');
+                    const msgTime = dayjs(msg.createdAt);
+                    const timeStr = msgTime.format('HH:mm');
+                    const dateStr = msgTime.format('YYYY-MM-DD');
+                    const dateLabel = msgTime.format('DD:MM:YY');
                     const isMe = Number(msg.fromUserId) === Number(currentUserId);
                     
                     // Check if message already exists to avoid duplicates
                     setMessages((prev) => {
                       const exists = prev.some(m => m.id === msg.id);
                       if (exists) return prev;
-                      return [...prev, { id: msg.id, author: isMe ? 'me' : 'other', text: msg.text, time: timeStr }];
+                      return [...prev, { 
+                        id: msg.id, 
+                        author: isMe ? 'me' : 'other', 
+                        text: msg.text, 
+                        time: timeStr,
+                        date: dateStr,
+                        dateLabel: dateLabel,
+                      }];
                     });
                   } else if (parsed && parsed.type === 'connected') {
                     console.log('SSE connected to conversation:', conversationId);
@@ -351,7 +472,7 @@ export default function ChatContent() {
     };
 
     loadConversation();
-  }, [selectedConversationId, currentUserId, setSelectedConversationId, users, announcements]);
+  }, [selectedConversationId, currentUserId, setSelectedConversationId]);
 
   React.useEffect(() => {
     setHeaderTitle && setHeaderTitle(otherUserName);
@@ -417,7 +538,7 @@ export default function ChatContent() {
       <div className="chatHeaderCard">
         <div
           className="chatHeaderAvatar"
-          style={{ backgroundImage: `url('${otherUserAvatar}')` }}
+          style={{ backgroundImage: `url('${announcementPhoto}')` }}
         />
         <div className="chatHeaderInfo">
           <div className="chatHeaderTitleRow">
@@ -429,10 +550,30 @@ export default function ChatContent() {
               {statusLabel}
             </span>
           </div>
-          <div className="chatHeaderMeta">
-            {reservationDate && <span className="T7">{reservationDate}</span>}
-            {reservationTime && <span className="T7">• {reservationTime}</span>}
-            {reservationLocation && <span className="T7">• {reservationLocation}</span>}
+          {reservationDay && (
+            <div className="T7" style={{ marginTop: '4px' }}>
+              {reservationDay}
+            </div>
+          )}
+          {reservationTime && (
+            <div className="T7" style={{ marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <AccessTime sx={{ fontSize: 14 }} />
+              {reservationTime}
+            </div>
+          )}
+          <div className="chatHeaderMeta" style={{ marginTop: '4px' }}>
+            {reservationDate && (
+              <span className="T7" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <CalendarToday sx={{ fontSize: 14 }} />
+                {reservationDate}
+              </span>
+            )}
+            {reservationLocation && (
+              <span className="T7" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <LocationOn sx={{ fontSize: 14 }} />
+                {reservationLocation}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -443,17 +584,29 @@ export default function ChatContent() {
             Aucun message dans cette conversation
           </div>
         ) : (
-          messages.map((message) => (
-            <div
-              key={message.id}
-              className={`chatBubble ${
-                message.author === "me" ? "me" : "other"
-              }`}
-            >
-              <span className="T5">{message.text}</span>
-              <span className="T7 chatTime">{message.time}</span>
-            </div>
-          ))
+          messages.map((message, index) => {
+            // Check if we need to show a date separator
+            const showDateSeparator = index === 0 || 
+              (index > 0 && messages[index - 1].date !== message.date);
+            
+            return (
+              <React.Fragment key={message.id}>
+                {showDateSeparator && (
+                  <div className="chatDateSeparator">
+                    <span className="T7">{message.dateLabel}</span>
+                  </div>
+                )}
+                <div
+                  className={`chatBubble ${
+                    message.author === "me" ? "me" : "other"
+                  }`}
+                >
+                  <span className="T5">{message.text}</span>
+                  <span className="T7 chatTime">{message.time}</span>
+                </div>
+              </React.Fragment>
+            );
+          })
         )}
       </div>
 
@@ -500,8 +653,18 @@ export default function ChatContent() {
       if (res.ok) {
         const data = await res.json();
         const msg = data.message;
-        const now = dayjs(msg.createdAt).format('HH:mm');
-        setMessages((prev) => [...prev, { id: msg.id, author: 'me', text: msg.text, time: now }]);
+        const msgTime = dayjs(msg.createdAt);
+        const timeStr = msgTime.format('HH:mm');
+        const dateStr = msgTime.format('YYYY-MM-DD');
+        const dateLabel = msgTime.format('DD:MM:YY');
+        setMessages((prev) => [...prev, { 
+          id: msg.id, 
+          author: 'me', 
+          text: msg.text, 
+          time: timeStr,
+          date: dateStr,
+          dateLabel: dateLabel,
+        }]);
         setInputValue('');
       } else {
         console.error('Error sending message', await res.text());

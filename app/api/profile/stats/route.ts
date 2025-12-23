@@ -89,6 +89,7 @@ export async function GET(req: NextRequest) {
               _id: 0,
               userId: 1,
               announcementId: 1,
+              status: 1,
             },
           }
         )
@@ -146,13 +147,16 @@ export async function GET(req: NextRequest) {
 
     const userAnnouncementIds = userAnnouncements.map((a: any) => a.id);
 
-    // Count services rendered (reservations for user's announcements)
+    // Count services rendered (reservations for user's announcements with status "to_evaluate" or "completed")
+    // A service is only considered "rendered" when it moves from "reserved" to "to_evaluate"
     const servicesRendered = reservations.filter((r: any) => {
       const rAnnouncementId =
         typeof r.announcementId === "number"
           ? r.announcementId
           : Number(r.announcementId);
-      return userAnnouncementIds.includes(rAnnouncementId);
+      const status = r.status || 'reserved';
+      // Only count services that have been completed (to_evaluate or completed status)
+      return userAnnouncementIds.includes(rAnnouncementId) && (status === 'to_evaluate' || status === 'completed');
     }).length;
 
     // Count reviews (evaluations for user's announcements)

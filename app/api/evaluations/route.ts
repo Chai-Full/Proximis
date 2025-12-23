@@ -92,13 +92,13 @@ export async function POST(req: NextRequest) {
 
     const db = await getDb();
 
-    // Determine which user should receive the evaluation: the owner of the announcement
+    // Verify announcement exists
     const announcementDoc = await db.collection('announcements').findOne({ id: Number(body.announcementId) });
     if (!announcementDoc) {
       return NextResponse.json({ error: 'Announcement not found' }, { status: 400 });
     }
-    const evaluatedUserId = Number(announcementDoc.userId);
-    const reviewerId = user.userId;
+    const evaluatedUserId = Number(announcementDoc.userId); // Owner of the announcement (receives the evaluation)
+    const reviewerId = user.userId; // User who writes the review
 
     // Check if evaluation already exists for this reservation
     const existingEvaluation = await db.collection('evaluations').findOne({
@@ -118,9 +118,11 @@ export async function POST(req: NextRequest) {
       id: Date.now(),
       reservationId: Number(body.reservationId),
       announcementId: Number(body.announcementId),
-      // `userId` is the user receiving the evaluation (announcement owner)
-      userId: evaluatedUserId,
-      // store who made the evaluation
+      // `userId` is the user who wrote the review (reviewer)
+      userId: reviewerId,
+      // Store who receives the evaluation (announcement owner)
+      evaluatedUserId: evaluatedUserId,
+      // Also keep reviewerId for backward compatibility
       reviewerId: reviewerId,
       rating: body.rating,
       comment: body.comment.trim(),
@@ -220,7 +222,106 @@ export async function GET(req: NextRequest) {
 
     const evaluations = await db.collection('evaluations').find(query).toArray();
 
-    return NextResponse.json({ ok: true, count: evaluations.length, evaluations });
+    // Enrich evaluations with user information (reviewer) and announcement information
+    const enrichedEvaluations = await Promise.all(
+      evaluations.map(async (evaluation: any) => {
+        const enriched: any = { ...evaluation };
+
+        // Get reviewer (user who wrote the review) information
+        let reviewerIdToUse: number | string | null = null;
+
+        // userId now represents the reviewer (user who wrote the review)
+        if (evaluation.userId) {
+          reviewerIdToUse = evaluation.userId;
+        }
+        // Fallback: try reviewerId for backward compatibility
+        else if (evaluation.reviewerId) {
+          reviewerIdToUse = evaluation.reviewerId;
+        } 
+        // Last fallback: try to get reviewerId from the reservation
+        // The reservation's userId is the client who made the reservation (and wrote the review)
+        else if (evaluation.reservationId) {
+          const reservation = await db.collection('reservations').findOne({
+            $or: [
+              { id: Number(evaluation.reservationId) },
+              { id: String(evaluation.reservationId) },
+            ],
+          });
+          if (reservation && reservation.userId) {
+            reviewerIdToUse = reservation.userId;
+          }
+        }
+
+        // Now fetch the reviewer user information
+        if (reviewerIdToUse) {
+          const reviewer = await db.collection('users').findOne({
+            $or: [
+              { id: Number(reviewerIdToUse) },
+              { id: String(reviewerIdToUse) },
+            ],
+          });
+          if (reviewer) {
+            const prenom = reviewer.prenom || '';
+            const nom = reviewer.nom || '';
+            
+            // Include reviewer information with direct access to name and surname
+            enriched.reviewer = {
+              id: reviewer.id,
+              prenom: prenom,
+              nom: nom,
+              name: reviewer.name || '',
+              email: reviewer.email || '',
+            };
+            
+            // Also include directly accessible name fields at root level
+            enriched.reviewerPrenom = prenom;
+            enriched.reviewerNom = nom;
+            
+            // Format reviewer name for display
+            if (prenom && nom) {
+              enriched.reviewerName = `${prenom} ${nom.charAt(0).toUpperCase()}.`;
+            } else if (prenom) {
+              enriched.reviewerName = prenom;
+            } else if (nom) {
+              enriched.reviewerName = `${nom.charAt(0).toUpperCase()}.`;
+            } else if (reviewer.email) {
+              const emailName = reviewer.email.split('@')[0];
+              enriched.reviewerName = emailName.charAt(0).toUpperCase() + emailName.slice(1);
+            } else {
+              enriched.reviewerName = 'Utilisateur';
+            }
+          } else {
+            enriched.reviewerName = 'Utilisateur';
+            enriched.reviewer = null;
+            enriched.reviewerPrenom = '';
+            enriched.reviewerNom = '';
+          }
+        } else {
+          enriched.reviewerName = 'Utilisateur';
+          enriched.reviewer = null;
+        }
+
+        // Get announcement information (category) if announcementId is present
+        if (evaluation.announcementId) {
+          const announcement = await db.collection('announcements').findOne({
+            $or: [
+              { id: Number(evaluation.announcementId) },
+              { id: String(evaluation.announcementId) },
+            ],
+          });
+          if (announcement) {
+            enriched.announcement = {
+              id: announcement.id,
+              category: announcement.category || announcement.typeAnnonce || '',
+            };
+          }
+        }
+
+        return enriched;
+      })
+    );
+
+    return NextResponse.json({ ok: true, count: enrichedEvaluations.length, evaluations: enrichedEvaluations });
   } catch (err) {
     console.error('Error reading evaluations', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
