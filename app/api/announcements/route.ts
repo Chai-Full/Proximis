@@ -2,6 +2,59 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '../../lib/mongodb';
 import { requireAuth } from '@/app/lib/auth';
 import dayjs from 'dayjs';
+import fs from 'fs';
+import path from 'path';
+
+/**
+ * Load categories from JSON file and find category by title
+ * The form now sends the title directly from categories.json, so we just need to find the matching id
+ */
+function getCategoryFromTitle(categoryTitle: string | null | undefined): { idCategorie: number | null; category: string | null } {
+  if (!categoryTitle) {
+    return { idCategorie: null, category: null };
+  }
+
+  try {
+    const categoriesPath = path.join(process.cwd(), 'data', 'categories.json');
+    const categoriesData = fs.readFileSync(categoriesPath, 'utf-8');
+    const categories = JSON.parse(categoriesData);
+
+    const searchTitle = categoryTitle.trim();
+
+    // Find category by exact title match (form now sends title from categories.json)
+    const foundCategory = categories.find((cat: any) => {
+      const catTitle = cat.title || '';
+      return catTitle === searchTitle;
+    });
+
+    if (foundCategory) {
+      return {
+        idCategorie: foundCategory.id,
+        category: foundCategory.title, // Store the title from JSON as category
+      };
+    }
+
+    // If no exact match found, try case-insensitive match
+    const foundCategoryCaseInsensitive = categories.find((cat: any) => {
+      const catTitle = cat.title || '';
+      return catTitle.toLowerCase() === searchTitle.toLowerCase();
+    });
+
+    if (foundCategoryCaseInsensitive) {
+      return {
+        idCategorie: foundCategoryCaseInsensitive.id,
+        category: foundCategoryCaseInsensitive.title,
+      };
+    }
+
+    // If no match found, return the original title but log a warning
+    console.warn(`Category not found in categories.json for: "${searchTitle}"`);
+    return { idCategorie: null, category: categoryTitle };
+  } catch (error) {
+    console.error('Error loading categories.json:', error);
+    return { idCategorie: null, category: categoryTitle };
+  }
+}
 
 /**
  * @swagger
@@ -253,7 +306,13 @@ export async function GET(req: NextRequest) {
     const total = allAnnouncements.length;
     const paginatedAnnouncements = allAnnouncements.slice(skip, skip + limit);
 
-    const announcementsWithoutId = paginatedAnnouncements.map(({ _id, ...announcement }) => announcement);
+    const announcementsWithoutId = paginatedAnnouncements.map(({ _id, ...announcement }) => {
+      // Add default photo based on idCategorie if no photo exists
+      if (!announcement.photo && !announcement.photos && announcement.idCategorie != null) {
+        announcement.photo = `/categories/${announcement.idCategorie}.png`;
+      }
+      return announcement;
+    });
 
     return NextResponse.json({
       ok: true,
@@ -355,19 +414,29 @@ export async function POST(req: NextRequest) {
       photoBase64 = `data:${mimeType};base64,${base64String}`;
     }
 
+    // Map category from payload to idCategorie and category title from categories.json
+    const { idCategorie, category: categoryTitle } = getCategoryFromTitle(payload.category);
+
+    // If no photo provided, use default category image
+    let finalPhoto = photoBase64;
+    if (!finalPhoto && idCategorie != null) {
+      finalPhoto = `/categories/${idCategorie}.png`;
+    }
+
     // build announcement object
     const announcement = {
       id: Date.now(),
       userId: finalUserId,
       userName: finalUserName,
       title: payload.title ?? null,
-      category: payload.category ?? null,
+      category: categoryTitle ?? payload.category ?? null, // Use title from categories.json
+      idCategorie: idCategorie, // Store the id from categories.json
       description: payload.description ?? null,
       price: payload.price ?? null,
       scope: payload.scope ?? null,
       notes: payload.notes ?? null,
       slots: payload.slots ?? [],
-      photo: photoBase64,
+      photo: finalPhoto,
       createdAt: new Date().toISOString(),
     };
 
@@ -375,6 +444,60 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, announcement });
   } catch (err: any) {
+    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+  }
+}
+
+/**
+ * @swagger
+ * /api/announcements:
+ *   delete:
+ *     tags:
+ *       - Announcements
+ *     summary: Remove all images from all announcements
+ *     description: Delete photo and photos fields from all announcements in the database
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Images removed successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+export async function DELETE(req: NextRequest) {
+  try {
+    const { user, error } = await requireAuth(req);
+
+    if (!user) {
+      return NextResponse.json(
+        { ok: false, error: error || 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const db = await getDb();
+
+    // Remove photo and photos fields from all announcements
+    const result = await db.collection('announcements').updateMany(
+      {},
+      {
+        $unset: {
+          photo: '',
+          photos: '',
+        },
+      }
+    );
+
+    return NextResponse.json({
+      ok: true,
+      message: `Images removed from ${result.modifiedCount} announcement(s)`,
+      modifiedCount: result.modifiedCount,
+      matchedCount: result.matchedCount,
+    });
+  } catch (err: any) {
+    console.error('DELETE /announcements error', err);
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
   }
 }

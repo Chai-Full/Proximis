@@ -8,7 +8,6 @@ import Select from '@mui/material/Select';// ou le chemin exact vers votre fichi
 import { Controller } from 'react-hook-form';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
-import { AnnounceCategories } from '@/app/types/AnnouceService';
 import TextField from '@mui/material/TextField';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -36,6 +35,31 @@ type FormValues = {
 
 function Step1() {
     const { register, formState: { errors } } = useFormContext<FormValues>();
+    const [categories, setCategories] = useState<Array<{ id: number; title: string; image: string }>>([]);
+    const [loadingCategories, setLoadingCategories] = useState(true);
+
+    // Load categories from API
+    useEffect(() => {
+        let cancelled = false;
+        const loadCategories = async () => {
+            try {
+                const res = await fetchWithAuth('/api/categories');
+                const data = await res.json();
+                if (!cancelled && res.ok && data?.ok && Array.isArray(data.categories)) {
+                    setCategories(data.categories);
+                }
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            } finally {
+                if (!cancelled) {
+                    setLoadingCategories(false);
+                }
+            }
+        };
+        loadCategories();
+        return () => { cancelled = true; };
+    }, []);
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px' }}>
             <div>
@@ -53,6 +77,7 @@ function Step1() {
                                     <Select
                                         {...field}
                                         displayEmpty
+                                        disabled={loadingCategories}
                                         renderValue={(selected) =>
                                             selected ? selected : <span style={{ color: '#9e9e9e' }}>-- Choisir une catégorie --</span>
                                         }
@@ -66,9 +91,9 @@ function Step1() {
                                         <MenuItem value="">
                                             <em>-- Choisir une catégorie --</em>
                                         </MenuItem>
-                                        {AnnounceCategories.map((item) => (
-                                            <MenuItem key={item.id} value={item.label}>
-                                                {item.label}
+                                        {categories.map((category) => (
+                                            <MenuItem key={category.id} value={category.title}>
+                                                {category.title}
                                             </MenuItem>
                                         ))}
                                     </Select>
@@ -443,10 +468,9 @@ function Step3() {
                 />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px'}}>
-                <label htmlFor="photo" className="T2">Photo</label>
+                <label htmlFor="photo" className="T2">Photo (optionnelle)</label>
                 <Controller
                     name="photo"
-                    rules={{ required: 'La photo est requise' }}
                     render={({ field }) => (
                         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                             <input

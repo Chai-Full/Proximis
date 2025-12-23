@@ -17,7 +17,6 @@ import InputAdornment from "@mui/material/InputAdornment";
 import Slider from "@mui/material/Slider";
 import Notification from "../components/Notification";
 import { useContent } from "../ContentContext";
-import { AnnounceCategories } from "@/app/types/AnnouceService";
 // Fetch announcement dynamically to ensure newly created items are available
 import { getLocalUserId, fetchWithAuth } from "../lib/auth";
 import Image from "next/image";
@@ -40,6 +39,30 @@ type FormValues = {
 
 function Step1() {
     const { register, control, formState: { errors } } = useFormContext<FormValues>();
+    const [categories, setCategories] = useState<Array<{ id: number; title: string; image: string }>>([]);
+    const [loadingCategories, setLoadingCategories] = useState(true);
+
+    // Load categories from API
+    useEffect(() => {
+        let cancelled = false;
+        const loadCategories = async () => {
+            try {
+                const res = await fetchWithAuth('/api/categories');
+                const data = await res.json();
+                if (!cancelled && res.ok && data?.ok && Array.isArray(data.categories)) {
+                    setCategories(data.categories);
+                }
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            } finally {
+                if (!cancelled) {
+                    setLoadingCategories(false);
+                }
+            }
+        };
+        loadCategories();
+        return () => { cancelled = true; };
+    }, []);
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "16px" }}>
@@ -55,6 +78,7 @@ function Step1() {
                             <Select
                                 {...field}
                                 displayEmpty
+                                disabled={loadingCategories}
                                 renderValue={(selected) =>
                                     selected ? selected : <span style={{ color: "#9e9e9e" }}>-- Choisir une catégorie --</span>
                                 }
@@ -67,9 +91,9 @@ function Step1() {
                                 <MenuItem value="">
                                     <em>-- Choisir une catégorie --</em>
                                 </MenuItem>
-                                {AnnounceCategories.map((item) => (
-                                    <MenuItem key={item.id} value={item.label}>
-                                        {item.label}
+                                {categories.map((category) => (
+                                    <MenuItem key={category.id} value={category.title}>
+                                        {category.title}
                                     </MenuItem>
                                 ))}
                             </Select>
