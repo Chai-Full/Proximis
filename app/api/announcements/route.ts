@@ -148,15 +148,6 @@ export async function GET(req: NextRequest) {
     const filter: any = {};
     const andConditions: any[] = [];
 
-    // Exclude closed announcements (only show available announcements)
-    // Only show announcements where isAvailable is true or doesn't exist (for backward compatibility)
-    andConditions.push({
-      $or: [
-        { isAvailable: true },
-        { isAvailable: { $exists: false } }, // Include announcements where isAvailable doesn't exist (backward compatibility)
-      ],
-    });
-
     // User filters
     if (userId) {
       const userIdNum = Number(userId);
@@ -179,6 +170,16 @@ export async function GET(req: NextRequest) {
           { userCreateur: String(excludeUserIdNum) },
           { 'userCreateur.idUser': excludeUserIdNum },
           { 'userCreateur.idUser': String(excludeUserIdNum) },
+        ],
+      });
+    } else {
+      // Exclude closed announcements (only show available announcements) when NOT filtering by userId
+      // When filtering by userId (for profile page), show all announcements including closed ones
+      // Only show announcements where isAvailable is true or doesn't exist (for backward compatibility)
+      andConditions.push({
+        $or: [
+          { isAvailable: true },
+          { isAvailable: { $exists: false } }, // Include announcements where isAvailable doesn't exist (backward compatibility)
         ],
       });
     }
