@@ -57,7 +57,7 @@ div[role="button"][title*="Map"],
   gap: 8px;
   padding: 16px;
   padding-bottom: 8px;
-  background: linear-gradient(to top, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.8) 80%, transparent 100%);
+  background: none;
   z-index: 10;
   box-sizing: border-box;
   overflow-x: hidden;
@@ -70,6 +70,7 @@ div[role="button"][title*="Map"],
   max-width: calc(100% - 96px); /* 40px button + 8px gap + 40px button + 8px gap */
   overflow: hidden;
   box-sizing: border-box;
+  background-color: white;
 }
 
 .mapSearchCard > * {
