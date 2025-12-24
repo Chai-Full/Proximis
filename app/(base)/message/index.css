@@ -11,21 +11,22 @@
 }
 
 .messageTab {
-    flex: 1;
     border-radius: 999px;
-    padding: 10px 14px;
+    padding: 8px 16px;
     border: 1px solid var(--primary);
-    background: transparent;
+    background: var(--white);
     color: var(--primary);
     cursor: pointer;
-    font-weight: 600;
+    font-weight: 500;
+    font-size: 14px;
     transition: all 0.2s ease;
+    white-space: nowrap;
 }
 
 .messageTab.active {
-    background: rgba(30, 167, 146, 0.15);
+    background: rgba(30, 167, 146, 0.25);
     border-color: transparent;
-    box-shadow: 0 0 0 1px rgba(30, 167, 146, 0.12);
+    color: var(--white);
 }
 
 .messageList {

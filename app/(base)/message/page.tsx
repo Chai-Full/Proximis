@@ -60,7 +60,9 @@ function MessageListItem({ item }: MessageListItemProps) {
 export default function MessageContent() {
   const { setHeaderTitle, setCurrentPage, setSelectedConversationId, history, currentUserId, currentPage } = useContent();
   const [conversations, setConversations] = React.useState<MessageListItem[]>([]);
+  const [allConversations, setAllConversations] = React.useState<MessageListItem[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [filter, setFilter] = React.useState<'all' | 'in_progress'>('all');
 
   React.useEffect(() => {
     setHeaderTitle && setHeaderTitle('Messages');
@@ -158,6 +160,9 @@ export default function MessageContent() {
             // For now, we'll use 'in_progress' if there are unread messages, 'done' otherwise
             const status: 'in_progress' | 'done' = unreadCount > 0 ? 'in_progress' : 'done';
 
+            // Get reservation status for filtering
+            const reservationStatus = conv.reservation?.status || null;
+
             return {
               id: conv.id,
               name: userName,
@@ -167,7 +172,8 @@ export default function MessageContent() {
               unreadCount: unreadCount > 0 ? unreadCount : undefined,
               avatar: userAvatar,
               status,
-            };
+              reservationStatus, // Add reservation status for filtering
+            } as MessageListItem & { reservationStatus: string | null };
           });
 
           // Sort by last message time (most recent first)
@@ -185,6 +191,7 @@ export default function MessageContent() {
           });
 
           console.log('Transformed conversations:', transformedConversations);
+          setAllConversations(transformedConversations);
           setConversations(transformedConversations);
         } else {
           console.log('No conversations found or API error:', { resOk: res.ok, hasConversations: !!data.conversations, hasMessages: !!data.messages, data });
@@ -253,6 +260,9 @@ export default function MessageContent() {
 
               const status: 'in_progress' | 'done' = unreadCount > 0 ? 'in_progress' : 'done';
 
+              // Get reservation status for filtering
+              const reservationStatus = conv.reservation?.status || null;
+
               return {
                 id: conv.id,
                 name: userName,
@@ -262,7 +272,8 @@ export default function MessageContent() {
                 unreadCount: unreadCount > 0 ? unreadCount : undefined,
                 avatar: userAvatar,
                 status,
-              };
+                reservationStatus, // Add reservation status for filtering
+              } as MessageListItem & { reservationStatus: string | null };
             });
 
             // Sort by last message time
@@ -277,6 +288,7 @@ export default function MessageContent() {
               return timeB - timeA;
             });
 
+            setAllConversations(transformedConversations);
             setConversations(transformedConversations);
           }
         } catch (error) {
@@ -323,8 +335,36 @@ export default function MessageContent() {
     };
   }, []);
 
+  // Filter conversations based on selected filter
+  React.useEffect(() => {
+    if (filter === 'in_progress') {
+      // Filter to show only conversations with reservations that have status "reserved"
+      const filtered = allConversations.filter((conv) => {
+        const reservationStatus = (conv as any).reservationStatus;
+        return reservationStatus === 'reserved';
+      });
+      setConversations(filtered);
+    } else {
+      setConversations(allConversations);
+    }
+  }, [filter, allConversations]);
+
   return (
     <div className="messagePage">
+      <div className="messageTabs">
+        <button
+          className={`messageTab ${filter === 'all' ? 'active' : ''}`}
+          onClick={() => setFilter('all')}
+        >
+          Tous
+        </button>
+        <button
+          className={`messageTab ${filter === 'in_progress' ? 'active' : ''}`}
+          onClick={() => setFilter('in_progress')}
+        >
+          En cours
+        </button>
+      </div>
       <div className="messageList">
         {loading ? (
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
