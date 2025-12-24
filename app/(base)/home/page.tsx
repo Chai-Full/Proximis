@@ -152,6 +152,8 @@ export default function HomeContent() {
   }, [reservationToEvaluateData]);
 
   React.useEffect(() => {
+    console.log("the recomm annn ", recommendedAnnouncementData);
+    
     setRecommendedAnnouncement(recommendedAnnouncementData ?? null);
   }, [recommendedAnnouncementData]);
 
@@ -253,7 +255,7 @@ export default function HomeContent() {
           <div className="nextRDV">
             <div className="nextRDVC1">
               <div className="nextRDVC1Title">
-                <Today sx={{ color: "white" }} />
+                <Today sx={{ color: "var(--primary)" }} />
                 <span className="T1">Prochain RDV</span>
               </div>
               <div className="nextRDVBadge">
@@ -268,8 +270,8 @@ export default function HomeContent() {
             </div>
             <div className="nextRDVC3">
               <div style={{ display: "flex", columnGap: "3px" }}>
-                <Schedule sx={{ color: "white" }} />
-                <span className="T7">
+                <Schedule />
+                <span className="T6">
                   {nextReservation.formattedDate} -{" "}
                   {nextReservation.formattedTime}
                 </span>

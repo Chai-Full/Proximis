@@ -33,6 +33,9 @@ const AnnouncementCard = ({ announcement, profilPage=false }: AnnouncementCardPr
   const [author, setAuthor] = useState<any>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
 
+  console.log("the photo : ", photo);
+  
+
   // Load average rating from evaluations
   useEffect(() => {
     if (!id) {
