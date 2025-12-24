@@ -251,7 +251,7 @@ export default function HomeContent() {
           <div className="announcementsPromoted">
             <div className="announcementsPromotedHeader">
               <LightbulbCircleOutlined sx={{ color: "#ff9202" }} />
-              <span className="T2">Annonces recommandée</span>
+              <span className="T2">Annonce recommandée</span>
             </div>
             <SkeletonAnnouncementCard />
           </div>
@@ -259,7 +259,7 @@ export default function HomeContent() {
           <div className="announcementsPromoted">
             <div className="announcementsPromotedHeader">
               <LightbulbCircleOutlined sx={{ color: "#ff9202" }} />
-              <span className="T2">Annonces recommandée</span>
+              <span className="T2">Annonce recommandée</span>
             </div>
             <AnnouncementCard announcement={recommendedAnnouncement} />
           </div>
