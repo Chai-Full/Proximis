@@ -211,6 +211,7 @@ export async function GET(req: NextRequest) {
     const reservationId = url.searchParams.get('reservationId');
     const announcementId = url.searchParams.get('announcementId');
     const userId = url.searchParams.get('userId');
+    const evaluatedUserId = url.searchParams.get('evaluatedUserId');
 
     const db = await getDb();
 
@@ -219,6 +220,7 @@ export async function GET(req: NextRequest) {
     if (reservationId) query.reservationId = Number(reservationId);
     if (announcementId) query.announcementId = Number(announcementId);
     if (userId) query.userId = Number(userId);
+    if (evaluatedUserId) query.evaluatedUserId = Number(evaluatedUserId);
 
     const evaluations = await db.collection('evaluations').find(query).toArray();
 

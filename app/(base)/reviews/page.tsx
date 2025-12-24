@@ -41,16 +41,18 @@ export default function ReviewsContent() {
     selectedAnnouncementId, 
     setHeaderTitle, 
     goBack,
-    history 
+    history,
+    currentUserId,
   } = useContent();
   
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
   const [loading, setLoading] = useState(true);
   const [providerName, setProviderName] = useState<string>('');
   const [announcementCategory, setAnnouncementCategory] = useState<string>('');
+  const isAllMyReviews = selectedAnnouncementId === 'all_my_reviews';
 
   useEffect(() => {
-    if (!selectedAnnouncementId) {
+    if (!selectedAnnouncementId && !isAllMyReviews) {
       goBack && goBack();
       return;
     }
@@ -59,11 +61,28 @@ export default function ReviewsContent() {
       try {
         setLoading(true);
         
-        // Load evaluations for this announcement (authenticated)
-        const params = new URLSearchParams({
-          announcementId: String(selectedAnnouncementId),
-        });
-        const res = await fetchWithAuth(`/api/evaluations?${params.toString()}`);
+        let res: Response;
+        if (isAllMyReviews) {
+          // All reviews for announcements owned by current user
+          if (!currentUserId) {
+            setEvaluations([]);
+            setAnnouncementCategory('');
+            setProviderName('Moi');
+            setHeaderTitle && setHeaderTitle('Mes avis');
+            setLoading(false);
+            return;
+          }
+          const params = new URLSearchParams({
+            evaluatedUserId: String(currentUserId),
+          });
+          res = await fetchWithAuth(`/api/evaluations?${params.toString()}`);
+        } else {
+          // Load evaluations for this announcement (authenticated)
+          const params = new URLSearchParams({
+            announcementId: String(selectedAnnouncementId),
+          });
+          res = await fetchWithAuth(`/api/evaluations?${params.toString()}`);
+        }
         const data = await res.json();
 
         if (res.ok && data?.evaluations && Array.isArray(data.evaluations)) {
@@ -73,44 +92,66 @@ export default function ReviewsContent() {
           );
           setEvaluations(sorted);
 
-          // Get announcement category from first evaluation if available
-          if (sorted.length > 0 && sorted[0].announcement?.category) {
-            setAnnouncementCategory(sorted[0].announcement.category);
+          // Get announcement category banner only for single announcement mode
+          if (!isAllMyReviews) {
+            if (sorted.length > 0 && sorted[0].announcement?.category) {
+              setAnnouncementCategory(sorted[0].announcement.category);
+            } else if (selectedAnnouncementId) {
+              // Fallback: fetch announcement if not in evaluation data
+              const annRes = await fetchWithAuth(`/api/announcements/${selectedAnnouncementId}`);
+              if (annRes.ok) {
+                const annData = await annRes.json();
+                if (annData?.ok && annData?.announcement) {
+                  setAnnouncementCategory(annData.announcement.category || annData.announcement.typeAnnonce || '');
+                }
+              }
+            }
           } else {
-            // Fallback: fetch announcement if not in evaluation data
+            setAnnouncementCategory('');
+          }
+
+          if (isAllMyReviews) {
+            // Provider name = current user
+            const usersRes = await fetchWithAuth('/api/users');
+            const usersJson = usersRes.ok ? await usersRes.json() : { users: [] };
+            const users = usersJson?.users || [];
+            const me = users.find((u: any) => String(u.id) === String(currentUserId));
+            const prenom = me?.prenom || '';
+            const nom = me?.nom || '';
+            const name = `${prenom} ${nom}`.trim() || me?.name || 'Moi';
+            setProviderName(name);
+            setHeaderTitle && setHeaderTitle(`Avis de ${prenom || name}`);
+          } else {
+            // Get provider name from announcement (single announcement mode)
             const annRes = await fetchWithAuth(`/api/announcements/${selectedAnnouncementId}`);
             if (annRes.ok) {
               const annData = await annRes.json();
               if (annData?.ok && annData?.announcement) {
-                setAnnouncementCategory(annData.announcement.category || annData.announcement.typeAnnonce || '');
-              }
-            }
-          }
-
-          // Get provider name from announcement
-          const annRes = await fetchWithAuth(`/api/announcements/${selectedAnnouncementId}`);
-          if (annRes.ok) {
-            const annData = await annRes.json();
-            if (annData?.ok && annData?.announcement) {
-              const announcement = annData.announcement;
-              // Load users from API to resolve provider name
-              const usersRes = await fetchWithAuth('/api/users');
-              const usersJson = usersRes.ok ? await usersRes.json() : { users: [] };
-              const users = usersJson?.users || [];
-              const provider = users.find((u: any) => 
-                String(u.id) === String(announcement.userId) || 
-                String(u.id) === String(announcement.userCreateur) ||
-                String(u.id) === String(announcement.userCreateur?.idUser)
-              );
-              
-              if (provider) {
-                const prenom = provider.prenom || '';
-                const nom = provider.nom || '';
-                const name = `${prenom} ${nom}`.trim() || provider.name || 'Prestataire';
-                setProviderName(name);
+                const announcement = annData.announcement;
+                // Load users from API to resolve provider name
+                const usersRes = await fetchWithAuth('/api/users');
+                const usersJson = usersRes.ok ? await usersRes.json() : { users: [] };
+                const users = usersJson?.users || [];
+                const provider = users.find((u: any) => 
+                  String(u.id) === String(announcement.userId) || 
+                  String(u.id) === String(announcement.userCreateur) ||
+                  String(u.id) === String(announcement.userCreateur?.idUser)
+                );
                 
-                if (setHeaderTitle) {
-                  setHeaderTitle(`Avis de ${name.split(' ')[0] || name}`);
+                if (provider) {
+                  const prenom = provider.prenom || '';
+                  const nom = provider.nom || '';
+                  const name = `${prenom} ${nom}`.trim() || provider.name || 'Prestataire';
+                  setProviderName(name);
+                  
+                  if (setHeaderTitle) {
+                    setHeaderTitle(`Avis de ${name.split(' ')[0] || name}`);
+                  }
+                } else {
+                  setProviderName('Prestataire');
+                  if (setHeaderTitle) {
+                    setHeaderTitle('Avis');
+                  }
                 }
               } else {
                 setProviderName('Prestataire');
@@ -123,11 +164,6 @@ export default function ReviewsContent() {
               if (setHeaderTitle) {
                 setHeaderTitle('Avis');
               }
-            }
-          } else {
-            setProviderName('Prestataire');
-            if (setHeaderTitle) {
-              setHeaderTitle('Avis');
             }
           }
         } else {
@@ -153,7 +189,7 @@ export default function ReviewsContent() {
         setHeaderTitle(null);
       }
     };
-  }, [selectedAnnouncementId, setHeaderTitle, goBack]);
+  }, [selectedAnnouncementId, setHeaderTitle, goBack, isAllMyReviews, currentUserId]);
 
   // Calculate average rating
   const averageRating = evaluations.length > 0
@@ -228,8 +264,8 @@ export default function ReviewsContent() {
         </div>
       </div>
 
-      {/* Announcement Category Section */}
-      {announcementCategory && (
+      {/* Announcement Category Section (only single announcement mode) */}
+      {announcementCategory && !isAllMyReviews && (
         <div className="reviewsCategoryBanner">
           Avis pour cette annonce : <span className="reviewsCategoryBold">{announcementCategory}</span>
         </div>
@@ -245,7 +281,12 @@ export default function ReviewsContent() {
           evaluations.map((evaluation) => (
             <div key={evaluation.id} className="reviewCard">
               <div className="reviewHeader">
-                <div className="reviewUsername">{getUsername(evaluation)}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div className="reviewUsername">{getUsername(evaluation)}</div>
+                  {evaluation.announcement?.category ? (
+                    <span className="reviewCategoryBadge">{evaluation.announcement.category}</span>
+                  ) : null}
+                </div>
                 <div className="reviewStars">
                   {[1, 2, 3, 4, 5].map((value) => (
                     <StarIcon
