@@ -144,14 +144,6 @@ function FilterPageContent() {
 
     return (
         <Box component="form" onSubmit={handleSubmit(onSubmit)} className='filterContent' sx={{ display: 'flex', flexDirection: 'column', gap: 2, p: 2 }}>
-            {/* Keyword */}
-            {/* <Controller
-                name="keyword"
-                control={control}
-                render={({ field }) => (
-                    <TextField {...field} label="Mot clé" variant="outlined" fullWidth />
-                )}
-            /> */}
 
             {/* Category */}
             <FormControl fullWidth variant="outlined">

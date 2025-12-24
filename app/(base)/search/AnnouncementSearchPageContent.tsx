@@ -231,7 +231,7 @@ function AnnouncementSearchPageContent() {
                 >
                     <InputBase
                     sx={{ ml: 1, flex: 1 }}
-                    placeholder="Mot clé..."
+                    placeholder="Rechercher un service..."
                     inputProps={{ "aria-label": "recherche" }}
                     value={searchKeyword}
                     onChange={(e) => setSearchKeyword(e.target.value)}
