@@ -13,7 +13,7 @@ import { fetchWithAuth } from "../lib/auth";
 import { SkeletonProfile } from "../components/Skeleton";
 
 export default function MyProfile() {
-  const { currentUserId, setHeaderTitle, setCurrentPage } = useContent();
+  const { currentUserId, setHeaderTitle, setCurrentPage, setSelectedAnnouncementId } = useContent();
   const [profileStats, setProfileStats] = useState<{
     servicesRendered: number;
     reviews: number;
@@ -152,6 +152,11 @@ export default function MyProfile() {
         editable
         photo={user.photo ?? null}
         onEdit={() => setCurrentPage("profil_edit")}
+        onRatingClick={() => {
+          // Show all reviews across my announcements
+          setSelectedAnnouncementId && setSelectedAnnouncementId('all_my_reviews');
+          setCurrentPage && setCurrentPage('reviews');
+        }}
       />
       <PrivateStatsRow stats={stats} />
       <PrivateMenu menu={menu} />

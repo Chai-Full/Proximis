@@ -53,7 +53,7 @@ export default function PrivateMenu({ menu }: Props) {
           >
             <div className="profileMenuLeft">
               <div className="profileMenuIcon">
-                <Icon sx={{ color: "#1ea792" }} />
+                <Icon sx={{ color: "#ffffff" }} />
               </div>
               <div className="profileMenuTitleArea">
                 <span className="T4">{item.title}</span>

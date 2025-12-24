@@ -16,7 +16,7 @@ import { fetchWithAuth } from "../lib/auth";
 import { SkeletonProfile } from "../components/Skeleton";
 
 export default function ProfileDetails() {
-  const { selectedProfileId, currentUserId, setHeaderTitle, setCurrentPage } = useContent();
+  const { selectedProfileId, currentUserId, setHeaderTitle, setCurrentPage, setSelectedAnnouncementId } = useContent();
   const [profileStats, setProfileStats] = useState<{
     servicesRendered: number;
     reviews: number;
@@ -308,6 +308,11 @@ export default function ProfileDetails() {
           editable
           photo={user.photo ?? null}
           onEdit={() => setCurrentPage("profil_edit")}
+          onRatingClick={() => {
+            // Show all reviews across my announcements
+            setSelectedAnnouncementId && setSelectedAnnouncementId('all_my_reviews');
+            setCurrentPage && setCurrentPage('reviews');
+          }}
         />
         <PrivateStatsRow stats={stats} />
         <PrivateMenu menu={menu} />
@@ -340,7 +345,7 @@ export default function ProfileDetails() {
           <div style={{ display: "flex", alignItems: "center", flex: "0 0 auto" }}>
             <Star sx={{ color: "#FFE135" }} />
             <span className="T5">
-              {averageRating > 0 ? averageRating.toFixed(1).replace('.', ',') : '0'} <span style={{ color: "#8c8c8c" }}> ({reviewsCount} avis)</span>
+              {averageRating > 0 ? averageRating.toFixed(1).replace('.', ',') : '-'} <span style={{ color: "#8c8c8c" }}> ({reviewsCount} avis)</span>
             </span>
           </div>
         </div>

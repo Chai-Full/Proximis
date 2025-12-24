@@ -100,7 +100,7 @@ function MyAnnouncementCard({ announcement, showFavoriteIcon = false }: { announ
     };
   }, [announcement.id]);
 
-  const rating = averageRating > 0 ? averageRating.toFixed(1) : '0';
+  const rating = averageRating > 0 ? averageRating.toFixed(1) : '-';
 
   const handleClick = () => {
     setSelectedAnnouncementId && setSelectedAnnouncementId(announcement.id);

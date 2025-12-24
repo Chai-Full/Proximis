@@ -13,9 +13,10 @@ type Props = {
   editable?: boolean;
   onEdit?: () => void;
   photo?: string | null;
+  onRatingClick?: () => void;
 };
 
-export default function ProfileHeader({ fullName, initials, rating, ratingCount, editable, onEdit, photo }: Props) {
+export default function ProfileHeader({ fullName, initials, rating, ratingCount, editable, onEdit, photo, onRatingClick }: Props) {
   return (
     <div className="announceProfileHeader headerWithEdit">
       {editable ? (
@@ -38,10 +39,13 @@ export default function ProfileHeader({ fullName, initials, rating, ratingCount,
       </div>
       <div className="nameNotes">
         <span className="T4 TBold">{fullName}</span>
-        <div style={{ display: "flex", alignItems: "center", flex: "0 0 auto", gap: 4 }}>
+        <div
+          style={{ display: "flex", alignItems: "center", flex: "0 0 auto", gap: 4, cursor: onRatingClick ? 'pointer' : 'default' }}
+          onClick={onRatingClick}
+        >
           <Star sx={{ color: "#FFE135" }} />
           <span className="T5">
-            {rating.toFixed(1)} <span style={{ color: "#8c8c8c" }}>({ratingCount} avis)</span>
+            {rating > 0 ? rating.toFixed(1) : '-'} <span style={{ color: "#8c8c8c" }}>({ratingCount} avis)</span>
           </span>
         </div>
       </div>

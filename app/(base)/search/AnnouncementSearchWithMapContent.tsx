@@ -6,6 +6,7 @@ import { useContent } from '../ContentContext';
 import AnnouncementCard from '../announcement/announcementCard';
 import usersData from '../../../data/users.json';
 import { ChevronLeft, ChevronRight } from '@mui/icons-material';
+import dayjs from 'dayjs';
 import './map.css';
 
 interface AnnouncementWithLocation {
@@ -90,6 +91,29 @@ function MapContent({
       map.setZoom(12);
     }
   }, [map, selectedAnnouncement, userPosition]);
+
+  // Hide map type control (Map/Satellite selector)
+  useEffect(() => {
+    if (!map || typeof window === 'undefined') return;
+    
+    const hideMapTypeControl = () => {
+      // Hide using CSS selectors
+      const mapTypeControls = document.querySelectorAll('.gm-style-mtc, .gm-style .gm-style-mtc, div[role="button"][title*="Satellite"], div[role="button"][title*="Map"]');
+      mapTypeControls.forEach((control) => {
+        (control as HTMLElement).style.display = 'none';
+      });
+    };
+
+    // Hide immediately and also after a short delay (in case controls load asynchronously)
+    hideMapTypeControl();
+    const timer = setTimeout(hideMapTypeControl, 500);
+    const timer2 = setTimeout(hideMapTypeControl, 1000);
+
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(timer2);
+    };
+  }, [map]);
 
   return (
     <>
@@ -348,11 +372,31 @@ function AnnouncementSearchWithMapContent({ announcements, appliedFilters }: Ann
     );
   }
 
+  // Generate filter badges (same logic as list view)
+  const filterBadges = useMemo(() => {
+    if (!appliedFilters) return [<div key="all" className="searchFilterSelectedItem">Tous</div>];
+    const badges: React.ReactNode[] = [];
+    if (appliedFilters.category) badges.push(<div key="cat" className="searchFilterSelectedItem">{appliedFilters.category}</div>);
+    if (typeof appliedFilters.distance === 'number') badges.push(<div key="dist" className="searchFilterSelectedItem">≤ {appliedFilters.distance} Km</div>);
+    if (typeof appliedFilters.price === 'number') badges.push(<div key="price" className="searchFilterSelectedItem">≤ {appliedFilters.price} €</div>);
+    if (appliedFilters.keyword) badges.push(<div key="kw" className="searchFilterSelectedItem">"{appliedFilters.keyword}"</div>);
+    if (Array.isArray(appliedFilters.slots)) {
+      const dayLabel = (id: number) => ({1:'Lun',2:'Mar',3:'Mer',4:'Jeu',5:'Ven',6:'Sam',7:'Dim'} as any)[id] ?? String(id);
+      appliedFilters.slots.forEach((s: any, idx: number) => {
+        if (!s) return;
+        const label = s.time ? `${dayLabel(s.day)} ${dayjs(s.time).format('HH:mm')}` : `${dayLabel(s.day)}`;
+        badges.push(<div key={`slot-${idx}`} className="searchFilterSelectedItem">{label}</div>);
+      });
+    }
+    if (badges.length === 0) return [<div key="all" className="searchFilterSelectedItem">Tous</div>];
+    return badges;
+  }, [appliedFilters]);
+
   return (
     <div className="mapSearchContainer">
-      {/* Badge with count */}
-      <div className="mapSearchBadge">
-        {validLocations.length} annonce{validLocations.length > 1 ? 's' : ''} détectée{validLocations.length > 1 ? 's' : ''}
+      {/* Filter badges (same as list view) */}
+      <div className="searchFilterSelectedWithMapContainer">
+        {filterBadges}
       </div>
 
       {/* Map */}

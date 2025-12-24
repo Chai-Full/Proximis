@@ -33,6 +33,9 @@ const AnnouncementCard = ({ announcement, profilPage=false }: AnnouncementCardPr
   const [author, setAuthor] = useState<any>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
 
+  console.log("the photo : ", photo);
+  
+
   // Load average rating from evaluations
   useEffect(() => {
     if (!id) {
@@ -88,7 +91,7 @@ const AnnouncementCard = ({ announcement, profilPage=false }: AnnouncementCardPr
     };
   }, [id]);
 
-  const displayRating = averageRating > 0 ? averageRating.toFixed(1) : '0';
+  const displayRating = averageRating > 0 ? averageRating.toFixed(1) : '-';
 
   // Load author and current user for distance calculation
   useEffect(() => {

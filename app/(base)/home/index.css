@@ -122,16 +122,15 @@
 
 
 .nextRDV {
-  background-color: var(--primary);
   border-radius: 15px;
   padding: 18px 19px;
-  color: white;
   display: flex;
   align-items: flex-start;
   flex-direction: column;
   width: 100%;
   height: auto;
   row-gap: 10px;
+  border: 2px solid var(--primary);
 }
 
 .nextRDVC1, .nextRDVC2, .nextRDVC3 {
@@ -149,7 +148,7 @@
 .nextRDVBadge {
   border-radius: 25px;
   padding: 1px 12px;
-  background-color: #ffffff70;
+  background-color: #1EA79250;
   width: fit-content;
   height: fit-content;
 }

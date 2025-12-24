@@ -120,8 +120,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 12px 12px;
-    background: var(--white);
-    border: 1px solid #F88C0530;
+    background: var(--primary);
     border-radius: 14px;
     cursor: pointer;
 }
@@ -136,7 +135,7 @@
     width: 38px;
     height: 38px;
     border-radius: 10px;
-    background: #f0fffa;
+    background: transparent;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -148,9 +147,17 @@
     gap: 2px;
 }
 
+.profileMenuTitleArea .T4 {
+    color: var(--white);
+}
+
 .profileMenuRight {
     display: flex;
     align-items: center;
+}
+
+.profileMenuRight .T4 {
+    color: var(--white);
 }
 
 .profileBadge {
@@ -159,8 +166,8 @@
     justify-content: center;
     padding: 3px 10px;
     border-radius: 999px;
-    background: #ff920230;
-    color: #ff9202;
+    background: var(--secondary);
+    color: var(--white);
     font-size: 11px;
     font-weight: 600;
     width: fit-content;

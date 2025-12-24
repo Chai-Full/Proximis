@@ -7,6 +7,23 @@
   overflow: hidden;
 }
 
+/* Hide Google Maps map type control (Map/Satellite selector) */
+.gm-style-mtc,
+.gm-style .gm-style-mtc,
+div[role="button"][title*="Satellite"],
+div[role="button"][title*="Map"],
+.gm-style-cc,
+.gm-style .gm-style-cc {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Hide map type control container */
+.gm-style-mtc-bbw,
+.gm-style .gm-style-mtc-bbw {
+  display: none !important;
+}
+
 .mapSearchBadge {
   position: absolute;
   top: 16px;
@@ -40,7 +57,7 @@
   gap: 8px;
   padding: 16px;
   padding-bottom: 8px;
-  background: linear-gradient(to top, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.8) 80%, transparent 100%);
+  background: none;
   z-index: 10;
   box-sizing: border-box;
   overflow-x: hidden;
@@ -53,6 +70,7 @@
   max-width: calc(100% - 96px); /* 40px button + 8px gap + 40px button + 8px gap */
   overflow: hidden;
   box-sizing: border-box;
+  background-color: white;
 }
 
 .mapSearchCard > * {

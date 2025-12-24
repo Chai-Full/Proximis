@@ -144,14 +144,6 @@ function FilterPageContent() {
 
     return (
         <Box component="form" onSubmit={handleSubmit(onSubmit)} className='filterContent' sx={{ display: 'flex', flexDirection: 'column', gap: 2, p: 2 }}>
-            {/* Keyword */}
-            {/* <Controller
-                name="keyword"
-                control={control}
-                render={({ field }) => (
-                    <TextField {...field} label="Mot clé" variant="outlined" fullWidth />
-                )}
-            /> */}
 
             {/* Category */}
             <FormControl fullWidth variant="outlined">
@@ -219,7 +211,7 @@ function FilterPageContent() {
             <Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                     <Box>
-                        <div className='T2'>Prix horraire</div>
+                        <div className='T2'>Prix horaire</div>
                         <div className='T5' style={{ color: '#545454' }}>0 - 100 €</div>
                     </Box>
                 </Box>
@@ -253,7 +245,7 @@ function FilterPageContent() {
             {/* Availability days & slots */}
             <Box>
                 <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 1, mb: 1 }}>
-                    <label className='T2' htmlFor='availableDays'>Jours de disponibilités</label>
+                    <label className='T2' htmlFor='availableDays'>Jours de disponibilité</label>
                     <Controller
                         name={"availableDays" as any}
                         control={control}

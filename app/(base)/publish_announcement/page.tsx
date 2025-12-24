@@ -196,7 +196,6 @@ function Step2({
             for (const existingSlot of existingSlotsForDay) {
                 if (!existingSlot.start || !existingSlot.end || !start || !end) continue;
                 
-                // Check for overlap: new slot overlaps with existing slot
                 const newStart = start;
                 const newEnd = end;
                 const existingStart = existingSlot.start;
@@ -213,20 +212,37 @@ function Step2({
                     break;
                 }
                 
-                // Check for gap less than 30 minutes
-                // Case 1: New slot starts before existing slot ends
-                if (newEnd.isBefore(existingStart)) {
-                    const gapMinutes = existingStart.diff(newEnd, 'minute');
-                    if (gapMinutes < 30) {
+                // Check if new slot starts within 30 minutes of existing slot end
+                if (newStart.isAfter(existingEnd) || newStart.isSame(existingEnd)) {
+                    const gapMinutes = newStart.diff(existingEnd, 'minute');
+                    if (gapMinutes >= 0 && gapMinutes < 30) {
                         hasWarning = true;
                         break;
                     }
                 }
                 
-                // Case 2: Existing slot ends before new slot starts
-                if (existingEnd.isBefore(newStart)) {
-                    const gapMinutes = newStart.diff(existingEnd, 'minute');
-                    if (gapMinutes < 30) {
+                // Check if new slot ends within 30 minutes of existing slot start
+                if (newEnd.isBefore(existingStart) || newEnd.isSame(existingStart)) {
+                    const gapMinutes = existingStart.diff(newEnd, 'minute');
+                    if (gapMinutes >= 0 && gapMinutes < 30) {
+                        hasWarning = true;
+                        break;
+                    }
+                }
+                
+                // Check if new slot start is within 30 minutes before existing slot start
+                if (newStart.isBefore(existingStart)) {
+                    const gapMinutes = existingStart.diff(newStart, 'minute');
+                    if (gapMinutes >= 0 && gapMinutes < 30) {
+                        hasWarning = true;
+                        break;
+                    }
+                }
+                
+                // Check if new slot end is within 30 minutes after existing slot end
+                if (newEnd.isAfter(existingEnd)) {
+                    const gapMinutes = newEnd.diff(existingEnd, 'minute');
+                    if (gapMinutes >= 0 && gapMinutes < 30) {
                         hasWarning = true;
                         break;
                     }
@@ -240,7 +256,7 @@ function Step2({
         if (hasWarning) {
             setNotification({
                 open: true,
-                message: 'Le créneau est considéré comme du temps d\'activité. Pensez donc à prévoir un temps de battement entre chaque RDV, pour rejoindre votre prochain demandeur par exemple...',
+                message: 'Le créneau est considéré comme du temps d\'activité. Pensez donc à prévoir un temps de battement entre chaque RDV',
                 severity: 'warning'
             });
         }
@@ -256,7 +272,7 @@ function Step2({
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px' }}>
             <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "8px" }}>
-                <label className='T2' htmlFor='availableDays'>Jours de disponibilités</label>
+                <label className='T2' htmlFor='availableDays'>Jours de disponibilité</label>
 
                 {/* Controller will use the form context's control when no control prop is passed */}
                 <Controller

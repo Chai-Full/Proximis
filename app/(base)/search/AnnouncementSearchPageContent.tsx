@@ -212,7 +212,7 @@ function AnnouncementSearchPageContent() {
 
     return (
         <div>
-            <div className='searchHeader'>
+            <div className={`searchHeader ${view === 'map' ? 'searchHeaderMapView' : ''}`}>
                 <div className='searchHeaderActionButton' onClick={() => setView(view === 'map' ? 'list' : 'map')} style={{cursor: 'pointer'}}>
                     {view === 'map' ? <FormatListBulletedOutlined /> : <MapOutlined />}
                 </div>
@@ -231,7 +231,7 @@ function AnnouncementSearchPageContent() {
                 >
                     <InputBase
                     sx={{ ml: 1, flex: 1 }}
-                    placeholder="Mot clé..."
+                    placeholder="Rechercher un service..."
                     inputProps={{ "aria-label": "recherche" }}
                     value={searchKeyword}
                     onChange={(e) => setSearchKeyword(e.target.value)}

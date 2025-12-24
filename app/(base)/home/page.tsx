@@ -6,11 +6,13 @@ import { useContent } from "../ContentContext";
 import { useRouter } from "next/navigation";
 import {
   AddCircleOutlineOutlined,
+  InboxOutlined,
   LightbulbCircleOutlined,
   Schedule,
   StarOutlineOutlined,
   Today,
 } from "@mui/icons-material";
+import TextSnippetIcon from "@mui/icons-material/TextSnippet";
 import StarsOutlined from "@mui/icons-material/StarsOutlined";
 import AnnouncementCard from "../announcement/announcementCard";
 import dayjs from "dayjs";
@@ -150,6 +152,8 @@ export default function HomeContent() {
   }, [reservationToEvaluateData]);
 
   React.useEffect(() => {
+    console.log("the recomm annn ", recommendedAnnouncementData);
+    
     setRecommendedAnnouncement(recommendedAnnouncementData ?? null);
   }, [recommendedAnnouncementData]);
 
@@ -207,9 +211,11 @@ export default function HomeContent() {
           color="secondary"
           startIcon={<AddCircleOutlineOutlined sx={{ color: "white" }} />}
           sx={{
+            paddingY: "10px",
             borderRadius: "15px",
             color: "white",
             textTransform: "capitalize",
+            marginBottom: "10px",
           }}
           onClick={() => {
             setCurrentPage("publish");
@@ -217,13 +223,39 @@ export default function HomeContent() {
         >
           Publier une annonce
         </Button>
+        <Button
+          fullWidth
+          variant="contained"
+          startIcon={<InboxOutlined sx={{ color: "white" }} />}
+          sx={{
+            paddingY: "10px",
+            borderRadius: "15px",
+            backgroundColor: "var(--primary)",
+            color: "white",
+            textTransform: "capitalize",
+            "&:hover": {
+              backgroundColor: "var(--primary)",
+              opacity: 0.9,
+            },
+            marginBottom: "10px",
+          }}
+          onClick={() => {
+            // Save view preference to localStorage
+            if (typeof window !== "undefined") {
+              localStorage.setItem("proximis_myAnnouncements_view", "my_announcements");
+            }
+            setCurrentPage("my_announcements");
+          }}
+        >
+          Mes annonces
+        </Button>
         {loadingNextReservation ? (
           <SkeletonNextRDV />
         ) : nextReservation ? (
           <div className="nextRDV">
             <div className="nextRDVC1">
               <div className="nextRDVC1Title">
-                <Today sx={{ color: "white" }} />
+                <Today sx={{ color: "var(--primary)" }} />
                 <span className="T1">Prochain RDV</span>
               </div>
               <div className="nextRDVBadge">
@@ -238,8 +270,8 @@ export default function HomeContent() {
             </div>
             <div className="nextRDVC3">
               <div style={{ display: "flex", columnGap: "3px" }}>
-                <Schedule sx={{ color: "white" }} />
-                <span className="T7">
+                <Schedule />
+                <span className="T6">
                   {nextReservation.formattedDate} -{" "}
                   {nextReservation.formattedTime}
                 </span>
@@ -251,7 +283,7 @@ export default function HomeContent() {
           <div className="announcementsPromoted">
             <div className="announcementsPromotedHeader">
               <LightbulbCircleOutlined sx={{ color: "#ff9202" }} />
-              <span className="T2">Annonces recommandée</span>
+              <span className="T2">Annonce recommandée</span>
             </div>
             <SkeletonAnnouncementCard />
           </div>
@@ -259,7 +291,7 @@ export default function HomeContent() {
           <div className="announcementsPromoted">
             <div className="announcementsPromotedHeader">
               <LightbulbCircleOutlined sx={{ color: "#ff9202" }} />
-              <span className="T2">Annonces recommandée</span>
+              <span className="T2">Annonce recommandée</span>
             </div>
             <AnnouncementCard announcement={recommendedAnnouncement} />
           </div>
