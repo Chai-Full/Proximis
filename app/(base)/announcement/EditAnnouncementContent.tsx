@@ -293,7 +293,7 @@ function Step2({
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "16px" }}>
             <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "8px" }}>
-                <label className="T2">Jours de disponibilités</label>
+                <label className="T2">Jours de disponibilité</label>
 
                 <Controller
                     name="availableDays"
