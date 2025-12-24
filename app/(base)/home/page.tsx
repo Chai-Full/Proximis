@@ -6,11 +6,13 @@ import { useContent } from "../ContentContext";
 import { useRouter } from "next/navigation";
 import {
   AddCircleOutlineOutlined,
+  InboxOutlined,
   LightbulbCircleOutlined,
   Schedule,
   StarOutlineOutlined,
   Today,
 } from "@mui/icons-material";
+import TextSnippetIcon from "@mui/icons-material/TextSnippet";
 import StarsOutlined from "@mui/icons-material/StarsOutlined";
 import AnnouncementCard from "../announcement/announcementCard";
 import dayjs from "dayjs";
@@ -207,15 +209,43 @@ export default function HomeContent() {
           color="secondary"
           startIcon={<AddCircleOutlineOutlined sx={{ color: "white" }} />}
           sx={{
+            paddingY: "10px",
             borderRadius: "15px",
             color: "white",
             textTransform: "capitalize",
+            marginBottom: "10px",
           }}
           onClick={() => {
             setCurrentPage("publish");
           }}
         >
           Publier une annonce
+        </Button>
+        <Button
+          fullWidth
+          variant="contained"
+          startIcon={<InboxOutlined sx={{ color: "white" }} />}
+          sx={{
+            paddingY: "10px",
+            borderRadius: "15px",
+            backgroundColor: "var(--primary)",
+            color: "white",
+            textTransform: "capitalize",
+            "&:hover": {
+              backgroundColor: "var(--primary)",
+              opacity: 0.9,
+            },
+            marginBottom: "10px",
+          }}
+          onClick={() => {
+            // Save view preference to localStorage
+            if (typeof window !== "undefined") {
+              localStorage.setItem("proximis_myAnnouncements_view", "my_announcements");
+            }
+            setCurrentPage("my_announcements");
+          }}
+        >
+          Mes annonces
         </Button>
         {loadingNextReservation ? (
           <SkeletonNextRDV />
