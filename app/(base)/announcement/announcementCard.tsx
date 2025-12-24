@@ -91,7 +91,7 @@ const AnnouncementCard = ({ announcement, profilPage=false }: AnnouncementCardPr
     };
   }, [id]);
 
-  const displayRating = averageRating > 0 ? averageRating.toFixed(1) : '0';
+  const displayRating = averageRating > 0 ? averageRating.toFixed(1) : '-';
 
   // Load author and current user for distance calculation
   useEffect(() => {

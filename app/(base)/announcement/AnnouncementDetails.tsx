@@ -1007,7 +1007,7 @@ export default function AnnounceDetails() {
           >
               <Star sx={{ color: "#FFE135" }} />
               <span className='T4' style={{color:"#545454"}}>
-                {averageRating !== null ? averageRating.toFixed(1) : '0'} ( {reviewsCount} {reviewsCount === 1 ? 'Avis' : 'Avis' } )
+                {averageRating !== null && averageRating > 0 ? averageRating.toFixed(1) : '-'} ( {reviewsCount} {reviewsCount === 1 ? 'Avis' : 'Avis' } )
               </span>
           </div>
           <Button 

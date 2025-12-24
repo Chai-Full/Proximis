@@ -45,7 +45,7 @@ export default function ProfileHeader({ fullName, initials, rating, ratingCount,
         >
           <Star sx={{ color: "#FFE135" }} />
           <span className="T5">
-            {rating.toFixed(1)} <span style={{ color: "#8c8c8c" }}>({ratingCount} avis)</span>
+            {rating > 0 ? rating.toFixed(1) : '-'} <span style={{ color: "#8c8c8c" }}>({ratingCount} avis)</span>
           </span>
         </div>
       </div>

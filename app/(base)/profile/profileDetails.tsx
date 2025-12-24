@@ -345,7 +345,7 @@ export default function ProfileDetails() {
           <div style={{ display: "flex", alignItems: "center", flex: "0 0 auto" }}>
             <Star sx={{ color: "#FFE135" }} />
             <span className="T5">
-              {averageRating > 0 ? averageRating.toFixed(1).replace('.', ',') : '0'} <span style={{ color: "#8c8c8c" }}> ({reviewsCount} avis)</span>
+              {averageRating > 0 ? averageRating.toFixed(1).replace('.', ',') : '-'} <span style={{ color: "#8c8c8c" }}> ({reviewsCount} avis)</span>
             </span>
           </div>
         </div>
