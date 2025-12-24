@@ -159,22 +159,26 @@ export async function GET(req: NextRequest) {
         { 'userCreateur.idUser': userIdNum },
         { 'userCreateur.idUser': String(userIdNum) },
       ];
-    } else if (excludeUserId) {
-      // Exclude announcements from a specific user
-      const excludeUserIdNum = Number(excludeUserId);
-      andConditions.push({
-        $nor: [
-          { userId: excludeUserIdNum },
-          { userId: String(excludeUserIdNum) },
-          { userCreateur: excludeUserIdNum },
-          { userCreateur: String(excludeUserIdNum) },
-          { 'userCreateur.idUser': excludeUserIdNum },
-          { 'userCreateur.idUser': String(excludeUserIdNum) },
-        ],
-      });
-    } else {
-      // Exclude closed announcements (only show available announcements) when NOT filtering by userId
       // When filtering by userId (for profile page), show all announcements including closed ones
+      // Don't add isAvailable filter here
+    } else {
+      // For general search (with or without excludeUserId), exclude closed announcements
+      // Exclude announcements from a specific user if excludeUserId is provided
+      if (excludeUserId) {
+        const excludeUserIdNum = Number(excludeUserId);
+        andConditions.push({
+          $nor: [
+            { userId: excludeUserIdNum },
+            { userId: String(excludeUserIdNum) },
+            { userCreateur: excludeUserIdNum },
+            { userCreateur: String(excludeUserIdNum) },
+            { 'userCreateur.idUser': excludeUserIdNum },
+            { 'userCreateur.idUser': String(excludeUserIdNum) },
+          ],
+        });
+      }
+      
+      // Exclude closed announcements (only show available announcements) for general search
       // Only show announcements where isAvailable is true or doesn't exist (for backward compatibility)
       andConditions.push({
         $or: [
