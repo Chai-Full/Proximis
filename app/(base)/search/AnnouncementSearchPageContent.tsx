@@ -212,7 +212,7 @@ function AnnouncementSearchPageContent() {
 
     return (
         <div>
-            <div className='searchHeader'>
+            <div className={`searchHeader ${view === 'map' ? 'searchHeaderMapView' : ''}`}>
                 <div className='searchHeaderActionButton' onClick={() => setView(view === 'map' ? 'list' : 'map')} style={{cursor: 'pointer'}}>
                     {view === 'map' ? <FormatListBulletedOutlined /> : <MapOutlined />}
                 </div>

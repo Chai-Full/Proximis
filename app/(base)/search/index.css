@@ -8,6 +8,12 @@
     justify-content: space-between;
 }
 
+.searchHeaderMapView {
+    position: absolute;
+    background-color: transparent;
+    z-index: 100;
+}
+
 .searchHeader>.searchHeaderActionButton{
     color: var(--primary);
     background-color: white;
@@ -28,6 +34,23 @@
     margin-top: 12px;
     overflow-x: auto;
     flex-wrap: wrap;
+}
+
+.searchFilterSelectedWithMapContainer {
+    display: flex;
+    gap: 8px;
+    padding: 0 16px;
+    margin-top: 12px;
+    overflow-x: auto;
+    flex-wrap: wrap;
+    z-index: 100;
+    position: absolute;
+    top: 10%;
+}
+
+.searchFilterSelectedWithMapContainer .searchFilterSelectedItem {
+    background-color: white;
+    color: var(--gray);
 }
 
 .searchFilterSelectedItem {

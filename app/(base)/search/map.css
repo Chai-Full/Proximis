@@ -7,6 +7,23 @@
   overflow: hidden;
 }
 
+/* Hide Google Maps map type control (Map/Satellite selector) */
+.gm-style-mtc,
+.gm-style .gm-style-mtc,
+div[role="button"][title*="Satellite"],
+div[role="button"][title*="Map"],
+.gm-style-cc,
+.gm-style .gm-style-cc {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Hide map type control container */
+.gm-style-mtc-bbw,
+.gm-style .gm-style-mtc-bbw {
+  display: none !important;
+}
+
 .mapSearchBadge {
   position: absolute;
   top: 16px;
