@@ -207,14 +207,15 @@ function Step2({
             const existingSlotsForDay = selectedSlots.filter(s => s.day === day);
             for (const existingSlot of existingSlotsForDay) {
                 if (existingSlot.start && existingSlot.end && start && end) {
-                    const newStartMinutes = start.hour() * 60 + start.minute();
-                    const newEndMinutes = end.hour() * 60 + end.minute();
-                    const existingStartMinutes = existingSlot.start.hour() * 60 + existingSlot.start.minute();
-                    const existingEndMinutes = existingSlot.end.hour() * 60 + existingSlot.end.minute();
+                    const newStart = start;
+                    const newEnd = end;
+                    const existingStart = existingSlot.start;
+                    const existingEnd = existingSlot.end;
                     
-                    // Check for overlap: new slot starts before existing ends AND new slot ends after existing starts
+                    // Check for overlap: new slot overlaps with existing slot
                     const hasOverlapWithThis = (
-                        (newStartMinutes < existingEndMinutes && newEndMinutes > existingStartMinutes)
+                        (newStart.isBefore(existingEnd) && newEnd.isAfter(existingStart)) ||
+                        (existingStart.isBefore(newEnd) && existingEnd.isAfter(newStart))
                     );
                     
                     if (hasOverlapWithThis) {
@@ -222,20 +223,44 @@ function Step2({
                         break;
                     }
                     
-                    // Check for insufficient gap (only if no overlap)
-                    // Gap between end of existing and start of new
-                    const gapAfterExisting = newStartMinutes - existingEndMinutes;
-                    // Gap between end of new and start of existing
-                    const gapBeforeExisting = existingStartMinutes - newEndMinutes;
+                    // Check if new slot starts within 30 minutes of existing slot end
+                    if (newStart.isAfter(existingEnd) || newStart.isSame(existingEnd)) {
+                        const gapMinutes = newStart.diff(existingEnd, 'minute');
+                        if (gapMinutes >= 0 && gapMinutes < 30) {
+                            hasInsufficientGap = true;
+                            break;
+                        }
+                    }
                     
-                    // If either gap exists and is less than 30 minutes (but not overlapping)
-                    if ((gapAfterExisting > 0 && gapAfterExisting < 30) || 
-                        (gapBeforeExisting > 0 && gapBeforeExisting < 30)) {
-                        hasInsufficientGap = true;
+                    // Check if new slot ends within 30 minutes of existing slot start
+                    if (newEnd.isBefore(existingStart) || newEnd.isSame(existingStart)) {
+                        const gapMinutes = existingStart.diff(newEnd, 'minute');
+                        if (gapMinutes >= 0 && gapMinutes < 30) {
+                            hasInsufficientGap = true;
+                            break;
+                        }
+                    }
+                    
+                    // Check if new slot start is within 30 minutes before existing slot start
+                    if (newStart.isBefore(existingStart)) {
+                        const gapMinutes = existingStart.diff(newStart, 'minute');
+                        if (gapMinutes >= 0 && gapMinutes < 30) {
+                            hasInsufficientGap = true;
+                            break;
+                        }
+                    }
+                    
+                    // Check if new slot end is within 30 minutes after existing slot end
+                    if (newEnd.isAfter(existingEnd)) {
+                        const gapMinutes = newEnd.diff(existingEnd, 'minute');
+                        if (gapMinutes >= 0 && gapMinutes < 30) {
+                            hasInsufficientGap = true;
+                            break;
+                        }
                     }
                 }
             }
-            if (hasOverlap) break;
+            if (hasOverlap || hasInsufficientGap) break;
         }
 
         const base = Date.now();
@@ -259,7 +284,7 @@ function Step2({
         } else if (hasInsufficientGap) {
             setNotification({
                 open: true,
-                message: "Le Créneau est considéré comme du temps d'activité. Pensez donc à prévoir un temps de battement entre chaque RDV, pour rejoindre votre prochain demandeur par exemple...",
+                message: "Le Créneau est considéré comme du temps d'activité. Pensez donc à prévoir un temps de battement entre chaque RDV",
                 severity: "warning",
             });
         }
