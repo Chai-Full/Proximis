@@ -7,6 +7,7 @@ import AnnouncementCard from '../announcement/announcementCard';
 import usersData from '../../../data/users.json';
 import { ChevronLeft, ChevronRight } from '@mui/icons-material';
 import dayjs from 'dayjs';
+import { fetchWithAuth } from '../lib/auth';
 import './map.css';
 
 interface AnnouncementWithLocation {
@@ -180,6 +181,25 @@ function MapContent({
 }
 
 function AnnouncementSearchWithMapContent({ announcements, appliedFilters }: AnnouncementSearchWithMapContentProps) {
+  const [categories, setCategories] = React.useState<Array<{ id: number; title: string; image: string }>>([]);
+
+  // Load categories from API
+  React.useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const res = await fetchWithAuth('/api/categories');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.categories && Array.isArray(data.categories)) {
+            setCategories(data.categories);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading categories:', error);
+      }
+    };
+    loadCategories();
+  }, []);
   const { currentUserId, setSelectedAnnouncementId, setCurrentPage } = useContent();
   const [announcementsWithLocation, setAnnouncementsWithLocation] = useState<AnnouncementWithLocation[]>([]);
   const [userPosition, setUserPosition] = useState<{ lat: number; lng: number } | null>(null);
@@ -376,9 +396,25 @@ function AnnouncementSearchWithMapContent({ announcements, appliedFilters }: Ann
   const filterBadges = useMemo(() => {
     if (!appliedFilters) return [<div key="all" className="searchFilterSelectedItem">Tous</div>];
     const badges: React.ReactNode[] = [];
-    if (appliedFilters.category) badges.push(<div key="cat" className="searchFilterSelectedItem">{appliedFilters.category}</div>);
-    if (typeof appliedFilters.distance === 'number') badges.push(<div key="dist" className="searchFilterSelectedItem">≤ {appliedFilters.distance} Km</div>);
-    if (typeof appliedFilters.price === 'number') badges.push(<div key="price" className="searchFilterSelectedItem">≤ {appliedFilters.price} €</div>);
+    if (appliedFilters.category) {
+      // Find category title by ID
+      const categoryId = typeof appliedFilters.category === 'number' 
+        ? appliedFilters.category 
+        : (typeof appliedFilters.category === 'string' && !isNaN(Number(appliedFilters.category)) 
+            ? Number(appliedFilters.category) 
+            : null);
+      const category = categoryId ? categories.find(c => c.id === categoryId) : null;
+      const categoryLabel = category ? category.title : (typeof appliedFilters.category === 'string' ? appliedFilters.category : String(appliedFilters.category));
+      badges.push(<div key="cat" className="searchFilterSelectedItem">{categoryLabel}</div>);
+    }
+    // Only show distance badge if it's greater than 0
+    if (typeof appliedFilters.distance === 'number' && appliedFilters.distance > 0) {
+      badges.push(<div key="dist" className="searchFilterSelectedItem">≤ {appliedFilters.distance} Km</div>);
+    }
+    // Only show price badge if it's greater than 0
+    if (typeof appliedFilters.price === 'number' && appliedFilters.price > 0) {
+      badges.push(<div key="price" className="searchFilterSelectedItem">≤ {appliedFilters.price} €</div>);
+    }
     if (appliedFilters.keyword) badges.push(<div key="kw" className="searchFilterSelectedItem">"{appliedFilters.keyword}"</div>);
     if (Array.isArray(appliedFilters.slots)) {
       const dayLabel = (id: number) => ({1:'Lun',2:'Mar',3:'Mer',4:'Jeu',5:'Ven',6:'Sam',7:'Dim'} as any)[id] ?? String(id);
@@ -390,7 +426,7 @@ function AnnouncementSearchWithMapContent({ announcements, appliedFilters }: Ann
     }
     if (badges.length === 0) return [<div key="all" className="searchFilterSelectedItem">Tous</div>];
     return badges;
-  }, [appliedFilters]);
+  }, [appliedFilters, categories]);
 
   return (
     <div className="mapSearchContainer">

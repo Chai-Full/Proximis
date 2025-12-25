@@ -1,10 +1,8 @@
 import React, { useState } from 'react'
-import { AnnounceCategories } from '@/app/types/AnnouceService'
 import FormControl from '@mui/material/FormControl'
 import MenuItem from '@mui/material/MenuItem'
 import Select from '@mui/material/Select'
 import Slider from '@mui/material/Slider'
-import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
 import Box from '@mui/material/Box'
 import { Controller, useForm } from 'react-hook-form'
@@ -16,15 +14,36 @@ import { Dayjs } from 'dayjs'
 import { AddCircleOutline, BookmarkBorderOutlined, CancelOutlined } from '@mui/icons-material'
 import { InputsAnnounceSearch } from '../../types/InputsAnnounceSearch'
 import { useContent } from '../ContentContext'
+import { fetchWithAuth } from '../lib/auth'
 
 function FilterPageContent() {
   const { setCurrentPage, setHeaderTitle } = useContent();
+  const [categories, setCategories] = React.useState<Array<{ id: number; title: string; image: string }>>([]);
+
+  // Load categories from API
+  React.useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const res = await fetchWithAuth('/api/categories');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.categories && Array.isArray(data.categories)) {
+            setCategories(data.categories);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading categories:', error);
+      }
+    };
+    loadCategories();
+  }, []);
 
         const { control, handleSubmit, reset, formState: { errors }, getValues, setError, clearErrors, setValue } = useForm<InputsAnnounceSearch>({
     defaultValues: {
       keyword: '',
       category: '',
-      distance: 10,
+      distance: 0,
+      price: 0,
       priceMin: undefined,
       priceMax: undefined,
             date: undefined,
@@ -34,9 +53,17 @@ function FilterPageContent() {
         const { appliedFilters, setAppliedFilters } = useContent();
 
     const onSubmit = (data: InputsAnnounceSearch) => {
+        // Prepare filters: exclude distance and price if they are 0
+        const filtersToApply: any = { ...data };
+        if (filtersToApply.distance === 0) {
+            delete filtersToApply.distance;
+        }
+        if (filtersToApply.price === 0) {
+            delete filtersToApply.price;
+        }
         // set filters in global context so the search page can use them
-        setAppliedFilters && setAppliedFilters(data);
-        console.log('Applied filters:', data);
+        setAppliedFilters && setAppliedFilters(filtersToApply);
+        console.log('Applied filters:', filtersToApply);
         // clear header override if any
         setHeaderTitle && setHeaderTitle(null);
         setCurrentPage('search');
@@ -50,7 +77,15 @@ function FilterPageContent() {
     React.useEffect(() => {
         if (!appliedFilters) return;
         // reset form values
-        reset(appliedFilters as any);
+        // Ensure category is stored as string (ID) for consistency
+        const filtersToApply = { ...appliedFilters };
+        if (filtersToApply.category) {
+            // If category is a number, convert to string for the form
+            if (typeof filtersToApply.category === 'number') {
+                filtersToApply.category = String(filtersToApply.category);
+            }
+        }
+        reset(filtersToApply as any);
         // prefill availableDays form field and local availableDays state
         if (Array.isArray(appliedFilters.availableDays)) {
             setValue('availableDays' as any, appliedFilters.availableDays);
@@ -75,7 +110,7 @@ function FilterPageContent() {
         // clear global applied filters and local UI
         setAppliedFilters && setAppliedFilters(null);
         // reset form to explicit cleared defaults so UI reflects the cleared state
-        reset({ keyword: '', category: '', distance: 10, price: 50, date: undefined, slots: [], availableDays: [] } as any);
+        reset({ keyword: '', category: '', distance: 0, price: 0, date: undefined, slots: [], availableDays: [] } as any);
         // ensure form-level availableDays and slots are cleared
         setValue('availableDays' as any, []);
         setSelectedSlots([]);
@@ -151,24 +186,31 @@ function FilterPageContent() {
                     name="category"
                     control={control}
                     defaultValue=""
-                    render={({ field }) => (
-                        <Select
-                            {...field}
-                            displayEmpty
-                            renderValue={(selected) => (selected ? selected : <span style={{ color: '#9e9e9e' }}>-- Choisir une catégorie --</span>)}
-                            sx={{ backgroundColor: '#D9D9D961', borderRadius: '10px' }}
-                            inputProps={{ 'aria-label': 'Catégorie' }}
-                        >
-                            <MenuItem value="">
-                                <em>-- Choisir une catégorie --</em>
-                            </MenuItem>
-                            {AnnounceCategories.map((item) => (
-                                <MenuItem key={item.id} value={item.label}>
-                                    {item.label}
+                    render={({ field }) => {
+                        const selectedCategory = categories.find(cat => String(cat.id) === String(field.value));
+                        return (
+                            <Select
+                                {...field}
+                                displayEmpty
+                                renderValue={(selected) => {
+                                    if (!selected) return <span style={{ color: '#9e9e9e' }}>-- Choisir une catégorie --</span>;
+                                    const cat = categories.find(c => String(c.id) === String(selected));
+                                    return cat ? cat.title : <span style={{ color: '#9e9e9e' }}>-- Choisir une catégorie --</span>;
+                                }}
+                                sx={{ backgroundColor: '#D9D9D961', borderRadius: '10px' }}
+                                inputProps={{ 'aria-label': 'Catégorie' }}
+                            >
+                                <MenuItem value="">
+                                    <em>-- Choisir une catégorie --</em>
                                 </MenuItem>
-                            ))}
-                        </Select>
-                    )}
+                                {categories.map((item) => (
+                                    <MenuItem key={item.id} value={String(item.id)}>
+                                        {item.title}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        );
+                    }}
                 />
             </FormControl>
 
@@ -183,7 +225,7 @@ function FilterPageContent() {
                 <Controller
                     name="distance"
                     control={control}
-                    defaultValue={10}
+                    defaultValue={0}
                     rules={{ min: { value: 0, message: 'Doit être >= 0' }, max: { value: 100, message: 'Doit être <= 100' } }}
                     render={({ field }) => (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -218,7 +260,7 @@ function FilterPageContent() {
                 <Controller
                     name="price"
                     control={control}
-                    defaultValue={50}
+                    defaultValue={0}
                     rules={{ min: { value: 0, message: 'Doit être >= 0' }, max: { value: 100, message: 'Doit être <= 100' } }}
                     render={({ field }) => (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
