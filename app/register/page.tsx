@@ -67,8 +67,14 @@ export default function SignupPage() {
   useEffect(() => {
     if (selectedPlace) {
       console.log(selectedPlace.address_components); 
-      methods.setValue("adresse", selectedPlace.address_components?.find((component) => component.types.includes("route"))?.short_name || "");
-      methods.setValue("codePostal", selectedPlace.address_components?.find((component) => component.types.includes("postal_code"))?.long_name || "");
+      const route = selectedPlace.address_components?.find((component) => component.types.includes("route"))?.long_name || "";
+      const streetNumber = selectedPlace.address_components?.find((component) => component.types.includes("street_number"))?.long_name || "";
+      const postalCode = selectedPlace.address_components?.find((component) => component.types.includes("postal_code"))?.long_name || "";
+      const country = selectedPlace.address_components?.find((component) => component.types.includes("country"))?.long_name || "";
+      const composedAddress = [streetNumber, route].filter(Boolean).join(" ").trim() || selectedPlace.name || "";
+      methods.setValue("adresse", composedAddress);
+      if (postalCode) methods.setValue("codePostal", postalCode);
+      methods.setValue("pays", country || "France");
     }
   }, [selectedPlace, methods]);
   
@@ -168,34 +174,38 @@ export default function SignupPage() {
                   <div style={{ display: 'flex', flexDirection: 'column', rowGap: '8px' }}>
                     <label htmlFor="codePostal" className="T3" style={{ color: "#545454", textTransform: "capitalize" }}>Code postal</label>
                     <TextField
+                      {...field}
                       id="codePostal"
-                      value={methods.getValues("codePostal") || ""}
                       error={!!methods.formState.errors.codePostal}
                       helperText={methods.formState.errors.codePostal?.message}
                       fullWidth
                       variant="filled"
-                      slotProps={{ input: { value: methods.getValues("codePostal") || "", readOnly: true } }}
+                      InputProps={{ readOnly: true }}
                     />
                   </div>
                 )}
               />
 
-              <div style={{ display: 'flex', flexDirection: 'column', rowGap: '8px' }}>
-                <label htmlFor="pays" className="T3" style={{ color: "#545454", textTransform: "capitalize" }}>Pays</label>
-                <TextField
-                  id="pays"
-                  select
-                  defaultValue="France"
-                  {...methods.register("pays", { required: "Pays obligatoire" })}
-                  error={!!methods.formState.errors.pays}
-                  helperText={methods.formState.errors.pays?.message}
-                  fullWidth
-                  required
-                  variant="filled"
-                >
-                  <MenuItem value="France">France</MenuItem>
-                </TextField>
-              </div>
+              <Controller
+                name="pays"
+                control={methods.control}
+                rules={{ required: "Pays obligatoire" }}
+                render={({ field }) => (
+                  <div style={{ display: 'flex', flexDirection: 'column', rowGap: '8px' }}>
+                    <label htmlFor="pays" className="T3" style={{ color: "#545454", textTransform: "capitalize" }}>Pays</label>
+                    <TextField
+                      {...field}
+                      id="pays"
+                      error={!!methods.formState.errors.pays}
+                      helperText={methods.formState.errors.pays?.message}
+                      fullWidth
+                      required
+                      variant="filled"
+                      InputProps={{ readOnly: true }}
+                    />
+                  </div>
+                )}
+              />
               <Box sx={{ display: "flex", justifyContent: "space-between", columnGap: 2 }}>
                 <Button fullWidth variant="outlined" onClick={handleBack} sx={{
                   height: "56px",
