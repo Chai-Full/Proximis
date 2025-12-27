@@ -10,9 +10,9 @@ type Props = {
 
 export default function PrivateStatsRow({ stats }: Props) {
   const items = [
-    { label: "Services", value: stats.services },
+    { label: "Services rendus", value: stats.services },
     { label: "Avis", value: stats.reviews },
-    { label: "Note", value: stats.note },
+    { label: "Note moyenne", value: stats.note },
   ];
   return (
     <div className="profileStatsRow">
