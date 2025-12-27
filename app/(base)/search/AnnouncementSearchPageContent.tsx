@@ -16,8 +16,25 @@ import { SkeletonAnnouncementCard } from '../components/Skeleton';
 
 
 function AnnouncementSearchPageContent() {
-    const [view, setView] = React.useState<'list' | 'map'>('list');
+    // Initialize view from localStorage if available, otherwise default to 'list'
+    const [view, setView] = React.useState<'list' | 'map'>(() => {
+        if (typeof window !== 'undefined') {
+            const savedView = localStorage.getItem('proximis_searchView') as 'list' | 'map' | null;
+            return savedView === 'list' || savedView === 'map' ? savedView : 'list';
+        }
+        return 'list';
+    });
     const { setCurrentPage, appliedFilters, setAppliedFilters, currentUserId } = useContent();
+    
+    // Restore view from localStorage when returning from filters
+    React.useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const savedView = localStorage.getItem('proximis_searchView') as 'list' | 'map' | null;
+            if (savedView === 'list' || savedView === 'map') {
+                setView(savedView);
+            }
+        }
+    }, [appliedFilters]); // Restore view when filters are applied
     const [favoriteIds, setFavoriteIds] = React.useState<Set<string>>(new Set());
     const [categories, setCategories] = React.useState<Array<{ id: number; title: string; image: string }>>([]);
 
@@ -243,7 +260,14 @@ function AnnouncementSearchPageContent() {
     return (
         <div>
             <div className={`searchHeader ${view === 'map' ? 'searchHeaderMapView' : ''}`}>
-                <div className='searchHeaderActionButton' onClick={() => setView(view === 'map' ? 'list' : 'map')} style={{cursor: 'pointer'}}>
+                <div className='searchHeaderActionButton' onClick={() => {
+                    const newView = view === 'map' ? 'list' : 'map';
+                    setView(newView);
+                    // Save view to localStorage for persistence
+                    if (typeof window !== 'undefined') {
+                        localStorage.setItem('proximis_searchView', newView);
+                    }
+                }} style={{cursor: 'pointer'}}>
                     {view === 'map' ? <FormatListBulletedOutlined /> : <MapOutlined />}
                 </div>
                 <Paper
@@ -270,7 +294,13 @@ function AnnouncementSearchPageContent() {
                         <SearchOutlined />
                     </IconButton>
                 </Paper>
-                <div className='searchHeaderActionButton' onClick={() => setCurrentPage('filters')} style={{cursor: 'pointer'}}>
+                <div className='searchHeaderActionButton' onClick={() => {
+                    // Store current view before navigating to filters
+                    if (typeof window !== 'undefined') {
+                        localStorage.setItem('proximis_searchView', view);
+                    }
+                    setCurrentPage('filters');
+                }} style={{cursor: 'pointer'}}>
                         <TuneOutlined sx={{transform: "rotate(90deg)"}}/>
                 </div>
             </div>

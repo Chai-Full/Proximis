@@ -17,7 +17,7 @@ import { useContent } from '../ContentContext'
 import { fetchWithAuth } from '../lib/auth'
 
 function FilterPageContent() {
-  const { setCurrentPage, setHeaderTitle } = useContent();
+  const { setCurrentPage, setHeaderTitle, goBack, history } = useContent();
   const [categories, setCategories] = React.useState<Array<{ id: number; title: string; image: string }>>([]);
 
   // Load categories from API
@@ -66,7 +66,20 @@ function FilterPageContent() {
         console.log('Applied filters:', filtersToApply);
         // clear header override if any
         setHeaderTitle && setHeaderTitle(null);
-        setCurrentPage('search');
+        
+        // Restore the view (list or map) that was active before opening filters
+        // Store the view in localStorage so AnnouncementSearchPageContent can restore it
+        const savedView = typeof window !== 'undefined' ? localStorage.getItem('proximis_searchView') : null;
+        if (savedView && typeof window !== 'undefined') {
+            localStorage.setItem('proximis_searchView', savedView);
+        }
+        
+        // Navigate back to search page (goBack if we have history, otherwise navigate to search)
+        if (history && history.length > 0) {
+            goBack();
+        } else {
+            setCurrentPage('search');
+        }
     }
 
   const onReset = () => {
