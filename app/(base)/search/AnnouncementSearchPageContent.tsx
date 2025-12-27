@@ -12,6 +12,7 @@ import AnnouncementCard from '../announcement/announcementCard';
 import MapOutlined from '@mui/icons-material/MapOutlined';
 import { fetchWithAuth } from '../lib/auth';
 import { useCachedData } from '../lib/useCachedData';
+import { SkeletonAnnouncementCard } from '../components/Skeleton';
 
 
 function AnnouncementSearchPageContent() {
@@ -322,9 +323,15 @@ function AnnouncementSearchPageContent() {
 
                     <div className='searchResultContent'>
                         {loadingAnnouncements ? (
-                            <div style={{ padding: 16, textAlign: 'center' }}>
+                            <>
                                 <span className='T4'>Chargement...</span>
-                            </div>
+                                {/* Liste des skeletons */}
+                                <div className='searchResultList'>
+                                    {[...Array(6)].map((_, index) => (
+                                        <SkeletonAnnouncementCard key={`skeleton-${index}`} />
+                                    ))}
+                                </div>
+                            </>
                         ) : (
                             <>
                                 <span className='T4'>{filteredAnnouncements.length} Résultats trouvés</span>
