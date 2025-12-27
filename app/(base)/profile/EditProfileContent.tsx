@@ -6,12 +6,30 @@ import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import { useRouter } from "next/navigation";
 import { useContent } from "../ContentContext";
-import usersData from "../../../data/users.json";
 import "./index.css";
 import { APIProvider } from "@vis.gl/react-google-maps";
 import PlaceAutocomplete from "../../register/components/AutoCompletePlace";
 import Notification from "../components/Notification";
 import { fetchWithAuth } from "../lib/auth";
+
+// Validation function for name fields (nom and prenom)
+// Allows only letters, spaces, apostrophes ('), hyphens (-), and c cedilla (ç)
+// Explicitly excludes digits and special characters
+const validateName = (value: string) => {
+  if (!value) return "Ce champ est obligatoire";
+  
+  // Check for digits explicitly
+  if (/\d/.test(value)) {
+    return "Le nom ne peut contenir ni chiffres ni caractères spéciaux (sauf ' - ç)";
+  }
+  
+  // Regex: allows letters (including accents), spaces, apostrophes, hyphens, and ç
+  const nameRegex = /^[a-zA-ZÀ-ÿ\s'-çÇ]+$/;
+  if (!nameRegex.test(value)) {
+    return "Le nom ne peut contenir ni chiffres ni caractères spéciaux (sauf ' - ç)";
+  }
+  return true;
+};
 
 type FormInputs = {
   prenom: string;
@@ -24,30 +42,109 @@ type FormInputs = {
 
 export default function EditProfileContent() {
   const router = useRouter();
-  const { currentUserId, setHeaderTitle, goBack } = useContent();
-  const users = (usersData as any).users ?? [];
+  const { currentUserId, setHeaderTitle, goBack, currentPage } = useContent();
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [notification, setNotification] = useState<{
     open: boolean;
     message: string;
     severity: "success" | "info" | "warning" | "error";
   }>({ open: false, message: "", severity: "info" });
 
-  const currentUser = useMemo(() => {
-    if (currentUserId == null) return null;
-    return users.find((u: any) => Number(u.id) === Number(currentUserId)) ?? null;
-  }, [currentUserId, users]);
+  // Load user data from API using /api/auth/me
+  useEffect(() => {
+    if (!currentUserId) {
+      setLoading(false);
+      return;
+    }
+
+    // Only load when we're on the edit profile page
+    if (currentPage !== 'profil_edit') {
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+
+    const loadUserData = async () => {
+      try {
+        // Use /api/auth/me to get current user data directly
+        const timestamp = Date.now();
+        const meRes = await fetchWithAuth(`/api/auth/me?t=${timestamp}`);
+        if (meRes && meRes.ok) {
+          const meData = await meRes.json();
+          if (meData?.success && meData?.data) {
+            // Map /api/auth/me format to expected user format
+            const mappedUser = {
+              id: meData.data.idUser,
+              nom: meData.data.nomUser,
+              prenom: meData.data.prenomUser,
+              email: meData.data.mailUser,
+              photo: meData.data.photoUser,
+              adresse: meData.data.adresse,
+              codePostal: meData.data.codePostal,
+              pays: meData.data.pays,
+              type: meData.data.role || meData.data.modePrefUser,
+              scope: meData.data.perimPrefUser,
+              createdAt: meData.data.dateInscrUser,
+            };
+            if (!cancelled) {
+              setCurrentUser(mappedUser);
+            }
+          }
+        } else {
+          // Fallback to /api/users if /api/auth/me fails
+          const usersRes = await fetchWithAuth('/api/users');
+          if (usersRes && usersRes.ok) {
+            const usersData = await usersRes.json();
+            if (usersData?.users && Array.isArray(usersData.users)) {
+              const user = usersData.users.find((u: any) => Number(u.id) === Number(currentUserId));
+              if (!cancelled) {
+                setCurrentUser(user || null);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading user data:', error);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadUserData();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserId, currentPage]);
 
   const methods = useForm<FormInputs>({
     defaultValues: {
-      prenom: currentUser?.prenom || "",
-      nom: currentUser?.nom || "",
-      adresse: currentUser?.adresse || "",
-      codePostal: currentUser?.codePostal || "",
-      pays: currentUser?.pays || "France",
-      photo: currentUser?.photo || null,
+      prenom: "",
+      nom: "",
+      adresse: "",
+      codePostal: "",
+      pays: "France",
+      photo: null,
     },
   });
+
+  // Update form values when user data is loaded
+  useEffect(() => {
+    if (currentUser) {
+      methods.reset({
+        prenom: currentUser.prenom || "",
+        nom: currentUser.nom || "",
+        adresse: currentUser.adresse || "",
+        codePostal: currentUser.codePostal || "",
+        pays: currentUser.pays || "France",
+        photo: currentUser.photo || null,
+      });
+    }
+  }, [currentUser, methods]);
 
   const avatarSrc = methods.watch("photo") || currentUser?.photo || null;
 
@@ -57,10 +154,10 @@ export default function EditProfileContent() {
   }, [setHeaderTitle]);
 
   useEffect(() => {
-    if (!currentUser) {
+    if (!loading && !currentUser) {
       router.push("/");
     }
-  }, [currentUser, router]);
+  }, [loading, currentUser, router]);
 
   const handleFile = (file: File | null) => {
     if (!file) return;
@@ -98,11 +195,73 @@ export default function EditProfileContent() {
       }
       setNotification({
         open: true,
-        message: "Profil mis à jour",
+        message: "Profil mis à jour avec succès",
         severity: "success",
       });
       setSaving(false);
-      goBack();
+      
+      // Call /api/auth/me to get updated user data (nom, prenom, adresse)
+      const reloadUserData = async () => {
+        try {
+          const meRes = await fetchWithAuth('/api/auth/me');
+          if (meRes && meRes.ok) {
+            const meData = await meRes.json();
+            if (meData?.success && meData?.data) {
+              // Update currentUser state with fresh data from /api/auth/me
+              const updatedUserData = {
+                id: meData.data.idUser,
+                nom: meData.data.nomUser,
+                prenom: meData.data.prenomUser,
+                email: meData.data.mailUser,
+                adresse: meData.data.adresse || data.adresse,
+                codePostal: meData.data.codePostal || data.codePostal,
+                pays: meData.data.pays || data.pays,
+                photo: meData.data.photoUser || data.photo || currentUser?.photo || null,
+                type: meData.data.role || meData.data.modePrefUser,
+                scope: meData.data.perimPrefUser,
+                createdAt: meData.data.dateInscrUser,
+              };
+              setCurrentUser(updatedUserData);
+            }
+          } else {
+            // Fallback: reload from /api/users if /api/auth/me fails
+            const usersRes = await fetchWithAuth('/api/users');
+            if (usersRes && usersRes.ok) {
+              const usersData = await usersRes.json();
+              if (usersData?.users && Array.isArray(usersData.users)) {
+                const updatedUser = usersData.users.find((u: any) => Number(u.id) === Number(currentUserId));
+                if (updatedUser) {
+                  setCurrentUser(updatedUser);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error reloading user data:', error);
+          // Fallback: reload from /api/users on error
+          try {
+            const usersRes = await fetchWithAuth('/api/users');
+            if (usersRes && usersRes.ok) {
+              const usersData = await usersRes.json();
+              if (usersData?.users && Array.isArray(usersData.users)) {
+                const updatedUser = usersData.users.find((u: any) => Number(u.id) === Number(currentUserId));
+                if (updatedUser) {
+                  setCurrentUser(updatedUser);
+                }
+              }
+            }
+          } catch (fallbackError) {
+            console.error('Error in fallback reload:', fallbackError);
+          }
+        }
+      };
+      
+      await reloadUserData();
+      
+      // Wait a bit to show the success notification before going back
+      setTimeout(() => {
+        goBack();
+      }, 1500);
     } catch (e) {
       setSaving(false);
       setNotification({
@@ -112,6 +271,14 @@ export default function EditProfileContent() {
       });
     }
   };
+
+  if (loading) {
+    return (
+      <div className="editProfilePage" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
+        <div>Chargement...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="editProfilePage">
@@ -148,7 +315,10 @@ export default function EditProfileContent() {
             id="prenom"
             variant="filled"
             fullWidth
-            {...methods.register("prenom", { required: "Prénom obligatoire" })}
+            {...methods.register("prenom", { 
+              required: "Prénom obligatoire",
+              validate: validateName
+            })}
             error={!!methods.formState.errors.prenom}
             helperText={methods.formState.errors.prenom?.message}
           />
@@ -160,7 +330,10 @@ export default function EditProfileContent() {
             id="nom"
             variant="filled"
             fullWidth
-            {...methods.register("nom", { required: "Nom obligatoire" })}
+            {...methods.register("nom", { 
+              required: "Nom obligatoire",
+              validate: validateName
+            })}
             error={!!methods.formState.errors.nom}
             helperText={methods.formState.errors.nom?.message}
           />
@@ -180,6 +353,7 @@ export default function EditProfileContent() {
 
         <APIProvider apiKey={process.env.NEXT_PUBLIC_GG_API_KEY || ""}>
           <PlaceAutocomplete
+            value={methods.watch("adresse")}
             onPlaceSelect={(selectedPlace) => {
               if (!selectedPlace?.address_components) return;
               const route = selectedPlace.address_components.find((c: any) => c.types.includes("route"))?.long_name || "";
@@ -259,6 +433,7 @@ export default function EditProfileContent() {
         open={notification.open}
         severity={notification.severity}
         message={notification.message}
+        autoHideDuration={notification.severity === 'success' ? 3000 : 5000}
         onClose={() => setNotification((prev) => ({ ...prev, open: false }))}
       />
     </div>

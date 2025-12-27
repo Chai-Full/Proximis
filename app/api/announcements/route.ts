@@ -96,7 +96,12 @@ function getCategoryFromTitle(categoryTitle: string | null | undefined): { idCat
  *         name: category
  *         schema:
  *           type: string
- *         description: Filter by category
+ *         description: Filter by category title (for backward compatibility)
+ *       - in: query
+ *         name: idCategorie
+ *         schema:
+ *           type: integer
+ *         description: Filter by category ID (preferred method)
  *       - in: query
  *         name: price
  *         schema:
@@ -140,6 +145,7 @@ export async function GET(req: NextRequest) {
     const excludeUserId = url.searchParams.get('excludeUserId');
     const keyword = url.searchParams.get('keyword');
     const category = url.searchParams.get('category');
+    const idCategorie = url.searchParams.get('idCategorie');
     const price = url.searchParams.get('price');
     const distance = url.searchParams.get('distance');
     const slotsParam = url.searchParams.get('slots');
@@ -201,8 +207,16 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Category filter
-    if (category && category.trim()) {
+    // Category filter (by idCategorie or by category title)
+    if (idCategorie) {
+      const idCategorieNum = Number(idCategorie);
+      if (!isNaN(idCategorieNum)) {
+        andConditions.push({
+          idCategorie: idCategorieNum,
+        });
+      }
+    } else if (category && category.trim()) {
+      // Fallback to title-based filtering for backward compatibility
       andConditions.push({
         $or: [
           { category: category },

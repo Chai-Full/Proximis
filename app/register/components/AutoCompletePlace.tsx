@@ -5,9 +5,10 @@ import { useEffect, useRef, useState } from "react";
 interface PlaceAutocompleteProps {
   onPlaceSelect: (place: google.maps.places.PlaceResult | null) => void;
   label: string;
+  value?: string;
 }
 
-const PlaceAutocomplete = ({ onPlaceSelect, label }: PlaceAutocompleteProps) => {
+const PlaceAutocomplete = ({ onPlaceSelect, label, value }: PlaceAutocompleteProps) => {
   const [placeAutocomplete, setPlaceAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const places = useMapsLibrary('places');
@@ -31,6 +32,13 @@ const PlaceAutocomplete = ({ onPlaceSelect, label }: PlaceAutocompleteProps) => 
       onPlaceSelect(placeAutocomplete.getPlace());
     });
   }, [onPlaceSelect, placeAutocomplete]);
+
+  // Set initial value when component mounts or value changes
+  useEffect(() => {
+    if (inputRef.current && value !== undefined) {
+      inputRef.current.value = value;
+    }
+  }, [value]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', rowGap: '8px' }}>

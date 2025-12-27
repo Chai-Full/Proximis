@@ -970,6 +970,8 @@ export default function AnnounceDetails() {
                   }),
                 });
                 const createData = await createRes.json();
+                console.log("log createData", createData);
+                
                 if (createRes.ok && createData?.ok && createData?.reservation) {
                   // Store reservation ID and navigate to payment page
                   if (setSelectedReservationId) {

@@ -16,7 +16,7 @@ import { fetchWithAuth } from "../lib/auth";
 import { SkeletonProfile } from "../components/Skeleton";
 
 export default function ProfileDetails() {
-  const { selectedProfileId, currentUserId, setHeaderTitle, setCurrentPage, setSelectedAnnouncementId } = useContent();
+  const { selectedProfileId, currentUserId, setHeaderTitle, setCurrentPage, setSelectedAnnouncementId, currentPage } = useContent();
   const [profileStats, setProfileStats] = useState<{
     servicesRendered: number;
     reviews: number;
@@ -42,6 +42,24 @@ export default function ProfileDetails() {
     Number(targetUserId) === Number(currentUserId);
 
   // Load all data for profile
+  // Use a timestamp as refresh trigger to ensure it changes every time we navigate to this page
+  const [refreshTrigger, setRefreshTrigger] = useState(Date.now());
+  
+  useEffect(() => {
+    // Always update refresh trigger with current timestamp when page becomes active
+    // This ensures data is refreshed every time we navigate to the profile page
+    if (currentPage === 'my_profile' || currentPage === 'public_profile' || currentPage === 'profil') {
+      setRefreshTrigger(Date.now());
+    }
+  }, [currentPage]);
+  
+  // Also refresh when targetUserId changes
+  useEffect(() => {
+    if (targetUserId) {
+      setRefreshTrigger(Date.now());
+    }
+  }, [targetUserId]);
+
   useEffect(() => {
     if (!targetUserId) {
       setLoading(false);
@@ -129,7 +147,7 @@ export default function ProfileDetails() {
     return () => {
       cancelled = true;
     };
-  }, [targetUserId, currentUserId, isCurrentUser]);
+  }, [targetUserId, currentUserId, isCurrentUser, refreshTrigger]);
 
   const user = useMemo(() => {
     if (targetUserId == null) return null;

@@ -22,6 +22,7 @@ type ChatMessage = {
   time: string;
   date: string; // Full date for grouping
   dateLabel: string; // Formatted date label (DD:MM:YY)
+  read?: boolean; // Whether the message has been read by the recipient
 };
 
 // Utility functions for distance calculation (copied from AnnouncementDetails.tsx)
@@ -101,6 +102,9 @@ export default function ChatContent() {
     currentPage,
     history,
     currentUserId,
+    setSelectedReservationId,
+    setSelectedAnnouncementId,
+    setEvaluationData,
   } = useContent();
 
   const [conversationData, setConversationData] = React.useState<any>(null);
@@ -118,8 +122,11 @@ export default function ChatContent() {
   const [reservationTime, setReservationTime] = React.useState<string>('');
   const [reservationDay, setReservationDay] = React.useState<string>('');
   const [reservationLocation, setReservationLocation] = React.useState<string>('');
-  const [statusLabel, setStatusLabel] = React.useState<string>('Réservé');
+  const [statusLabel, setStatusLabel] = React.useState<string>('');
   const [statusColor, setStatusColor] = React.useState<string>('#1ea792');
+  const [reservationId, setReservationId] = React.useState<number | string | null>(null);
+  const [announcementId, setAnnouncementId] = React.useState<number | string | null>(null);
+  const [reservationStatus, setReservationStatus] = React.useState<string>('reserved');
 
   // Note: we avoid loading all users/announcements here to speed up conversation load.
   // ChatContent will fetch only the specific user and announcement needed for the opened conversation.
@@ -181,6 +188,10 @@ export default function ChatContent() {
             const ann = data.conversation.announcement;
             setAnnouncementTitle(ann.title || 'Annonce');
             setAnnouncementPhoto(ann.photo || '/photo1.svg');
+            // Store announcement ID for navigation (used when no reservation or status is "completed" or "contacter")
+            if (ann.id) {
+              setAnnouncementId(ann.id);
+            }
           }
           
           // Calculate distance between announcement owner and the user who reserved (other user)
@@ -226,6 +237,13 @@ export default function ChatContent() {
           // Get reservation info from enriched conversation data
           if (data.conversation.reservation) {
             const reservation = data.conversation.reservation;
+            // Store reservation and announcement IDs for navigation
+            if (reservation.id) {
+              setReservationId(reservation.id);
+            }
+            if (data.conversation.announcement?.id) {
+              setAnnouncementId(data.conversation.announcement.id);
+            }
             
             // Format date (e.g., "15 octobre 2025")
             if (reservation.date) {
@@ -262,6 +280,7 @@ export default function ChatContent() {
 
             // Set status based on reservation status
             const status = reservation.status || 'reserved';
+            setReservationStatus(status);
             switch (status) {
               case 'to_pay':
                 setStatusLabel('À régler');
@@ -284,13 +303,18 @@ export default function ChatContent() {
                 setStatusColor('#1ea792');
             }
           } else {
-            // No reservation - set default values
+            // No reservation - set default values (no status badge for simple contact)
             setReservationDate('');
             setReservationTime('');
             setReservationDay('');
             setReservationLocation('');
-            setStatusLabel('Réservé');
+            setStatusLabel(''); // No status label for simple contact (not a reservation)
             setStatusColor('#1ea792');
+            setReservationStatus('contacter'); // No reservation = "Contacter" status
+            // Store announcement ID if available
+            if (data.conversation.announcement?.id) {
+              setAnnouncementId(data.conversation.announcement.id);
+            }
           }
 
           // Transform messages to ChatMessage format
@@ -301,14 +325,13 @@ export default function ChatContent() {
               const isMe = msgFromUserId === currentUserIdNum;
               const msgTime = dayjs(msg.createdAt);
               const now = dayjs();
-              const diffDays = now.diff(msgTime, 'day');
 
               // Format time (HH:mm)
               const timeStr = msgTime.format('HH:mm');
               
               // Format date (DD:MM:YY) for grouping and display
               const dateStr = msgTime.format('YYYY-MM-DD'); // For grouping
-              const dateLabel = msgTime.format('DD:MM:YY'); // For display
+              const dateLabel = msgTime.format('DD/MM/YY'); // For display
 
               return {
                 id: msg.id,
@@ -317,6 +340,7 @@ export default function ChatContent() {
                 time: timeStr,
                 date: dateStr,
                 dateLabel: dateLabel,
+                read: msg.read || false, // Include read status from API
               };
             });
 
@@ -337,6 +361,13 @@ export default function ChatContent() {
             if (markReadRes.ok) {
               const markReadData = await markReadRes.json();
               console.log('Messages marked as read:', markReadData.updatedCount);
+              
+              // Note: The API marks messages sent TO the current user as read (messages from "other")
+              // For messages sent BY the current user (author === "me"), we need to check if the other user has read them
+              // This would require the other user to mark them as read, which we'd receive via SSE or a separate check
+              // For now, we'll reload the conversation to get updated read status for our messages
+              // In a future update, we can add real-time read status updates via SSE
+              
               // Notify other parts of the UI that messages were marked as read
               try {
                 if (typeof window !== 'undefined') {
@@ -401,7 +432,7 @@ export default function ChatContent() {
                     const msgTime = dayjs(msg.createdAt);
                     const timeStr = msgTime.format('HH:mm');
                     const dateStr = msgTime.format('YYYY-MM-DD');
-                    const dateLabel = msgTime.format('DD:MM:YY');
+                    const dateLabel = msgTime.format('DD/MM/YY');
                     const isMe = Number(msg.fromUserId) === Number(currentUserId);
                     
                     // Check if message already exists to avoid duplicates
@@ -415,6 +446,7 @@ export default function ChatContent() {
                         time: timeStr,
                         date: dateStr,
                         dateLabel: dateLabel,
+                        read: msg.read || false, // Include read status from SSE
                       }];
                     });
                   } else if (parsed && parsed.type === 'connected') {
@@ -503,6 +535,24 @@ export default function ChatContent() {
     }
   }, [conversationData, selectedConversationId, setSelectedConversationId]);
 
+  // Track previous page to detect when leaving chat
+  const prevPageRef = React.useRef<string | null>(null);
+  
+  // Trigger refresh event when leaving chat to return to messages list
+  React.useEffect(() => {
+    // When currentPage changes from message_chat to messages, trigger refresh
+    if (prevPageRef.current === 'message_chat' && currentPage === 'messages' && typeof window !== 'undefined') {
+      // Small delay to ensure messages page is ready
+      const timer = setTimeout(() => {
+        // Dispatch custom event to refresh conversations list
+        window.dispatchEvent(new CustomEvent('refreshConversations'));
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+    // Update previous page ref
+    prevPageRef.current = currentPage;
+  }, [currentPage]);
+
   // Ensure history is set correctly when arriving from payment
   // The payment already sets history to ['home', 'messages'], so we don't need to change it
   // Only fix history if it's completely empty (shouldn't happen with proper navigation)
@@ -516,6 +566,47 @@ export default function ChatContent() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
+
+  // Handle click on chat header card based on reservation status
+  const handleCardClick = () => {
+    const status = reservationStatus || 'reserved';
+    
+    switch (status) {
+      case 'to_pay':
+        // Navigate to payment page
+        if (reservationId && setSelectedReservationId && setCurrentPage) {
+          setSelectedReservationId(reservationId);
+          setCurrentPage('reservation', [...history, 'message_chat']);
+        }
+        break;
+      case 'to_evaluate':
+        // Navigate to evaluation page
+        if (reservationId && setSelectedReservationId && setCurrentPage) {
+          setSelectedReservationId(reservationId);
+          setCurrentPage('evaluate', [...history, 'message_chat']);
+        }
+        break;
+      case 'reserved':
+        // Already in conversation, do nothing (or could navigate to reservations)
+        // For now, do nothing as requested
+        break;
+      case 'completed':
+        // Navigate to announcement details
+        if (announcementId && setSelectedAnnouncementId && setCurrentPage) {
+          setSelectedAnnouncementId(announcementId);
+          setCurrentPage('announce_details', [...history, 'message_chat']);
+        }
+        break;
+      case 'contacter':
+      default:
+        // No status (Contacter) or default: Navigate to announcement details
+        if (announcementId && setSelectedAnnouncementId && setCurrentPage) {
+          setSelectedAnnouncementId(announcementId);
+          setCurrentPage('announce_details', [...history, 'message_chat']);
+        }
+        break;
+    }
+  };
 
   if (loading) {
     return (
@@ -535,7 +626,19 @@ export default function ChatContent() {
 
   return (
     <div className="chatPage">
-      <div className="chatHeaderCard">
+      <div 
+        className="chatHeaderCard" 
+        onClick={handleCardClick}
+        style={{ cursor: 'pointer' }}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleCardClick();
+          }
+        }}
+      >
         <div
           className="chatHeaderAvatar"
           style={{ backgroundImage: `url('${announcementPhoto}')` }}
@@ -543,12 +646,14 @@ export default function ChatContent() {
         <div className="chatHeaderInfo">
           <div className="chatHeaderTitleRow">
             <span className="T4 TBold">{announcementTitle}</span>
-            <span
-              className="chatBadge"
-              style={{ color: statusColor }}
-            >
-              {statusLabel}
-            </span>
+            {statusLabel && (
+              <span
+                className="chatBadge"
+                style={{ color: statusColor }}
+              >
+                {statusLabel}
+              </span>
+            )}
           </div>
           {reservationDay && (
             <div className="T7" style={{ marginTop: '4px' }}>
@@ -602,7 +707,19 @@ export default function ChatContent() {
                   }`}
                 >
                   <span className="T5">{message.text}</span>
-                  <span className="T7 chatTime">{message.time}</span>
+                  <div className="chatMessageFooter">
+                    <span className="T7 chatTime">{message.time}</span>
+                    {message.author === "me" && (
+                      <span className="chatReadIndicator" style={{ 
+                        fontSize: '12px',
+                        color: message.read ? '#e6f5ef' : 'rgba(230, 245, 239, 0.6)',
+                        lineHeight: '1',
+                        marginLeft: '4px'
+                      }}>
+                        {message.read ? '✓✓' : '✓'}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </React.Fragment>
             );
@@ -656,7 +773,7 @@ export default function ChatContent() {
         const msgTime = dayjs(msg.createdAt);
         const timeStr = msgTime.format('HH:mm');
         const dateStr = msgTime.format('YYYY-MM-DD');
-        const dateLabel = msgTime.format('DD:MM:YY');
+        const dateLabel = msgTime.format('DD/MM/YY');
         setMessages((prev) => [...prev, { 
           id: msg.id, 
           author: 'me', 
@@ -664,6 +781,7 @@ export default function ChatContent() {
           time: timeStr,
           date: dateStr,
           dateLabel: dateLabel,
+          read: msg.read || false, // New messages are not read yet
         }]);
         setInputValue('');
       } else {

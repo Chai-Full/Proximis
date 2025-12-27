@@ -68,11 +68,22 @@ export async function GET(req: NextRequest) {
     const userId = url.searchParams.get("userId");
     const date = url.searchParams.get("date");
 
-    if (id) filter.id = Number(id);
-    if (announcementId) filter.announcementId = Number(announcementId);
-    if (slotIndex) filter.slotIndex = Number(slotIndex);
-    if (userId) filter.userId = Number(userId);
-    if (date) filter.date = date;
+    // Handle ID search with flexible type matching (number or string)
+    if (id) {
+      const idNum = Number(id);
+      // Use $or to match both number and string formats
+      filter.$or = [
+        { id: idNum },
+        { id: String(idNum) },
+        { id: id }, // Try original format
+      ];
+    } else {
+      // Only apply other filters if id is not present
+      if (announcementId) filter.announcementId = Number(announcementId);
+      if (slotIndex) filter.slotIndex = Number(slotIndex);
+      if (userId) filter.userId = Number(userId);
+      if (date) filter.date = date;
+    }
 
     const reservations = await db
       .collection("reservations")
@@ -275,15 +286,24 @@ export async function PUT(req: NextRequest) {
       { returnDocument: "after" },
     );
 
-    if (!result?.value) {
-      console.error(`Failed to update reservation with id: ${existingReservation.id}`);
+    console.log("Update result:", result);
+
+    // Check if the update was successful by verifying the status field
+    // findOneAndUpdate returns the document directly (not wrapped in result.value)
+    // Verify that the reservation was updated by checking if status matches the requested status
+    if (!result || !result.id || result.status !== status) {
+      console.error(`Failed to update reservation with id: ${existingReservation.id}`, { 
+        result, 
+        expectedStatus: status,
+        actualStatus: result?.status 
+      });
       return NextResponse.json(
         { error: "Reservation not found" },
         { status: 404 },
       );
     }
 
-    const { _id, ...reservation } = result?.value;
+    const { _id, ...reservation } = result;
 
     return NextResponse.json({ ok: true, reservation });
   } catch (err) {

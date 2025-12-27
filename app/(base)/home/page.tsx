@@ -215,7 +215,6 @@ export default function HomeContent() {
             borderRadius: "15px",
             color: "white",
             textTransform: "capitalize",
-            marginBottom: "10px",
           }}
           onClick={() => {
             setCurrentPage("publish");
@@ -237,7 +236,6 @@ export default function HomeContent() {
               backgroundColor: "var(--primary)",
               opacity: 0.9,
             },
-            marginBottom: "10px",
           }}
           onClick={() => {
             // Save view preference to localStorage

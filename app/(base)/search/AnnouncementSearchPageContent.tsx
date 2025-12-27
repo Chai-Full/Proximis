@@ -12,12 +12,49 @@ import AnnouncementCard from '../announcement/announcementCard';
 import MapOutlined from '@mui/icons-material/MapOutlined';
 import { fetchWithAuth } from '../lib/auth';
 import { useCachedData } from '../lib/useCachedData';
+import { SkeletonAnnouncementCard } from '../components/Skeleton';
 
 
 function AnnouncementSearchPageContent() {
-    const [view, setView] = React.useState<'list' | 'map'>('list');
+    // Initialize view from localStorage if available, otherwise default to 'list'
+    const [view, setView] = React.useState<'list' | 'map'>(() => {
+        if (typeof window !== 'undefined') {
+            const savedView = localStorage.getItem('proximis_searchView') as 'list' | 'map' | null;
+            return savedView === 'list' || savedView === 'map' ? savedView : 'list';
+        }
+        return 'list';
+    });
     const { setCurrentPage, appliedFilters, setAppliedFilters, currentUserId } = useContent();
+    
+    // Restore view from localStorage when returning from filters
+    React.useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const savedView = localStorage.getItem('proximis_searchView') as 'list' | 'map' | null;
+            if (savedView === 'list' || savedView === 'map') {
+                setView(savedView);
+            }
+        }
+    }, [appliedFilters]); // Restore view when filters are applied
     const [favoriteIds, setFavoriteIds] = React.useState<Set<string>>(new Set());
+    const [categories, setCategories] = React.useState<Array<{ id: number; title: string; image: string }>>([]);
+
+    // Load categories from API
+    React.useEffect(() => {
+        const loadCategories = async () => {
+            try {
+                const res = await fetchWithAuth('/api/categories');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.categories && Array.isArray(data.categories)) {
+                        setCategories(data.categories);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            }
+        };
+        loadCategories();
+    }, []);
 
     // Transform announcement data to match expected format
     const transformAnnouncement = React.useCallback((a: any) => ({
@@ -63,10 +100,12 @@ function AnnouncementSearchPageContent() {
         if (appliedFilters.category && typeof appliedFilters.category === 'string') {
             parts.push(`cat:${appliedFilters.category}`);
         }
-        if (appliedFilters.price && typeof appliedFilters.price === 'number') {
+        // Only include price in cache key if it's greater than 0
+        if (appliedFilters.price && typeof appliedFilters.price === 'number' && appliedFilters.price > 0) {
             parts.push(`price:${appliedFilters.price}`);
         }
-        if (appliedFilters.distance && typeof appliedFilters.distance === 'number') {
+        // Only include distance in cache key if it's greater than 0
+        if (appliedFilters.distance && typeof appliedFilters.distance === 'number' && appliedFilters.distance > 0) {
             parts.push(`dist:${appliedFilters.distance}`);
         }
         if (appliedFilters.slots && Array.isArray(appliedFilters.slots) && appliedFilters.slots.length > 0) {
@@ -95,13 +134,21 @@ function AnnouncementSearchPageContent() {
                 if (appliedFilters.keyword && typeof appliedFilters.keyword === 'string' && appliedFilters.keyword.trim()) {
                     params.append('keyword', appliedFilters.keyword.trim());
                 }
-                if (appliedFilters.category && typeof appliedFilters.category === 'string') {
-                    params.append('category', appliedFilters.category);
+                // Send idCategorie if category is a number (id), otherwise send category (title) for backward compatibility
+                if (appliedFilters.category) {
+                    const categoryValue = appliedFilters.category;
+                    if (typeof categoryValue === 'number' || (typeof categoryValue === 'string' && !isNaN(Number(categoryValue)))) {
+                        params.append('idCategorie', String(categoryValue));
+                    } else if (typeof categoryValue === 'string') {
+                        params.append('category', categoryValue);
+                    }
                 }
-                if (appliedFilters.price && typeof appliedFilters.price === 'number') {
+                // Only add price filter if it's greater than 0
+                if (appliedFilters.price && typeof appliedFilters.price === 'number' && appliedFilters.price > 0) {
                     params.append('price', String(appliedFilters.price));
                 }
-                if (appliedFilters.distance && typeof appliedFilters.distance === 'number') {
+                // Only add distance filter if it's greater than 0
+                if (appliedFilters.distance && typeof appliedFilters.distance === 'number' && appliedFilters.distance > 0) {
                     params.append('distance', String(appliedFilters.distance));
                 }
                 if (appliedFilters.slots && Array.isArray(appliedFilters.slots) && appliedFilters.slots.length > 0) {
@@ -213,7 +260,14 @@ function AnnouncementSearchPageContent() {
     return (
         <div>
             <div className={`searchHeader ${view === 'map' ? 'searchHeaderMapView' : ''}`}>
-                <div className='searchHeaderActionButton' onClick={() => setView(view === 'map' ? 'list' : 'map')} style={{cursor: 'pointer'}}>
+                <div className='searchHeaderActionButton' onClick={() => {
+                    const newView = view === 'map' ? 'list' : 'map';
+                    setView(newView);
+                    // Save view to localStorage for persistence
+                    if (typeof window !== 'undefined') {
+                        localStorage.setItem('proximis_searchView', newView);
+                    }
+                }} style={{cursor: 'pointer'}}>
                     {view === 'map' ? <FormatListBulletedOutlined /> : <MapOutlined />}
                 </div>
                 <Paper
@@ -240,7 +294,13 @@ function AnnouncementSearchPageContent() {
                         <SearchOutlined />
                     </IconButton>
                 </Paper>
-                <div className='searchHeaderActionButton' onClick={() => setCurrentPage('filters')} style={{cursor: 'pointer'}}>
+                <div className='searchHeaderActionButton' onClick={() => {
+                    // Store current view before navigating to filters
+                    if (typeof window !== 'undefined') {
+                        localStorage.setItem('proximis_searchView', view);
+                    }
+                    setCurrentPage('filters');
+                }} style={{cursor: 'pointer'}}>
                         <TuneOutlined sx={{transform: "rotate(90deg)"}}/>
                 </div>
             </div>
@@ -258,9 +318,25 @@ function AnnouncementSearchPageContent() {
                         {(() => {
                             if (!appliedFilters) return <div className="searchFilterSelectedItem">Tous</div>;
                             const badges: React.ReactNode[] = [];
-                            if (appliedFilters.category) badges.push(<div key="cat" className="searchFilterSelectedItem">{appliedFilters.category}</div>);
-                            if (typeof appliedFilters.distance === 'number') badges.push(<div key="dist" className="searchFilterSelectedItem">≤ {appliedFilters.distance} Km</div>);
-                            if (typeof appliedFilters.price === 'number') badges.push(<div key="price" className="searchFilterSelectedItem">≤ {appliedFilters.price} €</div>);
+                            if (appliedFilters.category) {
+                                // Find category title by ID
+                                const categoryId = typeof appliedFilters.category === 'number' 
+                                    ? appliedFilters.category 
+                                    : (typeof appliedFilters.category === 'string' && !isNaN(Number(appliedFilters.category)) 
+                                        ? Number(appliedFilters.category) 
+                                        : null);
+                                const category = categoryId ? categories.find(c => c.id === categoryId) : null;
+                                const categoryLabel = category ? category.title : (typeof appliedFilters.category === 'string' ? appliedFilters.category : String(appliedFilters.category));
+                                badges.push(<div key="cat" className="searchFilterSelectedItem">{categoryLabel}</div>);
+                            }
+                            // Only show distance badge if it's greater than 0
+                            if (typeof appliedFilters.distance === 'number' && appliedFilters.distance > 0) {
+                                badges.push(<div key="dist" className="searchFilterSelectedItem">≤ {appliedFilters.distance} Km</div>);
+                            }
+                            // Only show price badge if it's greater than 0
+                            if (typeof appliedFilters.price === 'number' && appliedFilters.price > 0) {
+                                badges.push(<div key="price" className="searchFilterSelectedItem">≤ {appliedFilters.price} €</div>);
+                            }
                             if (appliedFilters.keyword) badges.push(<div key="kw" className="searchFilterSelectedItem">"{appliedFilters.keyword}"</div>);
                             if (Array.isArray(appliedFilters.slots)) {
                                 const dayLabel = (id: number) => ({1:'Lun',2:'Mar',3:'Mer',4:'Jeu',5:'Ven',6:'Sam',7:'Dim'} as any)[id] ?? String(id);
@@ -277,9 +353,14 @@ function AnnouncementSearchPageContent() {
 
                     <div className='searchResultContent'>
                         {loadingAnnouncements ? (
-                            <div style={{ padding: 16, textAlign: 'center' }}>
-                                <span className='T4'>Chargement...</span>
-                            </div>
+                            <>
+                                {/* Liste des skeletons */}
+                                <div className='searchResultList'>
+                                    {[...Array(6)].map((_, index) => (
+                                        <SkeletonAnnouncementCard key={`skeleton-${index}`} />
+                                    ))}
+                                </div>
+                            </>
                         ) : (
                             <>
                                 <span className='T4'>{filteredAnnouncements.length} Résultats trouvés</span>
