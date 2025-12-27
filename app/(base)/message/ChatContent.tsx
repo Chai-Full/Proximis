@@ -121,7 +121,7 @@ export default function ChatContent() {
   const [reservationTime, setReservationTime] = React.useState<string>('');
   const [reservationDay, setReservationDay] = React.useState<string>('');
   const [reservationLocation, setReservationLocation] = React.useState<string>('');
-  const [statusLabel, setStatusLabel] = React.useState<string>('Réservé');
+  const [statusLabel, setStatusLabel] = React.useState<string>('');
   const [statusColor, setStatusColor] = React.useState<string>('#1ea792');
   const [reservationId, setReservationId] = React.useState<number | string | null>(null);
   const [announcementId, setAnnouncementId] = React.useState<number | string | null>(null);
@@ -302,12 +302,12 @@ export default function ChatContent() {
                 setStatusColor('#1ea792');
             }
           } else {
-            // No reservation - set default values
+            // No reservation - set default values (no status badge for simple contact)
             setReservationDate('');
             setReservationTime('');
             setReservationDay('');
             setReservationLocation('');
-            setStatusLabel('Réservé');
+            setStatusLabel(''); // No status label for simple contact (not a reservation)
             setStatusColor('#1ea792');
             setReservationStatus('contacter'); // No reservation = "Contacter" status
             // Store announcement ID if available
@@ -525,6 +525,24 @@ export default function ChatContent() {
     }
   }, [conversationData, selectedConversationId, setSelectedConversationId]);
 
+  // Track previous page to detect when leaving chat
+  const prevPageRef = React.useRef<string | null>(null);
+  
+  // Trigger refresh event when leaving chat to return to messages list
+  React.useEffect(() => {
+    // When currentPage changes from message_chat to messages, trigger refresh
+    if (prevPageRef.current === 'message_chat' && currentPage === 'messages' && typeof window !== 'undefined') {
+      // Small delay to ensure messages page is ready
+      const timer = setTimeout(() => {
+        // Dispatch custom event to refresh conversations list
+        window.dispatchEvent(new CustomEvent('refreshConversations'));
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+    // Update previous page ref
+    prevPageRef.current = currentPage;
+  }, [currentPage]);
+
   // Ensure history is set correctly when arriving from payment
   // The payment already sets history to ['home', 'messages'], so we don't need to change it
   // Only fix history if it's completely empty (shouldn't happen with proper navigation)
@@ -618,12 +636,14 @@ export default function ChatContent() {
         <div className="chatHeaderInfo">
           <div className="chatHeaderTitleRow">
             <span className="T4 TBold">{announcementTitle}</span>
-            <span
-              className="chatBadge"
-              style={{ color: statusColor }}
-            >
-              {statusLabel}
-            </span>
+            {statusLabel && (
+              <span
+                className="chatBadge"
+                style={{ color: statusColor }}
+              >
+                {statusLabel}
+              </span>
+            )}
           </div>
           {reservationDay && (
             <div className="T7" style={{ marginTop: '4px' }}>

@@ -207,102 +207,143 @@ export default function MessageContent() {
     loadConversations();
   }, [currentUserId]);
 
+  // Function to load conversations (extracted for reuse)
+  const loadConversationsData = React.useCallback(async () => {
+    if (!currentUserId) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        userId: String(currentUserId),
+      });
+      const res = await fetchWithAuth(`/api/conversations?${params.toString()}`);
+      const data = await res.json();
+
+      console.log('Messages API Response:', { 
+        currentUserId, 
+        resOk: res.ok, 
+        conversations: data.conversations?.length || 0,
+        messages: data.messages?.length || 0,
+        data 
+      });
+
+      const hasValidData = res.ok 
+        && data.conversations 
+        && Array.isArray(data.conversations) 
+        && data.messages 
+        && Array.isArray(data.messages);
+
+      if (hasValidData) {
+        // Transform conversations to MessageListItem format
+        const transformedConversations: MessageListItem[] = data.conversations.map((conv: any) => {
+          const convFromUserId = typeof conv.fromUserId === 'number' ? conv.fromUserId : Number(conv.fromUserId);
+          const currentUserIdNum = Number(currentUserId);
+          
+          // Determine which user is the "other" user and get their data from enriched conversation
+          const isFromCurrentUser = convFromUserId === currentUserIdNum;
+          const otherUserData = isFromCurrentUser ? conv.toUser : conv.fromUser;
+
+          // Get user name and avatar from enriched data
+          const userName = otherUserData
+            ? `${otherUserData.prenom || ''} ${otherUserData.nom || ''}`.trim() || otherUserData.email || 'Utilisateur'
+            : 'Utilisateur';
+          const userAvatar = otherUserData?.photo || '/photo1.svg';
+
+          // Get announcement title from enriched conversation data
+          const announcementTitle = conv.announcement?.title || 'Annonce';
+
+          const conversationMessages = data.messages.filter((m: any) => m.conversationId === conv.id);
+          const sortedMessages = conversationMessages.sort((a: any, b: any) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+          const lastMessage = sortedMessages[0];
+          const lastMessageText = lastMessage?.text || '';
+          
+          let lastMessageTime = '';
+          if (lastMessage?.createdAt) {
+            const messageDate = dayjs(lastMessage.createdAt);
+            lastMessageTime = messageDate.format('DD/MM/YY');
+          }
+
+          // Count unread messages (messages not read and from other user)
+          const unreadCount = conversationMessages.filter((m: any) => {
+            const mFromUserId = typeof m.fromUserId === 'number' ? m.fromUserId : Number(m.fromUserId);
+            return !m.read && mFromUserId !== currentUserIdNum;
+          }).length;
+
+          const status: 'in_progress' | 'done' = unreadCount > 0 ? 'in_progress' : 'done';
+
+          // Get reservation status for filtering
+          const reservationStatus = conv.reservation?.status || null;
+
+          return {
+            id: conv.id,
+            name: userName,
+            subtitle: `de l'annonce ${announcementTitle}`,
+            lastMessage: lastMessageText,
+            time: lastMessageTime,
+            unreadCount: unreadCount > 0 ? unreadCount : undefined,
+            avatar: userAvatar,
+            status,
+            reservationStatus, // Add reservation status for filtering
+          } as MessageListItem & { reservationStatus: string | null };
+        });
+
+        // Sort by last message time
+        const messages = data.messages;
+        transformedConversations.sort((a, b) => {
+          const messagesA = messages.filter((m: any) => m.conversationId === a.id);
+          const messagesB = messages.filter((m: any) => m.conversationId === b.id);
+          const lastA = messagesA.sort((x: any, y: any) => new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime())[0];
+          const lastB = messagesB.sort((x: any, y: any) => new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime())[0];
+          const timeA = lastA?.createdAt ? new Date(lastA.createdAt).getTime() : 0;
+          const timeB = lastB?.createdAt ? new Date(lastB.createdAt).getTime() : 0;
+          return timeB - timeA;
+        });
+
+        setAllConversations(transformedConversations);
+        setConversations(transformedConversations);
+      } else {
+        console.log('No conversations found or API error:', { resOk: res.ok, hasConversations: !!data.conversations, hasMessages: !!data.messages, data });
+        setConversations([]);
+      }
+    } catch (error) {
+      console.error('Error loading conversations', error);
+      setConversations([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUserId]);
+
   // Reload conversations when returning to messages page from chat
   React.useEffect(() => {
     if (currentPage === 'messages' && currentUserId) {
-      const loadConversations = async () => {
-        try {
-          const params = new URLSearchParams({
-            userId: String(currentUserId),
-          });
-          const res = await fetchWithAuth(`/api/conversations?${params.toString()}`);
-          const data = await res.json();
-
-          if (res.ok && data.conversations && Array.isArray(data.conversations) && data.messages && Array.isArray(data.messages)) {
-            // Transform conversations to MessageListItem format
-            const transformedConversations: MessageListItem[] = data.conversations.map((conv: any) => {
-              const convFromUserId = typeof conv.fromUserId === 'number' ? conv.fromUserId : Number(conv.fromUserId);
-              const convToUserId = typeof conv.toUserId === 'number' ? conv.toUserId : Number(conv.toUserId);
-              const currentUserIdNum = Number(currentUserId);
-              
-              // Determine which user is the "other" user and get their data from enriched conversation
-              const isFromCurrentUser = convFromUserId === currentUserIdNum;
-              const otherUserData = isFromCurrentUser ? conv.toUser : conv.fromUser;
-
-              // Get user name and avatar from enriched data
-              const userName = otherUserData
-                ? `${otherUserData.prenom || ''} ${otherUserData.nom || ''}`.trim() || otherUserData.email || 'Utilisateur'
-                : 'Utilisateur';
-              const userAvatar = otherUserData?.photo || '/photo1.svg';
-
-              // Get announcement title from enriched conversation data
-              const announcementTitle = conv.announcement?.title || 'Annonce';
-
-              const conversationMessages = data.messages.filter((m: any) => m.conversationId === conv.id);
-              const sortedMessages = conversationMessages.sort((a: any, b: any) => 
-                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-              );
-              const lastMessage = sortedMessages[0];
-              const lastMessageText = lastMessage?.text || '';
-              
-              let lastMessageTime = '';
-              if (lastMessage?.createdAt) {
-                const messageDate = dayjs(lastMessage.createdAt);
-                lastMessageTime = messageDate.format('DD/MM/YY');
-              }
-
-              // Count unread messages (messages not read and from other user)
-              const unreadCount = conversationMessages.filter((m: any) => {
-                const mFromUserId = typeof m.fromUserId === 'number' ? m.fromUserId : Number(m.fromUserId);
-                return !m.read && mFromUserId !== currentUserIdNum;
-              }).length;
-
-              const status: 'in_progress' | 'done' = unreadCount > 0 ? 'in_progress' : 'done';
-
-              // Get reservation status for filtering
-              const reservationStatus = conv.reservation?.status || null;
-
-              return {
-                id: conv.id,
-                name: userName,
-                subtitle: `de l'annonce ${announcementTitle}`,
-                lastMessage: lastMessageText,
-                time: lastMessageTime,
-                unreadCount: unreadCount > 0 ? unreadCount : undefined,
-                avatar: userAvatar,
-                status,
-                reservationStatus, // Add reservation status for filtering
-              } as MessageListItem & { reservationStatus: string | null };
-            });
-
-            // Sort by last message time
-            const messages = data.messages;
-            transformedConversations.sort((a, b) => {
-              const messagesA = messages.filter((m: any) => m.conversationId === a.id);
-              const messagesB = messages.filter((m: any) => m.conversationId === b.id);
-              const lastA = messagesA.sort((x: any, y: any) => new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime())[0];
-              const lastB = messagesB.sort((x: any, y: any) => new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime())[0];
-              const timeA = lastA?.createdAt ? new Date(lastA.createdAt).getTime() : 0;
-              const timeB = lastB?.createdAt ? new Date(lastB.createdAt).getTime() : 0;
-              return timeB - timeA;
-            });
-
-            setAllConversations(transformedConversations);
-            setConversations(transformedConversations);
-          }
-        } catch (error) {
-          console.error('Error reloading conversations', error);
-        }
-      };
-
       // Small delay to ensure we're back on the page
       const timer = setTimeout(() => {
-        loadConversations();
+        loadConversationsData();
       }, 100);
       
       return () => clearTimeout(timer);
     }
-  }, [currentPage, currentUserId]);
+  }, [currentPage, currentUserId, loadConversationsData]);
+
+  // Listen for custom event to refresh conversations (triggered when leaving chat)
+  React.useEffect(() => {
+    const handleRefreshConversations = () => {
+      if (currentPage === 'messages' && currentUserId) {
+        console.log('Refreshing conversations from custom event');
+        loadConversationsData();
+      }
+    };
+
+    window.addEventListener('refreshConversations', handleRefreshConversations);
+    return () => {
+      window.removeEventListener('refreshConversations', handleRefreshConversations);
+    };
+  }, [currentPage, currentUserId, loadConversationsData]);
 
   // Listen for read events from chat to update unread counters live
   React.useEffect(() => {
