@@ -301,14 +301,13 @@ export default function ChatContent() {
               const isMe = msgFromUserId === currentUserIdNum;
               const msgTime = dayjs(msg.createdAt);
               const now = dayjs();
-              const diffDays = now.diff(msgTime, 'day');
 
               // Format time (HH:mm)
               const timeStr = msgTime.format('HH:mm');
               
               // Format date (DD:MM:YY) for grouping and display
               const dateStr = msgTime.format('YYYY-MM-DD'); // For grouping
-              const dateLabel = msgTime.format('DD:MM:YY'); // For display
+              const dateLabel = msgTime.format('DD/MM/YY'); // For display
 
               return {
                 id: msg.id,
@@ -401,7 +400,7 @@ export default function ChatContent() {
                     const msgTime = dayjs(msg.createdAt);
                     const timeStr = msgTime.format('HH:mm');
                     const dateStr = msgTime.format('YYYY-MM-DD');
-                    const dateLabel = msgTime.format('DD:MM:YY');
+                    const dateLabel = msgTime.format('DD/MM/YY');
                     const isMe = Number(msg.fromUserId) === Number(currentUserId);
                     
                     // Check if message already exists to avoid duplicates
@@ -656,7 +655,7 @@ export default function ChatContent() {
         const msgTime = dayjs(msg.createdAt);
         const timeStr = msgTime.format('HH:mm');
         const dateStr = msgTime.format('YYYY-MM-DD');
-        const dateLabel = msgTime.format('DD:MM:YY');
+        const dateLabel = msgTime.format('DD/MM/YY');
         setMessages((prev) => [...prev, { 
           id: msg.id, 
           author: 'me', 

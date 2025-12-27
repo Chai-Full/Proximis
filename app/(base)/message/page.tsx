@@ -119,7 +119,6 @@ export default function MessageContent() {
           const transformedConversations: MessageListItem[] = data.conversations.map((conv: any) => {
             // Find the other user (not the current user) from enriched conversation data
             const convFromUserId = typeof conv.fromUserId === 'number' ? conv.fromUserId : Number(conv.fromUserId);
-            const convToUserId = typeof conv.toUserId === 'number' ? conv.toUserId : Number(conv.toUserId);
             const currentUserIdNum = Number(currentUserId);
             
             // Determine which user is the "other" user and get their data from enriched conversation
@@ -147,7 +146,7 @@ export default function MessageContent() {
             let lastMessageTime = '';
             if (lastMessage?.createdAt) {
               const messageDate = dayjs(lastMessage.createdAt);
-              lastMessageTime = messageDate.format('DD:MM:YY');
+              lastMessageTime = messageDate.format('DD/MM/YY');
             }
 
             // Count unread messages (messages not read and from other user)
@@ -249,7 +248,7 @@ export default function MessageContent() {
               let lastMessageTime = '';
               if (lastMessage?.createdAt) {
                 const messageDate = dayjs(lastMessage.createdAt);
-                lastMessageTime = messageDate.format('DD:MM:YY');
+                lastMessageTime = messageDate.format('DD/MM/YY');
               }
 
               // Count unread messages (messages not read and from other user)
