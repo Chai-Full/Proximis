@@ -54,6 +54,9 @@ export async function GET(req: NextRequest) {
       modePrefUser: userData.type || null,
       perimPrefUser: userData.scope || null,
       role: userData.type || null,
+      adresse: userData.adresse || null,
+      codePostal: userData.codePostal || null,
+      pays: userData.pays || null,
     };
 
     return NextResponse.json({

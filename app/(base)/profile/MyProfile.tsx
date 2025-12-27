@@ -13,7 +13,9 @@ import { fetchWithAuth } from "../lib/auth";
 import { SkeletonProfile } from "../components/Skeleton";
 
 export default function MyProfile() {
-  const { currentUserId, setHeaderTitle, setCurrentPage, setSelectedAnnouncementId } = useContent();
+  // AJOUT : On récupère currentPage pour savoir quand la page devient active
+  const { currentUserId, setHeaderTitle, setCurrentPage, setSelectedAnnouncementId, currentPage } = useContent();
+  
   const [profileStats, setProfileStats] = useState<{
     servicesRendered: number;
     reviews: number;
@@ -38,20 +40,36 @@ export default function MyProfile() {
 
     const loadData = async () => {
       try {
-        // Load user data and stats in parallel
-        const [usersRes, statsRes] = await Promise.all([
-          fetchWithAuth('/api/users'),
-          fetchWithAuth('/api/profile/stats'),
+        // AJOUT : timestamp pour éviter le cache du navigateur
+        const timestamp = Date.now();
+
+        // Load user data from /api/auth/me and stats in parallel
+        // AJOUT : ?t=${timestamp} pour forcer le rafraîchissement
+        const [meRes, statsRes] = await Promise.all([
+          fetchWithAuth(`/api/auth/me?t=${timestamp}`),
+          fetchWithAuth(`/api/profile/stats?t=${timestamp}`),
         ]);
 
         if (cancelled) return;
 
-        // Load user data
-        if (usersRes && usersRes.ok) {
-          const usersData = await usersRes.json();
-          if (usersData?.users && Array.isArray(usersData.users)) {
-            const foundUser = usersData.users.find((u: any) => Number(u.id) === Number(currentUserId));
-            if (!cancelled) setUser(foundUser || null);
+        // Load user data from /api/auth/me
+        if (meRes && meRes.ok) {
+          const meData = await meRes.json();
+          if (meData?.success && meData?.data) {
+            const mappedUser = {
+              id: meData.data.idUser,
+              nom: meData.data.nomUser,
+              prenom: meData.data.prenomUser,
+              email: meData.data.mailUser,
+              photo: meData.data.photoUser,
+              adresse: meData.data.adresse,
+              codePostal: meData.data.codePostal,
+              pays: meData.data.pays,
+              type: meData.data.role || meData.data.modePrefUser,
+              scope: meData.data.perimPrefUser,
+              createdAt: meData.data.dateInscrUser,
+            };
+            if (!cancelled) setUser(mappedUser);
           }
         }
 
@@ -76,7 +94,8 @@ export default function MyProfile() {
     return () => {
       cancelled = true;
     };
-  }, [currentUserId]);
+    // AJOUT : currentPage dans les dépendances pour recharger quand on revient sur la page
+  }, [currentUserId, currentPage]);
 
   const fullName = user ? `${user.prenom} ${user.nom}`.trim() : "Profil";
   const initials = fullName
@@ -153,7 +172,6 @@ export default function MyProfile() {
         photo={user.photo ?? null}
         onEdit={() => setCurrentPage("profil_edit")}
         onRatingClick={() => {
-          // Show all reviews across my announcements
           setSelectedAnnouncementId && setSelectedAnnouncementId('all_my_reviews');
           setCurrentPage && setCurrentPage('reviews');
         }}
@@ -163,4 +181,3 @@ export default function MyProfile() {
     </div>
   );
 }
-
