@@ -324,7 +324,6 @@ function AnnouncementSearchPageContent() {
                     <div className='searchResultContent'>
                         {loadingAnnouncements ? (
                             <>
-                                <span className='T4'>Chargement...</span>
                                 {/* Liste des skeletons */}
                                 <div className='searchResultList'>
                                     {[...Array(6)].map((_, index) => (
