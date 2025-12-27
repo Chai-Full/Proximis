@@ -12,6 +12,25 @@ import PlaceAutocomplete from "../../register/components/AutoCompletePlace";
 import Notification from "../components/Notification";
 import { fetchWithAuth } from "../lib/auth";
 
+// Validation function for name fields (nom and prenom)
+// Allows only letters, spaces, apostrophes ('), hyphens (-), and c cedilla (ç)
+// Explicitly excludes digits and special characters
+const validateName = (value: string) => {
+  if (!value) return "Ce champ est obligatoire";
+  
+  // Check for digits explicitly
+  if (/\d/.test(value)) {
+    return "Le nom ne peut contenir ni chiffres ni caractères spéciaux (sauf ' - ç)";
+  }
+  
+  // Regex: allows letters (including accents), spaces, apostrophes, hyphens, and ç
+  const nameRegex = /^[a-zA-ZÀ-ÿ\s'-çÇ]+$/;
+  if (!nameRegex.test(value)) {
+    return "Le nom ne peut contenir ni chiffres ni caractères spéciaux (sauf ' - ç)";
+  }
+  return true;
+};
+
 type FormInputs = {
   prenom: string;
   nom: string;
@@ -296,7 +315,10 @@ export default function EditProfileContent() {
             id="prenom"
             variant="filled"
             fullWidth
-            {...methods.register("prenom", { required: "Prénom obligatoire" })}
+            {...methods.register("prenom", { 
+              required: "Prénom obligatoire",
+              validate: validateName
+            })}
             error={!!methods.formState.errors.prenom}
             helperText={methods.formState.errors.prenom?.message}
           />
@@ -308,7 +330,10 @@ export default function EditProfileContent() {
             id="nom"
             variant="filled"
             fullWidth
-            {...methods.register("nom", { required: "Nom obligatoire" })}
+            {...methods.register("nom", { 
+              required: "Nom obligatoire",
+              validate: validateName
+            })}
             error={!!methods.formState.errors.nom}
             helperText={methods.formState.errors.nom?.message}
           />

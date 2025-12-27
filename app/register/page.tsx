@@ -16,6 +16,25 @@ import "./index.css";
 import Link from "next/link";
 
 
+// Validation function for name fields (nom and prenom)
+// Allows only letters, spaces, apostrophes ('), hyphens (-), and c cedilla (ç)
+// Explicitly excludes digits and special characters
+const validateName = (value: string) => {
+  if (!value) return "Ce champ est obligatoire";
+  
+  // Check for digits explicitly
+  if (/\d/.test(value)) {
+    return "Le nom ne peut contenir ni chiffres ni caractères spéciaux (sauf ' - ç)";
+  }
+  
+  // Regex: allows letters (including accents), spaces, apostrophes, hyphens, and ç
+  const nameRegex = /^[a-zA-ZÀ-ÿ\s'-çÇ]+$/;
+  if (!nameRegex.test(value)) {
+    return "Le nom ne peut contenir ni chiffres ni caractères spéciaux (sauf ' - ç)";
+  }
+  return true;
+};
+
 export default function SignupPage() {
   const methods = useForm<SignupInputs>({
     defaultValues: {
@@ -110,7 +129,10 @@ export default function SignupPage() {
                 <label htmlFor="nom" className="T3" style={{ color: "#545454", textTransform: "capitalize" }}>Nom</label>
                 <TextField
                   id="nom"
-                  {...methods.register("nom", { required: "Nom obligatoire" })}
+                  {...methods.register("nom", { 
+                    required: "Nom obligatoire",
+                    validate: validateName
+                  })}
                   error={!!methods.formState.errors.nom}
                   helperText={methods.formState.errors.nom?.message}
                   size="medium"
@@ -125,7 +147,10 @@ export default function SignupPage() {
                 <label htmlFor="prenom" className="T3" style={{ color: "#545454", textTransform: "capitalize" }}>Prénom</label>
                 <TextField
                   id="prenom"
-                  {...methods.register("prenom", { required: "Prénom obligatoire" })}
+                  {...methods.register("prenom", { 
+                    required: "Prénom obligatoire",
+                    validate: validateName
+                  })}
                   error={!!methods.formState.errors.prenom}
                   helperText={methods.formState.errors.prenom?.message}
                   size="medium"
