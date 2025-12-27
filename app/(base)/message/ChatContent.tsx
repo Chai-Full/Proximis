@@ -22,6 +22,7 @@ type ChatMessage = {
   time: string;
   date: string; // Full date for grouping
   dateLabel: string; // Formatted date label (DD:MM:YY)
+  read?: boolean; // Whether the message has been read by the recipient
 };
 
 // Utility functions for distance calculation (copied from AnnouncementDetails.tsx)
@@ -339,6 +340,7 @@ export default function ChatContent() {
                 time: timeStr,
                 date: dateStr,
                 dateLabel: dateLabel,
+                read: msg.read || false, // Include read status from API
               };
             });
 
@@ -359,6 +361,13 @@ export default function ChatContent() {
             if (markReadRes.ok) {
               const markReadData = await markReadRes.json();
               console.log('Messages marked as read:', markReadData.updatedCount);
+              
+              // Note: The API marks messages sent TO the current user as read (messages from "other")
+              // For messages sent BY the current user (author === "me"), we need to check if the other user has read them
+              // This would require the other user to mark them as read, which we'd receive via SSE or a separate check
+              // For now, we'll reload the conversation to get updated read status for our messages
+              // In a future update, we can add real-time read status updates via SSE
+              
               // Notify other parts of the UI that messages were marked as read
               try {
                 if (typeof window !== 'undefined') {
@@ -437,6 +446,7 @@ export default function ChatContent() {
                         time: timeStr,
                         date: dateStr,
                         dateLabel: dateLabel,
+                        read: msg.read || false, // Include read status from SSE
                       }];
                     });
                   } else if (parsed && parsed.type === 'connected') {
@@ -697,7 +707,19 @@ export default function ChatContent() {
                   }`}
                 >
                   <span className="T5">{message.text}</span>
-                  <span className="T7 chatTime">{message.time}</span>
+                  <div className="chatMessageFooter">
+                    <span className="T7 chatTime">{message.time}</span>
+                    {message.author === "me" && (
+                      <span className="chatReadIndicator" style={{ 
+                        fontSize: '12px',
+                        color: message.read ? '#e6f5ef' : 'rgba(230, 245, 239, 0.6)',
+                        lineHeight: '1',
+                        marginLeft: '4px'
+                      }}>
+                        {message.read ? '✓✓' : '✓'}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </React.Fragment>
             );
@@ -759,6 +781,7 @@ export default function ChatContent() {
           time: timeStr,
           date: dateStr,
           dateLabel: dateLabel,
+          read: msg.read || false, // New messages are not read yet
         }]);
         setInputValue('');
       } else {
