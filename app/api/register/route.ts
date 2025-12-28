@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '../../lib/mongodb';
+import { generateToken } from '../../lib/jwt';
 
 type User = {
   nom: string;
@@ -87,10 +88,20 @@ export async function POST(request: Request) {
 
     await db.collection('users').insertOne(newUser);
 
-    // Redirect to home page
-    const url = new URL(request.url);
-    url.pathname = '/';
-    return NextResponse.redirect(url);
+    // Generate JWT token for the new user
+    const token = generateToken({
+      userId: newUser.id,
+      email: newUser.email,
+    });
+
+    // Return user data and token (same format as login)
+    const { _id, ...userData } = newUser;
+
+    return NextResponse.json({
+      ok: true,
+      user: userData,
+      token,
+    });
   } catch (err: any) {
     console.error('Error registering user:', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

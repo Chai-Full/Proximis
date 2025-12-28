@@ -58,8 +58,20 @@ export default function SignupPage() {
       body: JSON.stringify(data)
     });
     if (response.ok) {
-      // Redirection manuelle côté client si redirection serveur pas prise en compte
+      const result = await response.json();
+      
+      // Store user ID and token in localStorage (same as login)
+      if (result.ok && result.user && result.token) {
+        try {
+          localStorage.setItem('proximis_userId', String(result.user.id));
+          localStorage.setItem('proximis_token', result.token);
+        } catch (e) {
+          console.error('Error storing auth data:', e);
+        }
+      }
+      
       setLoading(false);
+      // Redirect to home page
       window.location.href = '/home';
     } else {
       setLoading(false);
